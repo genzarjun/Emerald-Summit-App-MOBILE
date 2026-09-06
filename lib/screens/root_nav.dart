@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app_navigation.dart';
 import 'schedule_screen.dart';
 import 'discover_screen.dart';
 import 'announcements_screen.dart';
@@ -7,17 +8,10 @@ import 'resources_screen.dart';
 import 'profile_screen.dart';
 
 /// Bottom-tab shell hosting the five main sections of the app.
-class RootNav extends StatefulWidget {
+class RootNav extends StatelessWidget {
   const RootNav({super.key});
 
-  @override
-  State<RootNav> createState() => _RootNavState();
-}
-
-class _RootNavState extends State<RootNav> {
-  int _index = 0;
-
-  final _screens = const [
+  static const _screens = [
     ScheduleScreen(),
     DiscoverScreen(),
     AnnouncementsScreen(),
@@ -27,11 +21,15 @@ class _RootNavState extends State<RootNav> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+    // Driven by the global [rootTab] so code outside the widget tree (the in-app
+    // banner) can switch tabs.
+    return ValueListenableBuilder<int>(
+      valueListenable: rootTab,
+      builder: (context, index, _) => Scaffold(
+        body: IndexedStack(index: index, children: _screens),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (i) => rootTab.value = i,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.event_note_outlined),
@@ -59,6 +57,7 @@ class _RootNavState extends State<RootNav> {
             label: 'Profile',
           ),
         ],
+        ),
       ),
     );
   }

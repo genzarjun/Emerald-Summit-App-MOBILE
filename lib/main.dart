@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'app_state.dart';
 import 'supabase_config.dart';
 import 'theme.dart';
+import 'widgets/in_app_banner.dart';
 import 'screens/auth/auth_gate.dart';
 import 'screens/root_nav.dart';
 
@@ -16,6 +18,11 @@ Future<void> main() async {
       url: SupabaseConfig.supabaseUrl,
       publishableKey: SupabaseConfig.supabasePublishableKey,
     );
+  } else {
+    // Sample mode goes straight to the app (no auth gate), so prime the catalog
+    // and feed here. In backend mode the auth gate loads them after the profile.
+    await appState.loadCatalog();
+    await appState.loadAnnouncements();
   }
 
   runApp(const EmeraldSummitApp());
@@ -52,7 +59,8 @@ class EmeraldSummitApp extends StatelessWidget {
               maxScaleFactor: 1.3,
             ),
           ),
-          child: child!,
+          // Host the Instagram-style in-app banner above every screen.
+          child: InAppBannerHost(child: child!),
         );
       },
       // When the backend is configured, gate the app behind sign-in. In sample

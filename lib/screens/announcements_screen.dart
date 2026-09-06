@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../data/announcements_repository.dart';
-import '../data/sample_data.dart';
-import '../models/models.dart';
+import '../app_state.dart';
 import '../supabase_config.dart';
 import '../theme.dart';
+import '../models/models.dart';
+import 'announcement_compose_screen.dart';
 
 /// "News" tab — the announcement feed (spec section 04 — Announcements).
 ///
-/// When Supabase is configured this pulls live from the `announcements`
-/// table; otherwise it falls back to local sample data. A banner at the top
-/// makes the data source obvious — this is the backend connectivity test.
-///
-/// Refresh works two ways: pull down on the list, or tap the app-bar button.
-/// Both call [_load], which re-fetches from Supabase and updates the feed.
+/// Reads from [appState], which loads the feed from Supabase (or sample data)
+/// and keeps it live via a Realtime subscription — a new announcement appears
+/// here the instant an admin posts it, alongside the in-app banner. Admins get
+/// a "New announcement" button.
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
 
@@ -22,103 +20,84 @@ class AnnouncementsScreen extends StatefulWidget {
 }
 
 class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
-  List<Announcement> _items = const [];
-  Object? _error;
-  bool _loading = false;
-
   @override
   void initState() {
     super.initState();
-    if (SupabaseConfig.isConfigured) {
-      _load();
-    } else {
-      _items = SampleData.announcements;
-    }
-  }
-
-  /// Re-fetches announcements from the backend. Safe to call repeatedly —
-  /// used by both pull-to-refresh and the app-bar refresh button.
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final items = await AnnouncementsRepository.fetch();
-      if (!mounted) return;
-      setState(() {
-        _items = items;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e;
-        _loading = false;
-      });
+    // Load if the feed hasn't been primed yet (e.g. opened before the auth gate
+    // finished, or a direct sample-mode open).
+    if (appState.announcements.isEmpty) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => appState.loadAnnouncements());
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Announcements'),
-        actions: [
-          if (SupabaseConfig.isConfigured)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Reload from backend',
-              onPressed: _loading ? null : _load,
-            ),
-        ],
-      ),
-      body: SupabaseConfig.isConfigured ? _buildLive() : _buildSample(),
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final items = appState.visibleAnnouncements;
+        final loading = appState.announcementsLoading;
+        final error = appState.announcementsError;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Announcements'),
+            actions: [
+              if (SupabaseConfig.isConfigured)
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Reload from backend',
+                  onPressed: loading ? null : appState.loadAnnouncements,
+                ),
+            ],
+          ),
+          floatingActionButton: appState.isAdmin
+              ? FloatingActionButton.extended(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AnnouncementComposeScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New'),
+                )
+              : null,
+          body: _body(items, loading, error),
+        );
+      },
     );
   }
 
-  // ---- Not configured: static sample data --------------------------------
-  Widget _buildSample() {
-    return Column(
-      children: [
-        const _SourceBanner(
-          live: false,
-          text: 'Sample data — Supabase not configured yet',
-        ),
-        Expanded(child: _list(_items)),
-      ],
-    );
-  }
+  Widget _body(List<Announcement> items, bool loading, Object? error) {
+    final live = SupabaseConfig.isConfigured;
 
-  // ---- Configured: live from Supabase ------------------------------------
-  Widget _buildLive() {
-    // First load, nothing to show yet.
-    if (_loading && _items.isEmpty && _error == null) {
+    if (loading && items.isEmpty && error == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    // Errored with no data to fall back on.
-    if (_error != null && _items.isEmpty) {
-      return _buildError(_error.toString());
+    if (error != null && items.isEmpty) {
+      return _buildError(error.toString());
     }
 
     return Column(
       children: [
         _SourceBanner(
-          live: true,
-          text: 'Live from Supabase · ${_items.length} '
-              'announcement${_items.length == 1 ? '' : 's'}',
+          live: live,
+          text: live
+              ? 'Live from Supabase · ${items.length} '
+                  'announcement${items.length == 1 ? '' : 's'}'
+              : 'Sample data — Supabase not configured yet',
         ),
-        // Thin progress bar while a refresh is in flight over existing data.
-        if (_loading)
+        if (loading)
           const LinearProgressIndicator(minHeight: 2)
         else
           const SizedBox(height: 2),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _load,
-            child: _items.isEmpty
+            onRefresh: appState.loadAnnouncements,
+            child: items.isEmpty
                 ? _emptyState()
-                : _list(_items, alwaysScrollable: true),
+                : _list(items, alwaysScrollable: true),
           ),
         ),
       ],
@@ -127,9 +106,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   Widget _list(List<Announcement> items, {bool alwaysScrollable = false}) {
     return ListView.separated(
-      physics: alwaysScrollable
-          ? const AlwaysScrollableScrollPhysics()
-          : null,
+      physics:
+          alwaysScrollable ? const AlwaysScrollableScrollPhysics() : null,
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
@@ -137,19 +115,15 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     );
   }
 
-  /// Connected but the table returned no rows. Kept scrollable so
-  /// pull-to-refresh still works from the empty state.
   Widget _emptyState() {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: [
+      children: const [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
+          padding: EdgeInsets.fromLTRB(24, 80, 24, 24),
           child: Center(
             child: Text(
-              'Connected to Supabase, but the announcements table is empty. '
-              'Add a row in the Supabase Table editor, then pull down to '
-              'refresh.',
+              'No announcements yet. Pull down to refresh.',
               textAlign: TextAlign.center,
             ),
           ),
@@ -178,7 +152,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: _loading ? null : _load,
+            onPressed: appState.announcementsLoading
+                ? null
+                : appState.loadAnnouncements,
             icon: const Icon(Icons.refresh),
             label: const Text('Try again'),
           ),
@@ -204,8 +180,7 @@ class _SourceBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          Icon(live ? Icons.cloud_done : Icons.storage,
-              size: 16, color: color),
+          Icon(live ? Icons.cloud_done : Icons.storage, size: 16, color: color),
           const SizedBox(width: 8),
           Expanded(
             child: Text(text,

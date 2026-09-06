@@ -20,4 +20,27 @@ class AnnouncementsRepository {
 
     return rows.map((r) => Announcement.fromMap(r)).toList();
   }
+
+  /// Posts a new announcement (admin only — enforced by RLS). Every open app is
+  /// notified via Realtime, and the row's insert is what a future push pipeline
+  /// would hang off. [disciplineId] targets an audience; null = everyone.
+  static Future<void> create({
+    required String title,
+    required String body,
+    required String author,
+    String audience = 'Everyone',
+    bool pinned = false,
+    String? disciplineId,
+  }) async {
+    final client = Supabase.instance.client;
+    await client.from('announcements').insert({
+      'title': title,
+      'body': body,
+      'author': author,
+      'audience': audience,
+      'pinned': pinned,
+      'discipline_id': disciplineId,
+      'created_by': client.auth.currentUser?.id,
+    });
+  }
 }

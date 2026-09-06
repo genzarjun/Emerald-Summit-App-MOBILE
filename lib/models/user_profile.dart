@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 /// The roles a Summit account can hold. Picked during sign-up; drives which
-/// onboarding fields we collect and (later) which RLS-scoped data the user
-/// sees. Stored as `profiles.role` (the enum `name`, e.g. "ambassador").
-enum SummitRole { participant, ambassador, expert, parent, admin }
+/// onboarding fields we collect and which management privileges the user gets.
+/// Stored as `profiles.role` (the enum `name`, e.g. "mentor").
+///
+/// `participant`, `expert`, `parent` are open to anyone. `mentor` and `admin`
+/// are gated: the email must be on the synced `role_allowlist` (from the Google
+/// Sheets) or the server forces the account back to `participant`. Mentors are
+/// discipline-scoped; admins are global.
+enum SummitRole { participant, expert, parent, mentor, admin }
 
 /// One extra field collected during onboarding for a given role. The [key]
 /// is where the answer lands in `profiles.details` (a jsonb bag), so roles
@@ -30,35 +35,38 @@ extension SummitRoleX on SummitRole {
 
   String get label => switch (this) {
         SummitRole.participant => 'Participant',
-        SummitRole.ambassador => 'Ambassador',
         SummitRole.expert => 'Expert / Speaker',
-        SummitRole.parent => 'Parent / Guardian',
-        SummitRole.admin => 'Organizer',
+        SummitRole.parent => 'Parent / Spectator',
+        SummitRole.mentor => 'Mentor',
+        SummitRole.admin => 'Admin',
       };
 
   String get blurb => switch (this) {
         SummitRole.participant =>
           'Build your schedule and follow your summit day.',
-        SummitRole.ambassador =>
-          'Volunteer and help run the summit on the ground.',
         SummitRole.expert => 'Lead a session or speak at the summit.',
         SummitRole.parent => 'Follow along and stay in the loop.',
-        SummitRole.admin => 'Manage the summit, announcements, and users.',
+        SummitRole.mentor =>
+          'Help run the summit and manage your discipline’s sessions.',
+        SummitRole.admin => 'Manage the summit, announcements, and content.',
       };
 
   IconData get icon => switch (this) {
         SummitRole.participant => Icons.school_outlined,
-        SummitRole.ambassador => Icons.volunteer_activism_outlined,
         SummitRole.expert => Icons.mic_none_outlined,
         SummitRole.parent => Icons.family_restroom_outlined,
+        SummitRole.mentor => Icons.volunteer_activism_outlined,
         SummitRole.admin => Icons.admin_panel_settings_outlined,
       };
 
+  /// Whether this role must be verified against the synced allowlist at sign-up.
+  bool get isGated => this == SummitRole.mentor || this == SummitRole.admin;
+
   /// Role-specific onboarding questions, asked after name + role.
   ///
-  /// The design intent (per spec): ask ambassadors for full contact details
-  /// since they're staffing the event, but keep experts light — we don't want
-  /// to over-collect from busy speakers.
+  /// The design intent (per spec): ask mentors for full contact details since
+  /// they're staffing the event, but keep experts light — we don't want to
+  /// over-collect from busy speakers. Admins need nothing extra.
   List<ProfileField> get onboardingFields => switch (this) {
         SummitRole.participant => const [
             ProfileField(key: 'school', label: 'School', hint: 'e.g. Emerald High'),
@@ -68,7 +76,7 @@ extension SummitRoleX on SummitRole {
                 label: 'Dietary needs (optional)',
                 hint: 'e.g. vegetarian, nut allergy'),
           ],
-        SummitRole.ambassador => const [
+        SummitRole.mentor => const [
             ProfileField(key: 'school', label: 'School', hint: 'e.g. Emerald High'),
             ProfileField(key: 'grade', label: 'Grade', hint: 'e.g. 11'),
             ProfileField(
@@ -133,14 +141,37 @@ class UserProfile {
     this.fullName = '',
     this.role = SummitRole.participant,
     this.onboarded = false,
+    this.notificationsEnabled = true,
+    this.volunteerHours = 0,
+    List<String>? managedDisciplines,
     Map<String, dynamic>? details,
-  }) : details = details ?? <String, dynamic>{};
+  })  : managedDisciplines = managedDisciplines ?? const [],
+        details = details ?? <String, dynamic>{};
 
   final String id;
   final String email;
   String fullName;
   SummitRole role;
   bool onboarded;
+
+  /// Per-user app state, stored on the profile row so it follows the account
+  /// across devices (was in-memory in AppState before Phase 1).
+  bool notificationsEnabled;
+  double volunteerHours;
+
+  /// Discipline ids a mentor may manage, or `['*']` for a high-level mentor who
+  /// manages every discipline. Set by the server (the allowlist enforcement
+  /// trigger), read-only from the app's perspective. Empty for other roles.
+  final List<String> managedDisciplines;
+
+  /// True if this account may manage the given discipline (admins: always;
+  /// mentors: if scoped to it or holding the `*` wildcard).
+  bool canManageDiscipline(String disciplineId) {
+    if (role == SummitRole.admin) return true;
+    if (role != SummitRole.mentor) return false;
+    return managedDisciplines.contains('*') ||
+        managedDisciplines.contains(disciplineId);
+  }
 
   /// Role-specific answers (phone, school, org…) → `profiles.details` jsonb.
   final Map<String, dynamic> details;
@@ -151,9 +182,16 @@ class UserProfile {
         fullName: (row['full_name'] ?? '') as String,
         role: SummitRoleX.fromId(row['role'] as String?),
         onboarded: (row['onboarded'] ?? false) as bool,
+        notificationsEnabled: (row['notifications_enabled'] ?? true) as bool,
+        volunteerHours: (row['volunteer_hours'] as num?)?.toDouble() ?? 0,
+        managedDisciplines:
+            (row['managed_disciplines'] as List?)?.cast<String>() ?? const [],
         details: (row['details'] as Map?)?.cast<String, dynamic>() ?? {},
       );
 
+  /// Columns the app writes back. Deliberately omits per-user state that has its
+  /// own targeted update path (notifications_enabled, volunteer_hours) and any
+  /// role-scope columns the server owns, so a profile save never clobbers them.
   Map<String, dynamic> toMap() => {
         'id': id,
         'email': email,

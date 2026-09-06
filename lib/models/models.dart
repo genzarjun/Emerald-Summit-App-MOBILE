@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
 
-/// One of the six STEAM disciplines at the summit (spec section 04).
+/// Maps a discipline's stored `icon` string (from the `disciplines` table) to a
+/// Material [IconData]. We store a key rather than a Flutter object in the DB;
+/// admins pick from these when creating a discipline. Unknown keys fall back to
+/// a neutral icon so a new key never crashes the catalog.
+IconData disciplineIcon(String key) => switch (key) {
+      'terminal' => Icons.terminal,
+      'precision_manufacturing' => Icons.precision_manufacturing,
+      'biotech' => Icons.biotech,
+      'rocket_launch' => Icons.rocket_launch,
+      'palette' => Icons.palette,
+      'functions' => Icons.functions,
+      'science' => Icons.science,
+      'public' => Icons.public,
+      'psychology' => Icons.psychology,
+      'music_note' => Icons.music_note,
+      'engineering' => Icons.engineering,
+      'calculate' => Icons.calculate,
+      _ => Icons.category,
+    };
+
+/// One of the STEAM disciplines at the summit (spec section 04).
 class Discipline {
   const Discipline({
     required this.id,
@@ -15,6 +35,20 @@ class Discipline {
   final String tagline;
   final IconData icon;
   final List<Session> sessions;
+
+  /// Builds a [Discipline] from a `disciplines` row. Its [sessions] are fetched
+  /// separately (they live in their own table) and passed in by the repository.
+  factory Discipline.fromMap(
+    Map<String, dynamic> row, {
+    List<Session> sessions = const [],
+  }) =>
+      Discipline(
+        id: row['id'].toString(),
+        name: (row['name'] ?? '') as String,
+        tagline: (row['tagline'] ?? '') as String,
+        icon: disciplineIcon((row['icon'] ?? 'category') as String),
+        sessions: sessions,
+      );
 }
 
 /// A single session/activity a participant can add to their day plan.
@@ -33,6 +67,24 @@ class Session {
     required this.description,
     this.sponsor,
   });
+
+  /// Builds a [Session] from a `sessions_with_counts` view row. The view carries
+  /// the live `enrolled` count and the parent `discipline_name`, so capacity
+  /// rules and the display name work without a second query.
+  factory Session.fromMap(Map<String, dynamic> row) => Session(
+        id: row['id'].toString(),
+        title: (row['title'] ?? '') as String,
+        disciplineName: (row['discipline_name'] ?? '') as String,
+        track: (row['track'] ?? '') as String,
+        room: (row['room'] ?? '') as String,
+        expertName: (row['expert_name'] ?? '') as String,
+        start: (row['start_time'] ?? '00:00') as String,
+        end: (row['end_time'] ?? '00:00') as String,
+        capacity: (row['capacity'] ?? 0) as int,
+        enrolled: (row['enrolled'] as num?)?.toInt() ?? 0,
+        description: (row['description'] ?? '') as String,
+        sponsor: row['sponsor'] as String?,
+      );
 
   final String id;
   final String title;
@@ -85,6 +137,7 @@ class Announcement {
     required this.audience,
     required this.timeAgo,
     this.pinned = false,
+    this.disciplineId,
   });
 
   final String id;
@@ -94,6 +147,11 @@ class Announcement {
   final String audience;
   final String timeAgo;
   final bool pinned;
+
+  /// When set, this announcement targets one discipline — it only reaches users
+  /// who have an activity in that discipline (plus admins / its mentors). Null
+  /// means it goes to everyone.
+  final String? disciplineId;
 
   /// Builds an [Announcement] from a Supabase row. Columns map 1:1 except
   /// [timeAgo], which is derived from the `created_at` timestamp.
@@ -106,6 +164,7 @@ class Announcement {
       audience: (row['audience'] ?? 'Everyone') as String,
       pinned: (row['pinned'] ?? false) as bool,
       timeAgo: _relativeTime(row['created_at'] as String?),
+      disciplineId: row['discipline_id'] as String?,
     );
   }
 

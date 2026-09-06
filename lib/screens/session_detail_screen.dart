@@ -11,9 +11,10 @@ class SessionDetailScreen extends StatelessWidget {
   const SessionDetailScreen({super.key, required this.session});
   final Session session;
 
-  void _onToggle(BuildContext context) {
-    final result = appState.toggle(session);
+  Future<void> _onToggle(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
+    final result = await appState.toggle(session);
+    if (!context.mounted) return;
     messenger.hideCurrentSnackBar();
     switch (result.outcome) {
       case AddOutcome.added:
@@ -65,33 +66,39 @@ class SessionDetailScreen extends StatelessWidget {
       body: ListenableBuilder(
         listenable: appState,
         builder: (context, _) {
-          final registered = appState.isRegistered(session.id);
+          // Show the latest version from the live catalog so seats/enrolled
+          // stay accurate; fall back to the one we were handed.
+          final current = appState.allSessions.firstWhere(
+            (s) => s.id == session.id,
+            orElse: () => session,
+          );
+          final registered = appState.isRegistered(current.id);
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             children: [
-              Text(session.track.toUpperCase(),
+              Text(current.track.toUpperCase(),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.primary,
                     letterSpacing: 1,
                   )),
               const SizedBox(height: 6),
-              Text(session.title, style: theme.textTheme.headlineSmall),
+              Text(current.title, style: theme.textTheme.headlineSmall),
               const SizedBox(height: 16),
-              _InfoRow(icon: Icons.schedule, text: session.timeLabel),
-              _InfoRow(icon: Icons.place, text: session.room),
+              _InfoRow(icon: Icons.schedule, text: current.timeLabel),
+              _InfoRow(icon: Icons.place, text: current.room),
               _InfoRow(
-                  icon: Icons.person, text: 'Expert: ${session.expertName}'),
+                  icon: Icons.person, text: 'Expert: ${current.expertName}'),
               _InfoRow(
                 icon: Icons.groups,
-                text: session.isFull
-                    ? 'Full (${session.enrolled}/${session.capacity})'
-                    : '${session.seatsLeft} of ${session.capacity} seats left',
+                text: current.isFull
+                    ? 'Full (${current.enrolled}/${current.capacity})'
+                    : '${current.seatsLeft} of ${current.capacity} seats left',
               ),
               const SizedBox(height: 20),
               Text('About this session', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
-              Text(session.description, style: theme.textTheme.bodyLarge),
-              if (session.sponsor != null) ...[
+              Text(current.description, style: theme.textTheme.bodyLarge),
+              if (current.sponsor != null) ...[
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(14),
@@ -105,7 +112,7 @@ class SessionDetailScreen extends StatelessWidget {
                           size: 18, color: theme.colorScheme.primary),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(session.sponsor!,
+                        child: Text(current.sponsor!,
                             style: theme.textTheme.bodyMedium),
                       ),
                     ],
@@ -114,7 +121,9 @@ class SessionDetailScreen extends StatelessWidget {
               ],
               const SizedBox(height: 28),
               FilledButton.icon(
-                onPressed: () => _onToggle(context),
+                onPressed: () {
+                  _onToggle(context);
+                },
                 style: registered
                     ? FilledButton.styleFrom(
                         backgroundColor: theme.colorScheme.errorContainer,

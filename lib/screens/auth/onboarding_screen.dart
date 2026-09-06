@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app_state.dart';
+import '../../data/allowlist_repository.dart';
 import '../../models/user_profile.dart';
 
 /// First-run account setup, shown once after a user's first sign-in (while
@@ -10,8 +11,11 @@ import '../../models/user_profile.dart';
 /// Two steps:
 ///   1. Name + role.
 ///   2. Role-specific details — the questions come from the chosen role
-///      (see [SummitRoleX.onboardingFields]), so an ambassador is asked for
-///      full contact info while an expert is asked only the essentials.
+///      (see [SummitRoleX.onboardingFields]), so a mentor is asked for full
+///      contact info while an expert is asked only the essentials.
+///
+/// Gated roles (mentor/admin) are verified against the synced allowlist before
+/// the user can continue past step 1.
 ///
 /// On finish the profile is saved to Supabase and the auth gate moves the
 /// user into the app.
@@ -34,11 +38,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _busy = false;
   String? _error;
 
+  /// True when an already-onboarded user is here to change their role, rather
+  /// than a first-time sign-up. Enables a close button and re-titles the screen.
+  bool get _editing => appState.isOnboarded;
+
   @override
   void initState() {
     super.initState();
-    // Prefill name if the profile already has one (e.g. re-running onboarding).
+    // Prefill name + current role (e.g. changing role from Profile).
     _nameController.text = appState.profile?.fullName ?? '';
+    _role = appState.profile?.role ?? SummitRole.participant;
     _syncFieldControllers();
   }
 
@@ -63,11 +72,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  void _goToDetails() {
+  Future<void> _goToDetails() async {
     if (_nameController.text.trim().isEmpty) {
       setState(() => _error = 'Please enter your name.');
       return;
     }
+
+    // Gated roles (mentor/admin) must be on the synced allowlist. This check is
+    // advisory UX — the server trigger is the real guard — but it's what lets us
+    // block ineligible sign-ups with a clear message before collecting details.
+    if (_role.isGated) {
+      setState(() {
+        _busy = true;
+        _error = null;
+      });
+      bool eligible;
+      try {
+        eligible = await AllowlistRepository.isEligible(_role);
+      } catch (_) {
+        eligible = false;
+      }
+      if (!mounted) return;
+      if (!eligible) {
+        setState(() {
+          _busy = false;
+          _error = _role == SummitRole.admin
+              ? "You aren't eligible to sign up as an admin."
+              : "You aren't eligible to sign up as a mentor.";
+        });
+        return;
+      }
+      setState(() => _busy = false);
+    }
+
     setState(() {
       _error = null;
       _syncFieldControllers();
@@ -107,7 +144,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     try {
       await appState.completeOnboarding(profile);
-      // Auth gate rebuilds on the notify and shows the app.
+      // First-time: the auth gate rebuilds on notify and shows the app.
+      // Editing from Profile: pop back to where we came from.
+      if (_editing && mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+              content: Text('You’re now a ${appState.userRole}.')));
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -121,13 +166,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_step == 0 ? 'Welcome' : 'A few details'),
+        title: Text(_editing
+            ? 'Change role'
+            : (_step == 0 ? 'Welcome' : 'A few details')),
         leading: _step == 1
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: _busy ? null : () => setState(() => _step = 0),
               )
-            : null,
+            : (_editing
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: _busy ? null : () => Navigator.of(context).pop(),
+                  )
+                : null),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
@@ -292,7 +344,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Finish & enter the app'),
+              : Text(_editing ? 'Save role' : 'Finish & enter the app'),
         ),
       ],
     );

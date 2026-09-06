@@ -3,33 +3,78 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/models.dart';
 import 'session_detail_screen.dart';
+import 'session_editor_screen.dart';
 
-/// Lists the sessions within one discipline.
+/// Lists the sessions within one discipline. Admins and mentors scoped to this
+/// discipline also get controls to create and edit sessions.
 class DisciplineScreen extends StatelessWidget {
   const DisciplineScreen({super.key, required this.discipline});
   final Discipline discipline;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(discipline.name)),
-      body: ListenableBuilder(
-        listenable: appState,
-        builder: (context, _) => ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: discipline.sessions.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, i) =>
-              _SessionTile(session: discipline.sessions[i]),
-        ),
-      ),
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        // Resolve the latest version from the live catalog so session lists and
+        // enrolled counts stay fresh after adds/removes/edits; fall back to the
+        // one we were handed if it's no longer in the catalog.
+        final current = appState.disciplines.firstWhere(
+          (d) => d.id == discipline.id,
+          orElse: () => discipline,
+        );
+        final canManage = appState.canManageDiscipline(current.id);
+        final sessions = current.sessions;
+
+        return Scaffold(
+          appBar: AppBar(title: Text(current.name)),
+          floatingActionButton: canManage
+              ? FloatingActionButton.extended(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          SessionEditorScreen(discipline: current),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New session'),
+                )
+              : null,
+          body: sessions.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text(
+                      'No sessions in this discipline yet.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: sessions.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) => _SessionTile(
+                    session: sessions[i],
+                    discipline: current,
+                    canManage: canManage,
+                  ),
+                ),
+        );
+      },
     );
   }
 }
 
 class _SessionTile extends StatelessWidget {
-  const _SessionTile({required this.session});
+  const _SessionTile({
+    required this.session,
+    required this.discipline,
+    required this.canManage,
+  });
   final Session session;
+  final Discipline discipline;
+  final bool canManage;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +102,20 @@ class _SessionTile extends StatelessWidget {
                   if (registered)
                     Icon(Icons.check_circle,
                         color: theme.colorScheme.primary, size: 20),
+                  if (canManage)
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 20),
+                      tooltip: 'Edit session',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SessionEditorScreen(
+                            discipline: discipline,
+                            session: session,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 8),

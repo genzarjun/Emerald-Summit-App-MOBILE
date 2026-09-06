@@ -33,4 +33,13 @@ class ProfileRepository {
   static Future<void> save(UserProfile profile) async {
     await _client.from('profiles').upsert(profile.toMap());
   }
+
+  /// Updates just the given columns on the current user's row (RLS-scoped to
+  /// them). Used for per-user state like the notifications toggle, so it never
+  /// clobbers the rest of the profile.
+  static Future<void> patch(Map<String, dynamic> fields) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    await _client.from('profiles').update(fields).eq('id', user.id);
+  }
 }
