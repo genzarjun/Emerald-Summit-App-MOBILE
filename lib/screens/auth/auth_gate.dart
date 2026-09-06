@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app_state.dart';
+import '../../backend/service_locator.dart';
 import '../root_nav.dart';
 import 'onboarding_screen.dart';
 import 'sign_in_screen.dart';
@@ -12,19 +12,18 @@ import 'sign_in_screen.dart';
 ///   session, no profile → [OnboardingScreen]
 ///   session, onboarded  → the app ([RootNav])
 ///
-/// Rebuilds automatically whenever the Supabase auth state changes (sign-in,
-/// sign-out, token refresh). Only used when Supabase is configured; in sample
-/// mode `main` shows [RootNav] directly.
+/// Rebuilds automatically whenever the backend's auth state changes (sign-in,
+/// sign-out, token refresh). Only used with a live backend; in sample mode
+/// `main` shows [RootNav] directly.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
+    return StreamBuilder<void>(
+      stream: authService.authStateChanges,
       builder: (context, _) {
-        final session = Supabase.instance.client.auth.currentSession;
-        if (session == null) return const SignInScreen();
+        if (!authService.isSignedIn) return const SignInScreen();
         return const _ProfileLoader();
       },
     );

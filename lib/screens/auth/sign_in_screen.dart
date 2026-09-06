@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../backend/backend.dart';
+import '../../backend/service_locator.dart';
 import '../../theme.dart';
 
-/// Passwordless email sign-in (Supabase email OTP).
+/// Passwordless email sign-in (email one-time code, via the backend seam).
 ///
 /// Two phases in one screen:
-///   1. Enter email  → Supabase emails a 6-digit code (creating the account
+///   1. Enter email  → the backend emails a 6-digit code (creating the account
 ///      on first sign-in — same screen handles sign-up and sign-in).
-///   2. Enter code    → verifyOTP establishes the session.
+///   2. Enter code    → verification establishes the session.
 ///
 /// No password is ever created or stored. On success the auth gate reacts to
 /// the new session and routes onward.
@@ -27,8 +28,6 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _codeSent = false;
   bool _busy = false;
   String? _error;
-
-  SupabaseClient get _auth => Supabase.instance.client;
 
   @override
   void dispose() {
@@ -52,13 +51,13 @@ class _SignInScreenState extends State<SignInScreen> {
       _error = null;
     });
     try {
-      await _auth.auth.signInWithOtp(email: _email, shouldCreateUser: true);
+      await authService.sendEmailOtp(_email);
       if (!mounted) return;
       setState(() {
         _codeSent = true;
         _busy = false;
       });
-    } on AuthException catch (e) {
+    } on AuthFailure catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.message;
@@ -84,14 +83,10 @@ class _SignInScreenState extends State<SignInScreen> {
       _error = null;
     });
     try {
-      await _auth.auth.verifyOTP(
-        type: OtpType.email,
-        email: _email,
-        token: code,
-      );
+      await authService.verifyEmailOtp(email: _email, code: code);
       // Success: the auth gate's stream picks up the new session and navigates.
       // This widget will be disposed, so nothing more to do here.
-    } on AuthException catch (e) {
+    } on AuthFailure catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.message;
@@ -203,8 +198,8 @@ class _SignInScreenState extends State<SignInScreen> {
           enabled: !_busy,
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,
-          // Supabase's OTP length is configurable (6–10); cap generously so a
-          // longer-than-expected code is never silently truncated.
+          // The email OTP length can vary by backend (6–10); cap generously so
+          // a longer-than-expected code is never silently truncated.
           maxLength: 10,
           autofocus: true,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],

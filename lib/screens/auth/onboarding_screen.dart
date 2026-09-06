@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app_state.dart';
-import '../../data/allowlist_repository.dart';
+import '../../backend/service_locator.dart';
 import '../../models/user_profile.dart';
 
 /// First-run account setup, shown once after a user's first sign-in (while
@@ -17,8 +16,8 @@ import '../../models/user_profile.dart';
 /// Gated roles (mentor/admin) are verified against the synced allowlist before
 /// the user can continue past step 1.
 ///
-/// On finish the profile is saved to Supabase and the auth gate moves the
-/// user into the app.
+/// On finish the profile is saved through the backend and the auth gate moves
+/// the user into the app.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -88,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       });
       bool eligible;
       try {
-        eligible = await AllowlistRepository.isEligible(_role);
+        eligible = await allowlistRepository.isEligible(_role);
       } catch (_) {
         eligible = false;
       }
@@ -127,7 +126,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _error = null;
     });
 
-    final user = Supabase.instance.client.auth.currentUser;
+    final user = authService.currentUser;
     final details = <String, dynamic>{
       for (final field in _role.onboardingFields)
         if ((_fieldControllers[field.key]?.text.trim() ?? '').isNotEmpty)

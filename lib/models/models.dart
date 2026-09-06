@@ -153,8 +153,8 @@ class Announcement {
   /// means it goes to everyone.
   final String? disciplineId;
 
-  /// Builds an [Announcement] from a Supabase row. Columns map 1:1 except
-  /// [timeAgo], which is derived from the `created_at` timestamp.
+  /// Builds an [Announcement] from a backend row (see the repository row
+  /// contract). Columns map 1:1 except [timeAgo], derived from `created_at`.
   factory Announcement.fromMap(Map<String, dynamic> row) {
     return Announcement(
       id: row['id'].toString(),

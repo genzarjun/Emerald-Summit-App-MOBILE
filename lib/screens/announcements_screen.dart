@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import '../supabase_config.dart';
+import '../backend/service_locator.dart';
 import '../theme.dart';
 import '../models/models.dart';
 import 'announcement_compose_screen.dart';
 
 /// "News" tab — the announcement feed (spec section 04 — Announcements).
 ///
-/// Reads from [appState], which loads the feed from Supabase (or sample data)
-/// and keeps it live via a Realtime subscription — a new announcement appears
+/// Reads from [appState], which loads the feed from the backend (or sample data)
+/// and keeps it live via the backend's event stream — a new announcement appears
 /// here the instant an admin posts it, alongside the in-app banner. Admins get
 /// a "New announcement" button.
 class AnnouncementsScreen extends StatefulWidget {
@@ -44,7 +44,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           appBar: AppBar(
             title: const Text('Announcements'),
             actions: [
-              if (SupabaseConfig.isConfigured)
+              if (backendInfo.isLive)
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   tooltip: 'Reload from backend',
@@ -70,7 +70,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   }
 
   Widget _body(List<Announcement> items, bool loading, Object? error) {
-    final live = SupabaseConfig.isConfigured;
+    final live = backendInfo.isLive;
 
     if (loading && items.isEmpty && error == null) {
       return const Center(child: CircularProgressIndicator());
@@ -84,9 +84,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         _SourceBanner(
           live: live,
           text: live
-              ? 'Live from Supabase · ${items.length} '
+              ? 'Live from ${backendInfo.name} · ${items.length} '
                   'announcement${items.length == 1 ? '' : 's'}'
-              : 'Sample data — Supabase not configured yet',
+              : 'Sample data — no backend configured yet',
         ),
         if (loading)
           const LinearProgressIndicator(minHeight: 2)

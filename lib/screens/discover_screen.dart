@@ -8,7 +8,7 @@ import 'discipline_screen.dart';
 
 /// "Discover" tab — a browsable catalog of all disciplines
 /// (spec section 04 — Build your own schedule). Reads the live catalog from
-/// [appState] (Supabase-backed; sample data when the backend isn't configured).
+/// [appState] (backend-backed; sample data when no backend is configured).
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
 

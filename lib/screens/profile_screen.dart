@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import '../supabase_config.dart';
+import '../backend/service_locator.dart';
 import '../theme.dart';
 import 'auth/onboarding_screen.dart';
 
@@ -126,7 +126,7 @@ class _VisibilityCard extends StatelessWidget {
                   value: appState.notificationsEnabled,
                   onChanged: appState.setNotifications,
                 ),
-                if (SupabaseConfig.isConfigured)
+                if (backendInfo.isLive)
                   ListTile(
                     leading: Icon(Icons.badge_outlined,
                         color: theme.colorScheme.primary),
@@ -138,7 +138,7 @@ class _VisibilityCard extends StatelessWidget {
                           builder: (_) => const OnboardingScreen()),
                     ),
                   ),
-                if (SupabaseConfig.isConfigured)
+                if (backendInfo.isLive)
                   ListTile(
                     leading:
                         Icon(Icons.logout, color: theme.colorScheme.error),

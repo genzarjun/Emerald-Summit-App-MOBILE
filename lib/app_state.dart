@@ -1,19 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 
 import 'app_navigation.dart';
-import 'data/announcements_repository.dart';
-import 'data/disciplines_repository.dart';
-import 'data/profile_repository.dart';
-import 'data/registrations_repository.dart';
-import 'data/sample_data.dart';
-import 'data/sessions_repository.dart';
+import 'backend/backend.dart';
+import 'backend/service_locator.dart';
 import 'models/models.dart';
 import 'models/user_profile.dart';
-import 'supabase_config.dart';
 import 'widgets/in_app_banner.dart';
 
-/// Result of trying to add a session to the day plan.
+/// Result of trying to add a session to the day plan (app/UI-facing).
 enum AddOutcome { added, removed, conflict, full }
 
 class AddResult {
@@ -22,14 +18,12 @@ class AddResult {
   final String? conflictingTitle;
 }
 
-/// App-wide state. As of Phase 1 the catalog (disciplines + sessions) and the
-/// personal schedule are backed by Supabase; the notifications toggle and
-/// volunteer hours live on the user's profile row. When Supabase isn't
-/// configured everything falls back to in-memory [SampleData] so the UI
-/// skeleton still runs standalone.
+/// App-wide state. Talks ONLY to the backend seam (`backend/`) — it has no
+/// knowledge of which backend is active. Catalog, schedule, profile, and
+/// announcements all flow through the repository interfaces; the sample backend
+/// stands in when nothing is configured, so the UI skeleton still runs
+/// standalone.
 class AppState extends ChangeNotifier {
-  bool get _backend => SupabaseConfig.isConfigured;
-
   // ---- Catalog -------------------------------------------------------------
   List<Discipline> _disciplines = const [];
   bool catalogLoading = false;
@@ -41,15 +35,14 @@ class AppState extends ChangeNotifier {
   List<Session> get allSessions =>
       [for (final d in _disciplines) ...d.sessions];
 
-  /// Loads the catalog from Supabase (or sample data). Safe to call repeatedly;
-  /// used on startup and by pull-to-refresh.
+  /// Loads the catalog. Safe to call repeatedly; used on startup and by
+  /// pull-to-refresh.
   Future<void> loadCatalog() async {
     catalogLoading = true;
     catalogError = null;
     notifyListeners();
     try {
-      _disciplines =
-          _backend ? await DisciplinesRepository.fetchAll() : SampleData.disciplines;
+      _disciplines = await catalogRepository.fetchAll();
     } catch (e) {
       catalogError = e;
     } finally {
@@ -61,9 +54,8 @@ class AppState extends ChangeNotifier {
   /// Re-fetches the catalog WITHOUT flipping the loading flag, so enrolled
   /// counts refresh after a registration change without flashing a spinner.
   Future<void> _refreshCatalogSilently() async {
-    if (!_backend) return;
     try {
-      _disciplines = await DisciplinesRepository.fetchAll();
+      _disciplines = await catalogRepository.fetchAll();
     } catch (_) {
       // Keep the last-known catalog; the counts just stay briefly stale.
     }
@@ -82,12 +74,10 @@ class AppState extends ChangeNotifier {
 
   bool isRegistered(String id) => _mySessionIds.contains(id);
 
-  /// Loads the signed-in user's registrations. No-op in sample mode (the plan
-  /// is kept in memory there).
+  /// Loads the user's registrations into the local cache the UI reads.
   Future<void> loadSchedule() async {
-    if (!_backend) return;
     try {
-      final ids = await RegistrationsRepository.fetchMySessionIds();
+      final ids = await scheduleRepository.fetchMySessionIds();
       _mySessionIds
         ..clear()
         ..addAll(ids);
@@ -97,86 +87,62 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Toggles a session in the plan. In backend mode this defers to the
-  /// `register_for_session` RPC (the trusted enforcer of capacity + no-overlap);
-  /// in sample mode it applies the same rules in memory.
+  /// Toggles a session in the plan. The repository is the trusted enforcer of
+  /// capacity + no-overlap (server-side for a live backend, in-memory for the
+  /// sample one); this just mirrors the outcome into the UI cache.
   Future<AddResult> toggle(Session session) async {
-    if (_backend) return _toggleBackend(session);
-    return _toggleLocal(session);
-  }
-
-  Future<AddResult> _toggleBackend(Session session) async {
-    final res = await RegistrationsRepository.toggle(session.id);
-    final outcome = _outcome((res['outcome'] ?? 'added') as String);
-    switch (outcome) {
-      case AddOutcome.added:
+    final res = await scheduleRepository.toggle(session.id);
+    switch (res.outcome) {
+      case RegistrationOutcome.added:
         _mySessionIds.add(session.id);
         await _refreshCatalogSilently();
         notifyListeners();
-      case AddOutcome.removed:
+      case RegistrationOutcome.removed:
         _mySessionIds.remove(session.id);
         await _refreshCatalogSilently();
         notifyListeners();
-      case AddOutcome.full:
-      case AddOutcome.conflict:
+      case RegistrationOutcome.full:
+      case RegistrationOutcome.conflict:
         break; // nothing changed
     }
-    return AddResult(outcome, res['conflicting_title'] as String?);
+    return AddResult(_toAddOutcome(res.outcome), res.conflictingTitle);
   }
 
-  AddResult _toggleLocal(Session session) {
-    if (_mySessionIds.contains(session.id)) {
-      _mySessionIds.remove(session.id);
-      notifyListeners();
-      return const AddResult(AddOutcome.removed);
-    }
-    if (session.isFull) return const AddResult(AddOutcome.full);
-    for (final s in mySessions) {
-      if (s.overlaps(session)) {
-        return AddResult(AddOutcome.conflict, s.title);
-      }
-    }
-    _mySessionIds.add(session.id);
-    notifyListeners();
-    return const AddResult(AddOutcome.added);
-  }
-
-  static AddOutcome _outcome(String s) => switch (s) {
-        'added' => AddOutcome.added,
-        'removed' => AddOutcome.removed,
-        'full' => AddOutcome.full,
-        'conflict' => AddOutcome.conflict,
-        _ => AddOutcome.added,
+  static AddOutcome _toAddOutcome(RegistrationOutcome o) => switch (o) {
+        RegistrationOutcome.added => AddOutcome.added,
+        RegistrationOutcome.removed => AddOutcome.removed,
+        RegistrationOutcome.full => AddOutcome.full,
+        RegistrationOutcome.conflict => AddOutcome.conflict,
       };
 
   // ---- Content management (mentors/admins) ---------------------------------
-  /// Creates or updates a session, then refreshes the catalog. RLS enforces that
-  /// the caller may manage [data]'s discipline.
+  /// Creates or updates a session, then refreshes the catalog. The backend
+  /// enforces that the caller may manage [data]'s discipline.
   Future<void> saveSession({String? id, required Map<String, dynamic> data}) async {
     if (id == null) {
-      await SessionsRepository.create(data);
+      await contentRepository.createSession(data);
     } else {
-      await SessionsRepository.update(id, data);
+      await contentRepository.updateSession(id, data);
     }
     await loadCatalog();
   }
 
   Future<void> deleteSession(String id) async {
-    await SessionsRepository.delete(id);
+    await contentRepository.deleteSession(id);
     await loadCatalog();
   }
 
   /// Creates a discipline (admin only), then refreshes the catalog.
   Future<void> createDiscipline(Map<String, dynamic> data) async {
-    await DisciplinesRepository.create(data);
+    await catalogRepository.createDiscipline(data);
     await loadCatalog();
   }
 
-  // ---- Announcements (News feed + Realtime) --------------------------------
+  // ---- Announcements (News feed + live events) -----------------------------
   List<Announcement> announcements = const [];
   bool announcementsLoading = false;
   Object? announcementsError;
-  RealtimeChannel? _annChannel;
+  StreamSubscription<AnnouncementEvent>? _annSub;
 
   /// Discipline ids the user has an activity in (any registered session's
   /// discipline). Drives which discipline-targeted announcements reach them.
@@ -204,9 +170,7 @@ class AppState extends ChangeNotifier {
     announcementsError = null;
     notifyListeners();
     try {
-      announcements = _backend
-          ? await AnnouncementsRepository.fetch()
-          : SampleData.announcements;
+      announcements = await announcementsRepository.fetch();
     } catch (e) {
       announcementsError = e;
     } finally {
@@ -215,61 +179,41 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Subscribes to new announcements so every open app updates its feed live and
-  /// shows an in-app banner. No-op in sample mode or if already subscribed.
-  ///
-  /// Realtime is a NICE-TO-HAVE, not required: if the socket can't connect (e.g.
-  /// the project's concurrent-Realtime limit is hit) we stay completely silent —
-  /// the feed still works via REST + pull-to-refresh. Failures never reach the
-  /// UI; the News error state is driven only by [loadAnnouncements].
+  /// Subscribes to the live announcements feed so every open app updates and
+  /// shows an in-app banner. Idempotent. A backend without realtime yields a
+  /// stream that never emits, so this is a harmless no-op there.
   void subscribeAnnouncements() {
-    if (!_backend || _annChannel != null) return;
-    try {
-      _annChannel = Supabase.instance.client
-          .channel('public:announcements')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.insert,
-            schema: 'public',
-            table: 'announcements',
-            callback: (payload) => _onAnnouncementInserted(payload.newRecord),
-          )
-          .subscribe((status, error) {
-        // Swallow connection status/errors — no user-facing message, ever.
-        if (error != null && kDebugMode) {
-          debugPrint('Realtime announcements: $status ($error)');
-        }
-      });
-    } catch (e) {
-      if (kDebugMode) debugPrint('Realtime subscribe skipped: $e');
-    }
+    if (_annSub != null) return;
+    _annSub = announcementsRepository.events.listen(_onAnnouncementInserted);
   }
 
-  void _onAnnouncementInserted(Map<String, dynamic> row) {
+  void _onAnnouncementInserted(AnnouncementEvent event) {
     // Refresh the feed for everyone (keeps ordering/pinned correct).
     loadAnnouncements();
-    // Don't banner the admin who just posted it, or if they muted notifications.
-    final me = Supabase.instance.client.auth.currentUser?.id;
-    if (row['created_by']?.toString() == me) return;
+    // Don't banner the poster, or if they muted notifications.
+    if (event.createdBy != null &&
+        event.createdBy == authService.currentUser?.id) {
+      return;
+    }
     if (!notificationsEnabled) return;
     // Only banner if the announcement's audience actually reaches this user.
-    if (!announcementReaches(row['discipline_id'] as String?)) return;
+    if (!announcementReaches(event.disciplineId)) return;
     inAppBanner.show(BannerMessage(
-      title: (row['title'] ?? 'New announcement') as String,
-      body: (row['body'] ?? '') as String,
+      title: event.title,
+      body: event.body,
       onTap: () => rootTab.value = kNewsTabIndex,
     ));
   }
 
   Future<void> _unsubscribeAnnouncements() async {
-    if (_annChannel != null) {
-      await Supabase.instance.client.removeChannel(_annChannel!);
-      _annChannel = null;
-    }
+    await _annSub?.cancel();
+    _annSub = null;
+    await announcementsRepository.stopEvents();
   }
 
   // ---- Signed-in user ------------------------------------------------------
-  // When Supabase is configured, [profile] is loaded from the backend after
-  // sign-in. In sample mode it stays null and the demo values below show.
+  // With a live backend, [profile] is loaded after sign-in. In sample mode it
+  // stays null and the demo values below show.
   UserProfile? profile;
   bool profileLoading = false;
 
@@ -311,13 +255,13 @@ class AppState extends ChangeNotifier {
     }).join(' · ');
   }
 
-  /// Loads the signed-in user's profile from Supabase, then their catalog +
-  /// schedule. Called by the auth gate once a session exists.
+  /// Loads the signed-in user's profile, then their catalog + schedule + feed.
+  /// Called by the auth gate once a session exists.
   Future<void> loadProfile() async {
     profileLoading = true;
     notifyListeners();
     try {
-      profile = await ProfileRepository.fetchMine();
+      profile = await profileRepository.fetchMine();
       if (profile != null) {
         notificationsEnabled = profile!.notificationsEnabled;
         volunteerHours = profile!.volunteerHours;
@@ -336,10 +280,10 @@ class AppState extends ChangeNotifier {
   /// the auth gate moves them into the app.
   Future<void> completeOnboarding(UserProfile updated) async {
     updated.onboarded = true;
-    await ProfileRepository.save(updated);
+    await profileRepository.save(updated);
     // Re-read so the server's enforced role + mentor scope (set by the
     // role_allowlist trigger) are reflected locally, not just what we sent.
-    profile = await ProfileRepository.fetchMine() ?? updated;
+    profile = await profileRepository.fetchMine() ?? updated;
     notificationsEnabled = profile!.notificationsEnabled;
     volunteerHours = profile!.volunteerHours;
     notifyListeners();
@@ -348,7 +292,7 @@ class AppState extends ChangeNotifier {
   /// Signs the user out and clears their in-memory state.
   Future<void> signOut() async {
     await _unsubscribeAnnouncements();
-    await Supabase.instance.client.auth.signOut();
+    await authService.signOut();
     profile = null;
     _mySessionIds.clear();
     _disciplines = const [];
@@ -360,9 +304,7 @@ class AppState extends ChangeNotifier {
     notificationsEnabled = value;
     profile?.notificationsEnabled = value;
     notifyListeners();
-    if (_backend) {
-      await ProfileRepository.patch({'notifications_enabled': value});
-    }
+    await profileRepository.patch({'notifications_enabled': value});
   }
 }
 

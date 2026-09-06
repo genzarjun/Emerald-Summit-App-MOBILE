@@ -1,8 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:emerald_summit/backend/service_locator.dart';
 import 'package:emerald_summit/main.dart';
 
 void main() {
+  // Register a backend before each test. With no credentials in the test
+  // environment, [configureBackend] selects the in-memory sample backend —
+  // exactly the standalone/demo path. Reset first so re-registration is safe.
+  setUp(() async {
+    await getIt.reset();
+    await configureBackend();
+  });
+
   testWidgets('Starts on My Day with an empty plan',
       (WidgetTester tester) async {
     await tester.pumpWidget(const EmeraldSummitApp());

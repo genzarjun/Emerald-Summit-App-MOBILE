@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import '../data/announcements_repository.dart';
+import '../backend/service_locator.dart';
 import '../models/models.dart';
 
-/// Admin-only composer for a new announcement. Posting inserts a row that
-/// Realtime pushes to every open app (and, later, fires a push notification).
+/// Admin-only composer for a new announcement. Posting inserts a row that the
+/// live feed pushes to every open app (and, later, fires a push notification).
 class AnnouncementComposeScreen extends StatefulWidget {
   const AnnouncementComposeScreen({super.key});
 
@@ -45,7 +45,7 @@ class _AnnouncementComposeScreenState extends State<AnnouncementComposeScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     try {
-      await AnnouncementsRepository.create(
+      await announcementsRepository.create(
         title: title,
         body: body,
         author: appState.userName,
@@ -53,7 +53,7 @@ class _AnnouncementComposeScreenState extends State<AnnouncementComposeScreen> {
         pinned: _pinned,
         disciplineId: _audience?.id,
       );
-      // Show it immediately for the author (others get it via Realtime).
+      // Show it immediately for the author (others get it via the live feed).
       await appState.loadAnnouncements();
       if (!mounted) return;
       navigator.pop();

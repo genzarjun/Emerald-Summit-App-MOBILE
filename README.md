@@ -47,6 +47,17 @@ Five-tab app matching the spec's core participant features:
   gated role picker), sign-out, and volunteer hours with a "Download
   certificate" action.
 
+**Launch splash.** An animated splash plays once at app start
+([lib/screens/splash_screen.dart](lib/screens/splash_screen.dart)): an emerald
+"warp field" of sparks bursts from behind the brand mark while the summit logo
+scales in, holds, then recedes, cross-fading into the first real screen (auth
+gate or, in sample mode, the app). Duolingo-style haptics pulse through the
+burst; tap to skip. The brand mark is rebuilt in Flutter as a `CustomPainter`
+([lib/widgets/summit_logo.dart](lib/widgets/summit_logo.dart)) — no image asset.
+The native iOS launch storyboard and Android launch background are set to the
+same deep emerald (`#02100B`) so cold start flows into the burst with no white
+flash.
+
 **Accounts & sign-in** (live when Supabase is configured):
 - **Passwordless email OTP.** A user enters their email, gets a numeric code,
   and types it in — no password is ever created or stored. First-time sign-in
@@ -79,19 +90,22 @@ Brand colors and type follow spec section 03 (Emerald `#0C7A55`, Deep Emerald
 lib/
   main.dart                 App entry + MaterialApp/theme + in-app banner host
   theme.dart                Brand palette & Material 3 theme
-  app_state.dart            Catalog, schedule, announcements, profile, roles, Realtime
+  app_state.dart            Catalog, schedule, announcements, profile, roles (talks only to backend/)
   app_navigation.dart       Global selected-tab notifier (banner → News)
   models/models.dart        Discipline, Session, Announcement, ResourceDoc, disciplineIcon()
   models/user_profile.dart  UserProfile + SummitRole + per-role fields + scope helpers
-  data/sample_data.dart     Standalone fallback content (no-backend mode)
-  data/profile_repository.dart      Signed-in user's profile row (+ patch)
-  data/disciplines_repository.dart  Catalog read + admin create discipline
-  data/sessions_repository.dart     Mentor/admin session create/update/delete
-  data/registrations_repository.dart  Schedule read + register_for_session RPC
-  data/announcements_repository.dart  Feed read + admin create
-  data/allowlist_repository.dart    Own-email eligibility check (advisory)
+  backend/                  The backend seam — see "Swapping backends" under Backend
+    backend.dart              Re-exports the contracts + BackendDescriptor
+    auth_service.dart         Abstract AuthService, AuthUser, AuthFailure (neutral)
+    repositories.dart         Abstract Catalog/Content/Schedule/Profile/Announcements/Allowlist repos
+    service_locator.dart      get_it wiring + configureBackend() (the single switch point)
+    supabase/                 The Supabase implementation — ONLY place supabase_flutter is imported
+    sample/                   In-memory implementation (standalone/demo mode)
+  data/sample_data.dart     Static seed content used by the sample backend + resources hub
   widgets/in_app_banner.dart  Instagram-style in-app banner (controller + host)
+  widgets/summit_logo.dart    Brand mark rebuilt as a CustomPainter (no asset)
   screens/
+    splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate)
     schedule_screen.dart    My Day
@@ -109,6 +123,16 @@ test/widget_test.dart       Widget tests
 ## Backend
 - **Supabase** (hosted Postgres + auth + storage) is the chosen backend
   (Firebase was considered; Supabase won). Client via `supabase_flutter`.
+- **The app is backend-agnostic behind a seam** (`lib/backend/`). All app code
+  (screens, `app_state`) depends only on abstract contracts —
+  [auth_service.dart](lib/backend/auth_service.dart) and
+  [repositories.dart](lib/backend/repositories.dart) — never on a backend SDK.
+  Supabase is one implementation of those contracts, living entirely under
+  [lib/backend/supabase/](lib/backend/supabase/) (the only place `supabase_flutter`
+  is imported); an in-memory [sample/](lib/backend/sample/) implementation powers
+  standalone/demo mode. Wiring is via **get_it**, registered once in
+  [service_locator.dart](lib/backend/service_locator.dart). See **Swapping
+  backends** below.
 - **Live now:**
   - The `announcements` table feeds the News tab (read-only, behind a
     public-read RLS policy). Schema in
@@ -134,7 +158,9 @@ test/widget_test.dart       Widget tests
       - Set **Email OTP Length** (Auth → Providers → Email) to **6**; the app's
         code field tolerates up to 10 so a mismatch never truncates silently.
   - App-side auth lives in [lib/screens/auth/](lib/screens/auth/) (`auth_gate`
-    routes sign-in → onboarding → app) with [lib/data/profile_repository.dart](lib/data/profile_repository.dart).
+    routes sign-in → onboarding → app) against the abstract `AuthService`; the
+    Supabase implementation is
+    [lib/backend/supabase/supabase_auth_service.dart](lib/backend/supabase/supabase_auth_service.dart).
 - **Data model (SQL in [`supabase/`](supabase/)).** Run the files in
   [SUPABASE.md](SUPABASE.md)'s order to create these:
   - `disciplines` — the catalog categories (public read; **admin** write).
@@ -181,7 +207,31 @@ test/widget_test.dart       Widget tests
 - Separate Supabase projects for **dev/testing** and **production** (prod added
   later; the free tier allows two).
 
-## Configuration (Supabase keys)
+### Swapping backends
+The seam is designed so that moving off Supabase touches **only the new
+backend's folder plus one line** — no screen, `app_state`, or model changes:
+
+1. Add `lib/backend/<name>/` with a class per contract
+   (`<Name>AuthService implements AuthService`, `<Name>CatalogRepository
+   implements CatalogRepository`, …) and a `<Name>Backend.register(getIt)`
+   composition root (model it on
+   [supabase_backend.dart](lib/backend/supabase/supabase_backend.dart)). Register
+   a `BackendDescriptor` with the backend's display name.
+2. Put its credentials in a config under that folder (mirroring
+   [supabase_config.dart](lib/backend/supabase/supabase_config.dart)), injected
+   via `--dart-define`.
+3. Point [configureBackend()](lib/backend/service_locator.dart) at the new
+   `register()`.
+
+**The row contract:** repositories return the app's models, whose
+`fromMap`/`toMap` in [models/](lib/models/) expect specific keys (snake_case, as
+Supabase returns them). A new backend's adapter is responsible for shaping its
+rows to those keys — that (plus the `register_for_session`-style capacity/overlap
+enforcement, which the sample backend shows how to do in-process) is the whole
+porting surface. Everything in the "Data model" section above is Supabase's
+*implementation* of the contract, not part of the app.
+
+## Configuration (backend keys)
 Secrets are **not** stored in source. Real values live in a gitignored
 `env.json`, injected at build time. To set up:
 
@@ -205,8 +255,16 @@ flutter run --dart-define-from-file=env.json      # choose a device when prompte
 > The `--dart-define-from-file=env.json` flag applies to **every** build/run
 > command that should talk to the backend — `flutter run`, `flutter build apk`,
 > `flutter build ipa`, etc. Omit it and the app falls back to sample data.
-> In Android Studio/VS Code, add it under the run configuration's
-> "Additional args" so it's automatic.
+> In **VS Code / Cursor**, a committed [.vscode/launch.json](.vscode/launch.json)
+> carries the flag automatically: pick **"Emerald Summit (Supabase)"** from the
+> Run menu (or **"Emerald Summit (sample data)"** for the offline/demo build). In
+> Android Studio, add the flag under the run configuration's "Additional args".
+
+> **Seeing sample data when you expected the backend?** The launch is missing the
+> flag. `SupabaseConfig`'s credentials are *compile-time* constants, so a plain
+> `flutter run` (or the IDE's default run) boots in sample mode — the News tab
+> shows "Sample data — no backend configured yet" and Discover shows the sample
+> disciplines. Relaunch with the flag (or the VS Code "Supabase" config).
 
 ## Test & analyze
 ```bash

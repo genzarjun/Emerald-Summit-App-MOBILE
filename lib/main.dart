@@ -1,26 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_state.dart';
-import 'supabase_config.dart';
+import 'backend/service_locator.dart';
 import 'theme.dart';
 import 'widgets/in_app_banner.dart';
 import 'screens/auth/auth_gate.dart';
 import 'screens/root_nav.dart';
+import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Connect to Supabase only when real credentials are present, so the app
-  // still runs on sample data before the backend is wired up.
-  if (SupabaseConfig.isConfigured) {
-    await Supabase.initialize(
-      url: SupabaseConfig.supabaseUrl,
-      publishableKey: SupabaseConfig.supabasePublishableKey,
-    );
-  } else {
+  // Pick and initialize the backend (live if configured, else in-memory sample).
+  // This is the whole app's single backend touch-point.
+  await configureBackend();
+
+  if (!backendInfo.isLive) {
     // Sample mode goes straight to the app (no auth gate), so prime the catalog
-    // and feed here. In backend mode the auth gate loads them after the profile.
+    // and feed here. With a live backend the auth gate loads them after the
+    // profile.
     await appState.loadCatalog();
     await appState.loadAnnouncements();
   }
@@ -63,9 +61,12 @@ class EmeraldSummitApp extends StatelessWidget {
           child: InAppBannerHost(child: child!),
         );
       },
-      // When the backend is configured, gate the app behind sign-in. In sample
+      // The animated splash runs first, then hands off to the real first
+      // screen: with a live backend, gate the app behind sign-in; in sample
       // mode (no backend) go straight to the app on demo data.
-      home: SupabaseConfig.isConfigured ? const AuthGate() : const RootNav(),
+      home: SplashScreen(
+        next: backendInfo.isLive ? const AuthGate() : const RootNav(),
+      ),
     );
   }
 }
