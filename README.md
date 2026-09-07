@@ -341,6 +341,21 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   reminders; sponsor blocks; post-event social posts; server-rendered
   certificate / feedback PDFs.
 
-## Android (later)
-The `android/` project is scaffolded. Building it needs the Android SDK
-(install Android Studio, then `flutter doctor`). Then `flutter run -d android`.
+## Android
+Builds and runs on Android; a release APK has been verified against live
+Supabase on-device. Build one with:
+
+```bash
+flutter build apk --release --dart-define-from-file=env.json
+```
+
+> **Release builds need the `INTERNET` permission declared explicitly.** Flutter
+> only auto-injects it into the `debug`/`profile` manifests, so a release APK
+> that lacks it fails at runtime with `Failed host lookup … (errno = 7)` on any
+> network call (e.g. Supabase auth) — even though debug builds and iOS work
+> fine. It's declared in
+> [android/app/src/main/AndroidManifest.xml](android/app/src/main/AndroidManifest.xml);
+> keep it there.
+
+Release signing isn't configured yet — the APK is currently signed with the
+debug key (fine for sideloading to testers, not for Play Store upload).

@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required so release builds can reach the network (Supabase auth/data).
+         Debug/profile builds get this injected automatically by Flutter, which is
+         why the app works when run from a dev machine but fails in a release APK
+         with "Failed host lookup". -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="emerald_summit"
         android:name="${applicationName}"

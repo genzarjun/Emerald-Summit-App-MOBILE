@@ -72,6 +72,30 @@ the README stayed in sync. If you updated it proactively (without being asked),
 say so explicitly — e.g. "I also noted X in the README's roadmap section," so
 the update is never silent.
 
+## Commit and push to GitHub
+
+Whenever this skill runs and the README actually changed, commit and push it to
+GitHub as the final step — don't leave the update sitting in the working tree.
+This repo pushes straight to `main` (solo repo, no PRs).
+
+1. Stage **only** the README (and any other files this skill legitimately
+   touched) — never blanket `git add -A`, which could sweep up unrelated work in
+   progress. Verify with `git status` / `git diff --staged` first.
+2. Commit with a short, specific message describing the doc change, e.g.
+   `Update README: document Android INTERNET permission fix`. End the message
+   with the required co-author trailer:
+
+   ```
+   Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+   ```
+3. `git push origin main`.
+4. Report the result — the commit hash and that it pushed — in the same summary.
+   If the push fails (auth, non-fast-forward, offline), say so plainly and leave
+   the commit in place rather than force-pushing or discarding it.
+
+If the README ended up unchanged (nothing significant to record), skip the
+commit entirely — don't create empty commits.
+
 ## Relationship to memory
 
 Persistent cross-session memory files may also hold project facts. The README
