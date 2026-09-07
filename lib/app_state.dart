@@ -188,16 +188,26 @@ class AppState extends ChangeNotifier {
   final Set<String> _seenAnnouncementIds = {};
   final Set<String> _openedAnnouncementIds = {};
 
+  /// False until read-state has been fetched at least once. The announcements
+  /// list loads a beat before read-state, so without this gate the badge would
+  /// briefly flash "everything unseen" (e.g. 6) before correcting to the real
+  /// count. Suppressing the badge/dots until read-state is in avoids that flash.
+  bool _readStateLoaded = false;
+
   /// How many of the announcements this user can see are still unseen. Drives
-  /// the News-tab badge and the dashboard "What's new" tile.
-  int get unreadAnnouncementCount => visibleAnnouncements
-      .where((a) => !_seenAnnouncementIds.contains(a.id))
-      .length;
+  /// the News-tab badge and the dashboard "What's new" tile. Reports 0 until
+  /// read-state has loaded, so a stale count never flashes on launch.
+  int get unreadAnnouncementCount => !_readStateLoaded
+      ? 0
+      : visibleAnnouncements
+          .where((a) => !_seenAnnouncementIds.contains(a.id))
+          .length;
 
   /// Whether [id] still deserves an unread dot — i.e. the user hasn't opened
-  /// that specific announcement yet. Persists after the red badge clears.
+  /// that specific announcement yet. Persists after the red badge clears. Shows
+  /// no dot until read-state has loaded (same anti-flash reasoning as above).
   bool isAnnouncementUnopened(String id) =>
-      !_openedAnnouncementIds.contains(id);
+      _readStateLoaded && !_openedAnnouncementIds.contains(id);
 
   /// Loads the signed-in user's per-announcement read state (seen + opened).
   Future<void> loadReadAnnouncements() async {
@@ -209,9 +219,13 @@ class AppState extends ChangeNotifier {
       _openedAnnouncementIds
         ..clear()
         ..addAll(state.opened);
-      notifyListeners();
     } catch (_) {
       // Leave read-state empty on failure; nothing is worse than a stale badge.
+    } finally {
+      // Mark loaded either way so the badge can reflect the real count (or a
+      // genuine "all unseen" when read-state truly is empty) without flashing.
+      _readStateLoaded = true;
+      notifyListeners();
     }
   }
 
@@ -385,6 +399,7 @@ class AppState extends ChangeNotifier {
     announcements = const [];
     _seenAnnouncementIds.clear();
     _openedAnnouncementIds.clear();
+    _readStateLoaded = false;
     notifyListeners();
   }
 

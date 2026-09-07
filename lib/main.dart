@@ -21,6 +21,7 @@ Future<void> main() async {
     // profile.
     await appState.loadCatalog();
     await appState.loadAnnouncements();
+    await appState.loadReadAnnouncements();
   }
 
   runApp(const EmeraldSummitApp());
