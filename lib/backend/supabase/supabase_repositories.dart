@@ -181,6 +181,80 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
   }
 
   @override
+  Future<({Set<String> seen, Set<String> opened})> fetchReadState() async {
+    if (_client.auth.currentUser == null) {
+      return (seen: <String>{}, opened: <String>{});
+    }
+    try {
+      final rows = await _client
+          .from('announcement_reads')
+          .select('announcement_id, opened_at');
+      final seen = <String>{};
+      final opened = <String>{};
+      for (final r in rows) {
+        final id = r['announcement_id'].toString();
+        seen.add(id);
+        if (r['opened_at'] != null) opened.add(id);
+      }
+      return (seen: seen, opened: opened);
+    } catch (_) {
+      // The opened_at column may not exist yet (second migration not run). Fall
+      // back to seen-only so the red badge still persists; dots just won't.
+      try {
+        final rows = await _client
+            .from('announcement_reads')
+            .select('announcement_id');
+        return (
+          seen: rows.map((r) => r['announcement_id'].toString()).toSet(),
+          opened: <String>{},
+        );
+      } catch (_) {
+        // Reads table not set up at all: treat as none-read.
+        return (seen: <String>{}, opened: <String>{});
+      }
+    }
+  }
+
+  @override
+  Future<void> markSeen(Iterable<String> ids) async {
+    final user = _client.auth.currentUser;
+    if (user == null || ids.isEmpty) return;
+    final rows = [
+      for (final id in ids) {'user_id': user.id, 'announcement_id': id},
+    ];
+    try {
+      // ignoreDuplicates so an already-seen row keeps its opened_at.
+      await _client.from('announcement_reads').upsert(
+            rows,
+            onConflict: 'user_id,announcement_id',
+            ignoreDuplicates: true,
+          );
+    } catch (_) {
+      // Best-effort: a missing table / transient error just leaves them unread.
+    }
+  }
+
+  @override
+  Future<void> markOpened(String id) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    try {
+      // Upsert (update on conflict) so opened_at is set whether or not a "seen"
+      // row already exists.
+      await _client.from('announcement_reads').upsert(
+        {
+          'user_id': user.id,
+          'announcement_id': id,
+          'opened_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        onConflict: 'user_id,announcement_id',
+      );
+    } catch (_) {
+      // Best-effort: a missing column / transient error just leaves the dot.
+    }
+  }
+
+  @override
   Stream<AnnouncementEvent> get events {
     final existing = _controller;
     if (existing != null) return existing.stream;

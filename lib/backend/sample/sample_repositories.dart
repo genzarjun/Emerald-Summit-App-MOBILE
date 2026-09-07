@@ -127,6 +127,22 @@ class SampleAnnouncementsRepository implements AnnouncementsRepository {
     );
   }
 
+  @override
+  Future<({Set<String> seen, Set<String> opened})> fetchReadState() async => (
+        seen: {..._store.seenAnnouncementIds},
+        opened: {..._store.openedAnnouncementIds},
+      );
+
+  @override
+  Future<void> markSeen(Iterable<String> ids) async =>
+      _store.seenAnnouncementIds.addAll(ids);
+
+  @override
+  Future<void> markOpened(String id) async {
+    _store.seenAnnouncementIds.add(id);
+    _store.openedAnnouncementIds.add(id);
+  }
+
   // No realtime in demo mode: a stream that never emits. The feed still works
   // via fetch() + pull-to-refresh.
   @override

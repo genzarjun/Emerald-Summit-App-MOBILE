@@ -109,6 +109,22 @@ abstract interface class AnnouncementsRepository {
     String? disciplineId,
   });
 
+  /// The current user's per-announcement read state:
+  ///   * [seen]   — surfaced in the feed; clears the red unread count.
+  ///   * [opened] — the user tapped the card; clears its unread dot.
+  /// Both empty when signed out, or for a backend without per-user read tracking
+  /// (e.g. before the `announcement_reads` table exists). Best-effort — never
+  /// throws to the UI.
+  Future<({Set<String> seen, Set<String> opened})> fetchReadState();
+
+  /// Marks [ids] as seen (a row exists). Idempotent and best-effort — never
+  /// throws. No-op when nobody is signed in or [ids] is empty.
+  Future<void> markSeen(Iterable<String> ids);
+
+  /// Marks one announcement opened (sets `opened_at`). Best-effort — never
+  /// throws. No-op when nobody is signed in.
+  Future<void> markOpened(String id);
+
   /// Live stream of newly-inserted announcements. A backend without realtime
   /// returns a stream that never emits; the feed still works via [fetch] +
   /// pull-to-refresh. Never surfaces connection errors to the UI.

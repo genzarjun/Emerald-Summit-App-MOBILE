@@ -5,5 +5,11 @@ import 'package:flutter/foundation.dart';
 /// switch tabs. [RootNav] both drives and reflects this.
 final ValueNotifier<int> rootTab = ValueNotifier<int>(0);
 
-/// Index of the News (announcements) tab in [RootNav].
-const int kNewsTabIndex = 2;
+// Tab indices in [RootNav], in bottom-bar order. Kept here (not as bare
+// literals) so dashboard shortcuts and the banner tap stay correct if the bar
+// is ever reordered.
+const int kHomeTabIndex = 0;
+const int kScheduleTabIndex = 1;
+const int kDiscoverTabIndex = 2;
+const int kNewsTabIndex = 3;
+const int kResourcesTabIndex = 4;

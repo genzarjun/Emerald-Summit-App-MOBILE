@@ -199,24 +199,41 @@ class _AnnouncementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Unread dot persists until this specific card is opened (tapped), even
+    // after the News tab's red badge has cleared.
+    final unopened = appState.isAnnouncementUnopened(item.id);
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (item.pinned) ...[
-                  Icon(Icons.push_pin,
-                      size: 16, color: theme.colorScheme.primary),
-                  const SizedBox(width: 6),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => appState.markAnnouncementOpened(item.id),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (unopened) ...[
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (item.pinned) ...[
+                    Icon(Icons.push_pin,
+                        size: 16, color: theme.colorScheme.primary),
+                    const SizedBox(width: 6),
+                  ],
+                  Expanded(
+                    child: Text(item.title, style: theme.textTheme.titleMedium),
+                  ),
                 ],
-                Expanded(
-                  child: Text(item.title, style: theme.textTheme.titleMedium),
-                ),
-              ],
-            ),
+              ),
             const SizedBox(height: 8),
             Text(item.body, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
@@ -248,6 +265,7 @@ class _AnnouncementCard extends StatelessWidget {
               ],
             ),
           ],
+          ),
         ),
       ),
     );

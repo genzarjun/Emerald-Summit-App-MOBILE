@@ -19,9 +19,24 @@ Tri-Valley's student-run STEAM summit at Emerald High, Dublin CA
 > generation are the main things still to come (see Roadmap).
 
 ## What's implemented
-Five-tab app matching the spec's core participant features:
+Five-tab app (**Home · Schedule · Discover · News · Resources**) matching the
+spec's core participant features. **Profile is reached from the avatar in the
+Home header** (Uber-style), not a bottom-bar tab.
 
-- **My Day** — the participant's personal schedule. Backed by the
+- **Home** — the launchpad ([lib/screens/dashboard_screen.dart](lib/screens/dashboard_screen.dart)).
+  A greeting + tappable avatar → Profile, a daily-rotating quote card with brand
+  art, an **Up next** card (the next session in your schedule, or a "plan your
+  day" nudge when it's empty), a grid of Uber-style **Jump to** action tiles
+  (schedule, browse, news with an unread badge, campus map, resources, profile),
+  a horizontal **Explore disciplines** rail into the catalog, a **Latest news**
+  peek, and outbound **Links** (website, Instagram, contact) opened via
+  `url_launcher`. Exists so the app has an interesting home even before anything
+  is added to the schedule. **Touches:** the greeting is a random mix of standard
+  ("Good morning") and playful ("What's cooking", "What's building") lines with
+  an animated shimmer sweep (echoing the website wordmark); the quote card wipes
+  down on first view.
+- **Schedule** — the participant's personal schedule (formerly the "My Day"
+  first tab; the in-app header still reads "My Day"). Backed by the
   `registrations` table (RLS-scoped to the user), so it follows the account
   across devices and reinstalls. Empty-state → browse flow.
 - **Discover** — catalog of the disciplines → each discipline's sessions → a
@@ -38,14 +53,22 @@ Five-tab app matching the spec's core participant features:
   (title, message, audience, pin). **Audience targeting:** an announcement aimed
   at a discipline reaches only users who have an **activity in that discipline**
   (plus admins and mentors who manage it); "Everyone" reaches all. Filtering is
-  applied to both the feed and the banner. Falls back to sample data when the
-  backend isn't configured. **OS push** (when the app is closed) is designed but
-  not yet built (see Roadmap).
+  applied to both the feed and the banner. **Per-user read state (two-tier,
+  Instagram-style):** the News tab and Home "What's new" tile show a red count
+  of *unseen* announcements; opening the News tab marks the feed **seen** and
+  clears that count. Independently, each feed card keeps a green **unread dot**
+  until the user taps (opens) that specific card — so dots persist after the red
+  badge is gone. Both tiers are private per user, tracked in the
+  `announcement_reads` table (a row = seen; `opened_at` = opened), RLS-scoped to
+  the owner. The app degrades gracefully: no reads table → "all unseen"; reads
+  table but no `opened_at` column → seen/badge work, dots don't persist. Falls
+  back to sample data when the backend isn't configured. **OS push** (when the
+  app is closed) is designed but not yet built (see Roadmap).
 - **Resources** — searchable document hub.
-- **Profile** — contact card with role badge (mentors also show the
-  discipline(s) they manage), notifications toggle, **Change role** (re-runs the
-  gated role picker), sign-out, and volunteer hours with a "Download
-  certificate" action.
+- **Profile** (reached from the Home-header avatar) — contact card with role
+  badge (mentors also show the discipline(s) they manage), notifications toggle,
+  **Change role** (re-runs the gated role picker), sign-out, and volunteer hours
+  with a "Download certificate" action.
 
 **Launch splash.** An animated splash plays once at app start
 ([lib/screens/splash_screen.dart](lib/screens/splash_screen.dart)): an emerald
@@ -91,7 +114,7 @@ lib/
   main.dart                 App entry + MaterialApp/theme + in-app banner host
   theme.dart                Brand palette & Material 3 theme
   app_state.dart            Catalog, schedule, announcements, profile, roles (talks only to backend/)
-  app_navigation.dart       Global selected-tab notifier (banner → News)
+  app_navigation.dart       Global selected-tab notifier + tab-index constants (banner/dashboard → tabs)
   models/models.dart        Discipline, Session, Announcement, ResourceDoc, disciplineIcon()
   models/user_profile.dart  UserProfile + SummitRole + per-role fields + scope helpers
   backend/                  The backend seam — see "Swapping backends" under Backend
@@ -106,9 +129,10 @@ lib/
   widgets/summit_logo.dart    Brand mark rebuilt as a CustomPainter (no asset)
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
-    root_nav.dart           Bottom navigation shell
+    root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Resources)
+    dashboard_screen.dart   Home launchpad (greeting, quote, up-next, action grid, links)
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate)
-    schedule_screen.dart    My Day
+    schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
     discover_screen.dart    Disciplines grid (+ admin "New discipline")
     discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)
     session_detail_screen.dart   Marketing page + add/remove

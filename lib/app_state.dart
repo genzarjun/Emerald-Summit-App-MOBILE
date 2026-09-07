@@ -24,6 +24,22 @@ class AddResult {
 /// stands in when nothing is configured, so the UI skeleton still runs
 /// standalone.
 class AppState extends ChangeNotifier {
+  AppState() {
+    // Opening the News tab (by tap or via the in-app banner) marks the feed
+    // read, Instagram-style, so the unread badge clears.
+    rootTab.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (rootTab.value == kNewsTabIndex) markAnnouncementsSeen();
+  }
+
+  @override
+  void dispose() {
+    rootTab.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
   // ---- Catalog -------------------------------------------------------------
   List<Discipline> _disciplines = const [];
   bool catalogLoading = false;
@@ -165,6 +181,75 @@ class AppState extends ChangeNotifier {
   List<Announcement> get visibleAnnouncements =>
       announcements.where((a) => announcementReaches(a.disciplineId)).toList();
 
+  // ---- Read state (per-user, two-tier) -------------------------------------
+  // [_seen] clears the red unread count (set when the News feed is viewed);
+  // [_opened] clears a card's unread dot (set when the user taps that card).
+  // Both are loaded from the backend on sign-in and are private per user.
+  final Set<String> _seenAnnouncementIds = {};
+  final Set<String> _openedAnnouncementIds = {};
+
+  /// How many of the announcements this user can see are still unseen. Drives
+  /// the News-tab badge and the dashboard "What's new" tile.
+  int get unreadAnnouncementCount => visibleAnnouncements
+      .where((a) => !_seenAnnouncementIds.contains(a.id))
+      .length;
+
+  /// Whether [id] still deserves an unread dot — i.e. the user hasn't opened
+  /// that specific announcement yet. Persists after the red badge clears.
+  bool isAnnouncementUnopened(String id) =>
+      !_openedAnnouncementIds.contains(id);
+
+  /// Loads the signed-in user's per-announcement read state (seen + opened).
+  Future<void> loadReadAnnouncements() async {
+    try {
+      final state = await announcementsRepository.fetchReadState();
+      _seenAnnouncementIds
+        ..clear()
+        ..addAll(state.seen);
+      _openedAnnouncementIds
+        ..clear()
+        ..addAll(state.opened);
+      notifyListeners();
+    } catch (_) {
+      // Leave read-state empty on failure; nothing is worse than a stale badge.
+    }
+  }
+
+  /// Marks every currently-visible unseen announcement as seen (locally +
+  /// backend), clearing the red count. No-op — and importantly no notify — when
+  /// nothing is unseen, so the rootTab listener can call it without a rebuild
+  /// loop. Does NOT touch "opened", so per-card dots remain.
+  Future<void> markAnnouncementsSeen() async {
+    final unseen = [
+      for (final a in visibleAnnouncements)
+        if (!_seenAnnouncementIds.contains(a.id)) a.id,
+    ];
+    if (unseen.isEmpty) return;
+    _seenAnnouncementIds.addAll(unseen);
+    notifyListeners();
+    try {
+      await announcementsRepository.markSeen(unseen);
+    } catch (_) {
+      // Local state already reflects "seen"; a failed persist just means the
+      // badge may reappear on next launch until it succeeds.
+    }
+  }
+
+  /// Marks one announcement opened (locally + backend), clearing its dot. Seeing
+  /// implies opening covers the count too. No-op/no-notify if already opened.
+  Future<void> markAnnouncementOpened(String id) async {
+    if (_openedAnnouncementIds.contains(id)) return;
+    _openedAnnouncementIds.add(id);
+    _seenAnnouncementIds.add(id);
+    notifyListeners();
+    try {
+      await announcementsRepository.markOpened(id);
+    } catch (_) {
+      // Local state already reflects "opened"; a failed persist just means the
+      // dot may reappear on next launch until it succeeds.
+    }
+  }
+
   Future<void> loadAnnouncements() async {
     announcementsLoading = true;
     announcementsError = null;
@@ -273,6 +358,7 @@ class AppState extends ChangeNotifier {
     await loadCatalog();
     await loadSchedule();
     await loadAnnouncements();
+    await loadReadAnnouncements();
     subscribeAnnouncements();
   }
 
@@ -297,6 +383,8 @@ class AppState extends ChangeNotifier {
     _mySessionIds.clear();
     _disciplines = const [];
     announcements = const [];
+    _seenAnnouncementIds.clear();
+    _openedAnnouncementIds.clear();
     notifyListeners();
   }
 

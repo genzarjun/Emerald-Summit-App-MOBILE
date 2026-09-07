@@ -65,7 +65,9 @@ matters (later files reference earlier tables/functions):
 7. `supabase/role_allowlist_setup.sql` — allowlist + enforcement triggers +
    `is_admin()`/`can_manage_discipline()` + manager write policies
 8. `supabase/announcements_write_setup.sql` — admin write policies + Realtime
-9. `supabase/seed_catalog.sql` — six disciplines + sample sessions
+9. `supabase/announcement_reads_setup.sql` — per-user read state (unread badge)
+10. `supabase/announcement_reads_opened.sql` — adds `opened_at` (per-card dot)
+11. `supabase/seed_catalog.sql` — six disciplines + sample sessions
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

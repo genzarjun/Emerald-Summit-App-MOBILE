@@ -10,6 +10,12 @@ class SampleStore {
   final Set<String> mySessionIds = {};
   final List<Announcement> announcements = List.of(SampleData.announcements);
 
+  /// Per-announcement read state for the (demo) user. In-memory only, so the
+  /// unread badge + per-card dots behave like the live backend during a demo.
+  /// [seen] clears the red count; [opened] clears a card's dot.
+  final Set<String> seenAnnouncementIds = {};
+  final Set<String> openedAnnouncementIds = {};
+
   /// Null until onboarding saves one; while null the app shows demo values,
   /// matching the pre-seam sample behavior.
   UserProfile? profile;
