@@ -384,6 +384,18 @@ backdoor, it is **off by default** and must be enabled in **two** places at once
 Keeping separate dev and production Supabase projects (below) is what makes this
 clean: the bypass lives entirely on dev.
 
+> **Reusing this in production later (deferred).** The same `dev-login` mechanism
+> can double as a *production* testing/demo login (e.g. reviewer or judge
+> accounts) — it's the same table + function + flag. **Do not just turn it on**:
+> in production it's a real login backdoor, so before enabling it we'd want to
+> harden it — at minimum: keep `test_accounts` to a tiny, known set (never real
+> attendees); require a shared secret/header on the function call (not just the
+> publishable key) and consider re-enabling Verify-JWT with a caller check;
+> rate-limit and log every use; and gate the app path behind its own prod flag
+> so it can be shipped dark and flipped on only when needed. Treating it as
+> "flip `DEV_LOGIN_ENABLED` on prod" would be unsafe. Revisit when we actually
+> need prod demo accounts.
+
 ## Test & analyze
 ```bash
 flutter test
