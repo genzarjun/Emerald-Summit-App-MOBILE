@@ -485,15 +485,21 @@ class AppState extends ChangeNotifier {
   Future<void> _autoOnboardTestAccount() async {
     final p = profile;
     if (p == null) return;
-    SummitRole role = SummitRole.participant;
+    SummitRole role;
     try {
+      // Gated roles come from the allowlist (the trigger re-verifies on save).
       if (await allowlistRepository.isEligible(SummitRole.admin)) {
         role = SummitRole.admin;
       } else if (await allowlistRepository.isEligible(SummitRole.volunteer)) {
         role = SummitRole.volunteer;
+      } else {
+        // Open roles (participant/expert/parent-spectator) aren't in any sheet,
+        // so infer from the code email's local part — test accounts are named by
+        // role (expert@…, spectator@…, participant@…).
+        role = _inferOpenTestRole(p.email);
       }
     } catch (_) {
-      role = SummitRole.participant;
+      role = _inferOpenTestRole(p.email);
     }
     // A friendly default name from the email's local part (e.g. "student-plain").
     final localPart = p.email.split('@').first;
@@ -509,7 +515,18 @@ class AppState extends ChangeNotifier {
         : '${profile!.role.label} · $subtype';
     _testAccountNotice =
         'Testing account — you were automatically assigned the $roleText '
-        'role (from the allowlist). No role picker needed.';
+        'role. No role picker needed.';
+  }
+
+  /// Infers an OPEN role for a test account from its code-email local part.
+  /// Only used for dev-login accounts not covered by the allowlist.
+  static SummitRole _inferOpenTestRole(String email) {
+    final local = email.split('@').first.toLowerCase();
+    if (local.contains('expert')) return SummitRole.expert;
+    if (local.contains('spectator') || local.contains('parent')) {
+      return SummitRole.parent;
+    }
+    return SummitRole.participant;
   }
 
   /// Saves the finished onboarding profile and marks the user onboarded, so
