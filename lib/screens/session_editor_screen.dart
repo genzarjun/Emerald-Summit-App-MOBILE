@@ -249,6 +249,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     );
   }
 
+  // Sentinel value for the "＋ Add a room…" dropdown entry.
+  static const String _addRoomSentinel = '__add_room__';
+
   Widget _roomDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -267,10 +270,77 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
           ),
           for (final r in _rooms)
             DropdownMenuItem<String?>(value: r.id, child: Text(r.name)),
+          DropdownMenuItem<String?>(
+            value: _addRoomSentinel,
+            child: Row(
+              children: [
+                Icon(Icons.add, size: 18, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('Add a room…',
+                    style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+              ],
+            ),
+          ),
         ],
-        onChanged: _busy ? null : (v) => setState(() => _roomId = v),
+        onChanged: _busy
+            ? null
+            : (v) {
+                if (v == _addRoomSentinel) {
+                  _addRoomInline();
+                } else {
+                  setState(() => _roomId = v);
+                }
+              },
       ),
     );
+  }
+
+  /// Prompts for a new room name, creates it, and selects it — without leaving
+  /// the session editor. Enabled for admins and session-editing volunteers
+  /// (the backend enforces who may actually insert).
+  Future<void> _addRoomInline() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add a room'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Room name',
+            hintText: 'e.g. Room 210, Cafeteria',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await appState.createRoom({'name': name});
+      if (!mounted) return;
+      setState(() {
+        _rooms = appState.rooms;
+        // Select the room we just added (names are unique in the catalog).
+        final match = _rooms.where((r) => r.name == name);
+        if (match.isNotEmpty) _roomId = match.first.id;
+      });
+    } catch (e) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Could not add the room. It may already exist, or '
+              'you may not have permission.')));
+    }
   }
 
   Widget _field(

@@ -92,6 +92,9 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     (`fetch_session_roster` / `mark_session_attendance`, gated by assignment) and
     front-desk check-in (`fetch_attendee_directory` / `mark_summit_checkin`,
     gated by the front-desk capability).
+18. `supabase/rooms_editor_insert.sql` — lets admins **and** session-editing
+    ambassadors INSERT rooms (so a missing room can be added inline from the
+    session editor); UPDATE/DELETE stay admin-only.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

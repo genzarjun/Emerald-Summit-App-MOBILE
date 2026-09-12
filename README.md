@@ -54,7 +54,10 @@ Home header** (Uber-style), not a bottom-bar tab.
   dialog) and capacity caps (full/waitlist), so they can't be bypassed from the
   client. Admins and EAF ambassadors who can edit sessions get **New session /
   Edit** controls (scoped to their disciplines); the editor ties a session to a
-  **room** picked from the admin catalog. Admins get **New discipline** and, on
+  **room** picked from the admin catalog — and if the needed room isn't listed,
+  an **"Add a room…"** option in that dropdown creates it inline (admins and
+  session-editing ambassadors; INSERT-only, backend-enforced) without leaving the
+  page. Admins get **New discipline** and, on
   each session, **Manage volunteers** — assigning a volunteer to a session is
   overlap-guarded server-side (an admin sees *"This person has a schedule
   conflict…"* if it clashes with their other assignments or registrations).
@@ -237,9 +240,12 @@ test/widget_test.dart       Widget tests
     `can_post_announcements` / `can_check_in_front_desk`.
     [profiles_extend.sql](supabase/profiles_extend.sql),
     [profiles_capabilities.sql](supabase/profiles_capabilities.sql)
-  - `rooms` — the admin-managed room catalog (public read; **admin** write);
-    `sessions.room_id` references it. Auto-seeded from existing sessions.
-    [rooms_setup.sql](supabase/rooms_setup.sql)
+  - `rooms` — the room catalog (public read; **admin** manage — rename/reorder/
+    delete; **admins + session-editing volunteers** may INSERT so a missing room
+    can be added inline from the session editor). `sessions.room_id` references
+    it; auto-seeded from existing sessions.
+    [rooms_setup.sql](supabase/rooms_setup.sql),
+    [rooms_editor_insert.sql](supabase/rooms_editor_insert.sql)
   - `session_volunteers` — volunteer↔session assignments. Assigning goes through
     the admin-only, overlap-guarded **`assign_volunteer_to_session` RPC**; being
     assigned is what unlocks a session's roster + attendance.
@@ -420,8 +426,13 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   ambassador / parent / student) with per-person capabilities from the sheet;
   an admin rooms catalog that sessions tie to; admin assignment of volunteers to
   sessions (overlap-guarded); per-session roster + attendance for assigned
-  volunteers; and summit-wide front-desk check-in. *(code done; run the new SQL
-  files in [SUPABASE.md](SUPABASE.md) + redeploy the Edge Function to activate)*
+  volunteers; and summit-wide front-desk check-in. *(code done + **verified
+  end-to-end on the dev backend** in the iOS simulator: dev-login + role
+  auto-assign for admin/volunteer, admin session create, the rooms dropdown +
+  auto-seeded catalog + inline add-a-room, volunteer assignment, and the
+  assignment schedule-conflict guard. Run the SQL files in
+  [SUPABASE.md](SUPABASE.md) + deploy the Edge Functions to activate on a fresh
+  project.)*
 - ⏳ **Next: OS push notifications** — deliver announcements as real push even
   when the app is closed (see Roadmap for the planned pipeline).
 
@@ -449,6 +460,11 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   - Foreground messages reuse the existing in-app banner
     ([lib/widgets/in_app_banner.dart](lib/widgets/in_app_banner.dart)).
   - Also planned: per-user "next session" reminders; email fan-out.
+- **QR-based front-desk check-in** — the front-desk screen currently checks
+  attendees in via a searchable list with a present/absent toggle each; the plan
+  is to replace/augment that with a **QR-code scan** (each attendee shows a code;
+  the front desk scans to mark arrival). Deferred. Per-session **attendance
+  roster marking stays toggle-based** (no QR).
 - **Per-subtype volunteer onboarding** — tailor the sign-up questionnaire to the
   volunteer subtype (EAF ambassador / parent / student). Deferred: the subtype
   currently arrives from the sheet *after* sign-up, so all volunteers share one

@@ -201,6 +201,8 @@ class _VisibilityCard extends StatelessWidget {
   }
 
   Future<void> _confirmSignOut(BuildContext context) async {
+    // Capture before any await so we don't use context across an async gap.
+    final navigator = Navigator.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -222,6 +224,10 @@ class _VisibilityCard extends StatelessWidget {
     );
     if (confirmed == true) {
       await appState.signOut();
+      // Pop the pushed Profile (and any screens above it) so the auth gate's
+      // now-signed-out state shows the sign-in screen — otherwise this stale
+      // Profile route lingers on top showing demo defaults ("Alex Rivera").
+      navigator.popUntil((route) => route.isFirst);
     }
   }
 }
