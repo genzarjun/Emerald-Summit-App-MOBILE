@@ -427,6 +427,27 @@ class AppState extends ChangeNotifier {
     }).join(' · ');
   }
 
+  // ---- Test/dev-login accounts ---------------------------------------------
+  // Set when the current session was established via the dev-login bypass, so
+  // the gate can auto-assign the role (from the allowlist) instead of showing
+  // the manual role picker — a real user still onboards normally.
+  bool _isTestAccountSession = false;
+
+  /// A one-time notice to show after a test account is auto-onboarded, e.g.
+  /// "…automatically assigned the Participant role…". Read once via
+  /// [consumeTestAccountNotice].
+  String? _testAccountNotice;
+
+  /// Marks that the just-created session came from the dev-login bypass.
+  void markTestAccountSignIn() => _isTestAccountSession = true;
+
+  /// Returns the pending test-account notice and clears it (shown once).
+  String? consumeTestAccountNotice() {
+    final n = _testAccountNotice;
+    _testAccountNotice = null;
+    return n;
+  }
+
   /// Loads the signed-in user's profile, then their catalog + schedule + feed.
   /// Called by the auth gate once a session exists.
   Future<void> loadProfile() async {
@@ -434,6 +455,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       profile = await profileRepository.fetchMine();
+      // Test accounts skip the manual role picker: assign the role straight from
+      // the allowlist (participant if unlisted) so the tester lands in the app
+      // already "being" that persona.
+      if (_isTestAccountSession &&
+          profile != null &&
+          !profile!.onboarded) {
+        await _autoOnboardTestAccount();
+      }
       if (profile != null) {
         notificationsEnabled = profile!.notificationsEnabled;
         volunteerHours = profile!.volunteerHours;
@@ -448,6 +477,39 @@ class AppState extends ChangeNotifier {
     await loadReadAnnouncements();
     await loadMyAssignments();
     subscribeAnnouncements();
+  }
+
+  /// Auto-onboards a dev-login test account: picks the role from the allowlist
+  /// (admin > volunteer > participant), saves the profile onboarded, and lets
+  /// the server trigger apply the subtype/capabilities. Sets [_testAccountNotice].
+  Future<void> _autoOnboardTestAccount() async {
+    final p = profile;
+    if (p == null) return;
+    SummitRole role = SummitRole.participant;
+    try {
+      if (await allowlistRepository.isEligible(SummitRole.admin)) {
+        role = SummitRole.admin;
+      } else if (await allowlistRepository.isEligible(SummitRole.volunteer)) {
+        role = SummitRole.volunteer;
+      }
+    } catch (_) {
+      role = SummitRole.participant;
+    }
+    // A friendly default name from the email's local part (e.g. "student-plain").
+    final localPart = p.email.split('@').first;
+    p.fullName = p.fullName.isNotEmpty ? p.fullName : localPart;
+    p.role = role;
+    p.onboarded = true;
+    await profileRepository.save(p);
+    // Re-read so the trigger's enforced role + subtype/capabilities land locally.
+    profile = await profileRepository.fetchMine() ?? p;
+    final subtype = profile!.volunteerSubtype?.label;
+    final roleText = subtype == null
+        ? profile!.role.label
+        : '${profile!.role.label} · $subtype';
+    _testAccountNotice =
+        'Testing account — you were automatically assigned the $roleText '
+        'role (from the allowlist). No role picker needed.';
   }
 
   /// Saves the finished onboarding profile and marks the user onboarded, so
@@ -476,6 +538,8 @@ class AppState extends ChangeNotifier {
     _readStateLoaded = false;
     myAssignedSessionIds = const {};
     rooms = const [];
+    _isTestAccountSession = false;
+    _testAccountNotice = null;
     notifyListeners();
   }
 

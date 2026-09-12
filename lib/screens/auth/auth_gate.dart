@@ -59,6 +59,28 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
         if (!appState.isOnboarded) {
           return const OnboardingScreen();
         }
+        // A dev-login test account was auto-assigned its role — tell the tester
+        // once, as the final "sign-in step", before the app proper.
+        final notice = appState.consumeTestAccountNotice();
+        if (notice != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            showDialog<void>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                icon: const Icon(Icons.science_outlined),
+                title: const Text('Testing account'),
+                content: Text(notice),
+                actions: [
+                  FilledButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Continue'),
+                  ),
+                ],
+              ),
+            );
+          });
+        }
         return const RootNav();
       },
     );

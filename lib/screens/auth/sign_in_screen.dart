@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../app_state.dart';
 import '../../backend/backend.dart';
 import '../../backend/service_locator.dart';
 import '../../theme.dart';
@@ -55,8 +56,11 @@ class _SignInScreenState extends State<SignInScreen> {
       // that returns false in normal builds and for real emails, so this is
       // transparent in production.
       if (await authService.tryDevLogin(_email)) {
-        // The auth gate reacts to the new session and navigates; this widget is
-        // about to be disposed, so leave the spinner up.
+        // Test account: tell the gate to auto-assign the role (from the
+        // allowlist) instead of showing the role picker. The auth gate reacts to
+        // the new session and navigates; this widget is about to be disposed, so
+        // leave the spinner up.
+        appState.markTestAccountSignIn();
         return;
       }
       await authService.sendEmailOtp(_email);
