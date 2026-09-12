@@ -23,7 +23,6 @@ class SessionEditorScreen extends StatefulWidget {
 class _SessionEditorScreenState extends State<SessionEditorScreen> {
   late final TextEditingController _title;
   late final TextEditingController _track;
-  late final TextEditingController _room;
   late final TextEditingController _expert;
   late final TextEditingController _start;
   late final TextEditingController _end;
@@ -34,6 +33,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   bool _busy = false;
   String? _error;
 
+  /// The rooms catalog and the currently-selected room (null = "Unassigned").
+  List<Room> _rooms = const [];
+  String? _roomId;
+
   bool get _isEditing => widget.session != null;
 
   @override
@@ -42,19 +45,32 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     final s = widget.session;
     _title = TextEditingController(text: s?.title ?? '');
     _track = TextEditingController(text: s?.track ?? '');
-    _room = TextEditingController(text: s?.room ?? '');
+    _roomId = s?.roomId;
     _expert = TextEditingController(text: s?.expertName ?? '');
     _start = TextEditingController(text: s?.start ?? '');
     _end = TextEditingController(text: s?.end ?? '');
     _capacity = TextEditingController(text: s != null ? '${s.capacity}' : '');
     _description = TextEditingController(text: s?.description ?? '');
     _sponsor = TextEditingController(text: s?.sponsor ?? '');
+    _loadRooms();
+  }
+
+  Future<void> _loadRooms() async {
+    await appState.loadRooms();
+    if (!mounted) return;
+    setState(() {
+      _rooms = appState.rooms;
+      // Drop a stale selection if the room no longer exists.
+      if (_roomId != null && !_rooms.any((r) => r.id == _roomId)) {
+        _roomId = null;
+      }
+    });
   }
 
   @override
   void dispose() {
     for (final c in [
-      _title, _track, _room, _expert, _start, _end, _capacity,
+      _title, _track, _expert, _start, _end, _capacity,
       _description, _sponsor,
     ]) {
       c.dispose();
@@ -90,11 +106,17 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final sponsor = _sponsor.text.trim();
+    // Keep the free-text `room` in sync with the catalog name so displays that
+    // read `room` (and older rows) still show something sensible.
+    final roomName = _roomId == null
+        ? ''
+        : _rooms.firstWhere((r) => r.id == _roomId).name;
     final data = <String, dynamic>{
       'discipline_id': widget.discipline.id,
       'title': title,
       'track': _track.text.trim(),
-      'room': _room.text.trim(),
+      'room_id': _roomId,
+      'room': roomName,
       'expert_name': _expert.text.trim(),
       'start_time': start,
       'end_time': end,
@@ -186,7 +208,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                 const SizedBox(height: 16),
                 _field(_title, 'Title'),
                 _field(_track, 'Track', hint: 'e.g. Mobile Track'),
-                _field(_room, 'Room', hint: 'e.g. Room 204'),
+                _roomDropdown(),
                 _field(_expert, 'Expert / speaker'),
                 Row(
                   children: [
@@ -223,6 +245,30 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _roomDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: DropdownButtonFormField<String?>(
+        initialValue: _roomId,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Room',
+          border: OutlineInputBorder(),
+        ),
+        hint: const Text('Select a room'),
+        items: [
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('Unassigned'),
+          ),
+          for (final r in _rooms)
+            DropdownMenuItem<String?>(value: r.id, child: Text(r.name)),
+        ],
+        onChanged: _busy ? null : (v) => setState(() => _roomId = v),
       ),
     );
   }

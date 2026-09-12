@@ -29,6 +29,20 @@ class RegistrationResult {
   final String? conflictingTitle;
 }
 
+/// Outcome of an admin assigning a volunteer to a session. [conflict] mirrors
+/// the server-side overlap guard (the volunteer is already committed to an
+/// overlapping session or personal registration).
+enum AssignmentOutcome { assigned, conflict }
+
+/// Result of a volunteer→session assignment. [conflictingTitle] is set only for
+/// [AssignmentOutcome.conflict].
+class AssignmentResult {
+  const AssignmentResult(this.outcome, [this.conflictingTitle]);
+
+  final AssignmentOutcome outcome;
+  final String? conflictingTitle;
+}
+
 /// A newly-posted announcement delivered over a live feed. Backends without
 /// realtime simply never emit these.
 class AnnouncementEvent {
@@ -134,8 +148,58 @@ abstract interface class AnnouncementsRepository {
   Future<void> stopEvents();
 }
 
-/// Advisory eligibility check for gated roles (mentor/admin). The real guard is
+/// Advisory eligibility check for gated roles (volunteer/admin). The real guard is
 /// server-side; this only drives the "you aren't eligible" onboarding message.
 abstract interface class AllowlistRepository {
   Future<bool> isEligible(SummitRole role);
+}
+
+/// The admin-managed rooms catalog. Sessions are tied to a room; volunteers are
+/// assigned to sessions. Writes are admin-only (enforced by the backend).
+abstract interface class RoomsRepository {
+  Future<List<Room>> fetchAll();
+
+  /// Creates a room. Map keys: name, sort_order.
+  Future<void> create(Map<String, dynamic> data);
+
+  Future<void> update(String id, Map<String, dynamic> data);
+
+  Future<void> delete(String id);
+}
+
+/// Volunteer↔session assignments. Admins assign; assignment grants the volunteer
+/// access to that session's roster + attendance. All authorization is enforced
+/// server-side.
+abstract interface class AssignmentRepository {
+  /// Sessions (as ids) the signed-in volunteer is assigned to.
+  Future<Set<String>> fetchMyAssignedSessionIds();
+
+  /// The volunteers currently assigned to [sessionId] (admin view).
+  Future<List<VolunteerRef>> fetchSessionVolunteers(String sessionId);
+
+  /// The full volunteer directory, for the admin assignment picker.
+  Future<List<VolunteerRef>> fetchVolunteers();
+
+  /// Assigns [userId] to [sessionId], enforcing the no-overlap guard. Returns
+  /// [AssignmentOutcome.conflict] (with the clashing title) if the volunteer is
+  /// already committed to an overlapping session/registration.
+  Future<AssignmentResult> assign(String sessionId, String userId);
+
+  Future<void> unassign(String sessionId, String userId);
+}
+
+/// Attendance: per-session rosters (for session-assigned volunteers) and the
+/// summit-wide front-desk directory (for front-desk-capable volunteers). Every
+/// method is gated server-side.
+abstract interface class AttendanceRepository {
+  /// The registered participants of [sessionId] + their attendance state.
+  Future<List<RosterEntry>> fetchSessionRoster(String sessionId);
+
+  Future<void> markSessionAttendance(
+      String sessionId, String userId, bool attended);
+
+  /// All attendees + their arrival state, optionally filtered by [query].
+  Future<List<Attendee>> fetchAttendeeDirectory([String query]);
+
+  Future<void> markSummitCheckin(String attendeeId, bool present);
 }

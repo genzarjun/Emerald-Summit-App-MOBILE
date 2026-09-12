@@ -51,6 +51,14 @@ class _SignInScreenState extends State<SignInScreen> {
       _error = null;
     });
     try {
+      // TEST/DEV: a registered "code email" signs in instantly (no OTP). A no-op
+      // that returns false in normal builds and for real emails, so this is
+      // transparent in production.
+      if (await authService.tryDevLogin(_email)) {
+        // The auth gate reacts to the new session and navigates; this widget is
+        // about to be disposed, so leave the spinner up.
+        return;
+      }
       await authService.sendEmailOtp(_email);
       if (!mounted) return;
       setState(() {

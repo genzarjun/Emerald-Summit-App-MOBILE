@@ -38,6 +38,11 @@ class SupabaseBackend {
       ..registerSingleton<AnnouncementsRepository>(
           SupabaseAnnouncementsRepository(client))
       ..registerSingleton<AllowlistRepository>(
-          SupabaseAllowlistRepository(client));
+          SupabaseAllowlistRepository(client))
+      ..registerSingleton<RoomsRepository>(SupabaseRoomsRepository(client))
+      ..registerSingleton<AssignmentRepository>(
+          SupabaseAssignmentRepository(client))
+      ..registerSingleton<AttendanceRepository>(
+          SupabaseAttendanceRepository(client));
   }
 }

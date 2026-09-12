@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/models.dart';
 import '../theme.dart';
+import 'session_volunteers_screen.dart';
 
 /// The rich "marketing page" for a single session, with the primary
 /// action to add/remove it from the day plan. Enforces the schedule
@@ -134,6 +135,19 @@ class SessionDetailScreen extends StatelessWidget {
                 label: Text(
                     registered ? 'Remove from my day' : 'Add to my day'),
               ),
+              if (appState.isAdmin) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          SessionVolunteersScreen(session: current),
+                    ),
+                  ),
+                  icon: const Icon(Icons.groups_2_outlined),
+                  label: const Text('Manage volunteers'),
+                ),
+              ],
             ],
           );
         },

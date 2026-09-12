@@ -2,13 +2,48 @@ import 'package:flutter/material.dart';
 
 /// The roles a Summit account can hold. Picked during sign-up; drives which
 /// onboarding fields we collect and which management privileges the user gets.
-/// Stored as `profiles.role` (the enum `name`, e.g. "mentor").
+/// Stored as `profiles.role` (the enum `name`, e.g. "volunteer").
 ///
-/// `participant`, `expert`, `parent` are open to anyone. `mentor` and `admin`
+/// `participant`, `expert`, `parent` are open to anyone. `volunteer` and `admin`
 /// are gated: the email must be on the synced `role_allowlist` (from the Google
-/// Sheets) or the server forces the account back to `participant`. Mentors are
-/// discipline-scoped; admins are global.
-enum SummitRole { participant, expert, parent, mentor, admin }
+/// Sheets) or the server forces the account back to `participant`. Volunteers
+/// carry a [VolunteerSubtype] plus fine-grained capability flags (all set by the
+/// server from the sheet); admins are global.
+enum SummitRole { participant, expert, parent, volunteer, admin }
+
+/// The kind of volunteer, set from the Google Sheet's `subtype` column and
+/// stored on `profiles.volunteer_subtype`. Drives the profile badge and the
+/// default capability set the enforcement trigger applies:
+///   * [eafAmbassador]   — manages a discipline (edits sessions; may post
+///     announcements to it).
+///   * [parentVolunteer] / [studentVolunteer] — operational help; no content
+///     editing by default. Any subtype can be assigned to sessions (for roster
+///     + attendance) and can be granted front-desk check-in.
+enum VolunteerSubtype { eafAmbassador, parentVolunteer, studentVolunteer }
+
+extension VolunteerSubtypeX on VolunteerSubtype {
+  /// Value stored in the database (matches the sheet's `subtype` column).
+  String get id => switch (this) {
+        VolunteerSubtype.eafAmbassador => 'eaf_ambassador',
+        VolunteerSubtype.parentVolunteer => 'parent_volunteer',
+        VolunteerSubtype.studentVolunteer => 'student_volunteer',
+      };
+
+  String get label => switch (this) {
+        VolunteerSubtype.eafAmbassador => 'EAF Ambassador',
+        VolunteerSubtype.parentVolunteer => 'Parent Volunteer',
+        VolunteerSubtype.studentVolunteer => 'Student Volunteer',
+      };
+
+  /// Parses the stored id, or null for an unknown/absent value.
+  static VolunteerSubtype? fromId(String? id) {
+    if (id == null) return null;
+    for (final s in VolunteerSubtype.values) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+}
 
 /// One extra field collected during onboarding for a given role. The [key]
 /// is where the answer lands in `profiles.details` (a jsonb bag), so roles
@@ -37,7 +72,7 @@ extension SummitRoleX on SummitRole {
         SummitRole.participant => 'Participant',
         SummitRole.expert => 'Expert / Speaker',
         SummitRole.parent => 'Parent / Spectator',
-        SummitRole.mentor => 'Mentor',
+        SummitRole.volunteer => 'Volunteer',
         SummitRole.admin => 'Admin',
       };
 
@@ -46,8 +81,8 @@ extension SummitRoleX on SummitRole {
           'Build your schedule and follow your summit day.',
         SummitRole.expert => 'Lead a session or speak at the summit.',
         SummitRole.parent => 'Follow along and stay in the loop.',
-        SummitRole.mentor =>
-          'Help run the summit and manage your discipline’s sessions.',
+        SummitRole.volunteer =>
+          'Help run the summit — EAF ambassadors, parent and student volunteers.',
         SummitRole.admin => 'Manage the summit, announcements, and content.',
       };
 
@@ -55,18 +90,22 @@ extension SummitRoleX on SummitRole {
         SummitRole.participant => Icons.school_outlined,
         SummitRole.expert => Icons.mic_none_outlined,
         SummitRole.parent => Icons.family_restroom_outlined,
-        SummitRole.mentor => Icons.volunteer_activism_outlined,
+        SummitRole.volunteer => Icons.volunteer_activism_outlined,
         SummitRole.admin => Icons.admin_panel_settings_outlined,
       };
 
   /// Whether this role must be verified against the synced allowlist at sign-up.
-  bool get isGated => this == SummitRole.mentor || this == SummitRole.admin;
+  bool get isGated => this == SummitRole.volunteer || this == SummitRole.admin;
 
   /// Role-specific onboarding questions, asked after name + role.
   ///
-  /// The design intent (per spec): ask mentors for full contact details since
+  /// The design intent (per spec): ask volunteers for full contact details since
   /// they're staffing the event, but keep experts light — we don't want to
   /// over-collect from busy speakers. Admins need nothing extra.
+  ///
+  /// TODO(volunteer-subtypes): tailor these per [VolunteerSubtype] once the
+  /// subtype is known at onboarding (deferred — the subtype currently arrives
+  /// from the sheet after sign-up).
   List<ProfileField> get onboardingFields => switch (this) {
         SummitRole.participant => const [
             ProfileField(key: 'school', label: 'School', hint: 'e.g. Emerald High'),
@@ -76,7 +115,7 @@ extension SummitRoleX on SummitRole {
                 label: 'Dietary needs (optional)',
                 hint: 'e.g. vegetarian, nut allergy'),
           ],
-        SummitRole.mentor => const [
+        SummitRole.volunteer => const [
             ProfileField(key: 'school', label: 'School', hint: 'e.g. Emerald High'),
             ProfileField(key: 'grade', label: 'Grade', hint: 'e.g. 11'),
             ProfileField(
@@ -143,6 +182,10 @@ class UserProfile {
     this.onboarded = false,
     this.notificationsEnabled = true,
     this.volunteerHours = 0,
+    this.volunteerSubtype,
+    this.canEditSessions = false,
+    this.canPostAnnouncements = false,
+    this.canCheckInFrontDesk = false,
     List<String>? managedDisciplines,
     Map<String, dynamic>? details,
   })  : managedDisciplines = managedDisciplines ?? const [],
@@ -159,16 +202,41 @@ class UserProfile {
   bool notificationsEnabled;
   double volunteerHours;
 
-  /// Discipline ids a mentor may manage, or `['*']` for a high-level mentor who
+  /// The volunteer's subtype (EAF ambassador / parent / student), or null for
+  /// non-volunteers. Set by the server from the sheet; read-only here.
+  final VolunteerSubtype? volunteerSubtype;
+
+  /// Fine-grained capabilities, all **server-owned** (set by the enforcement
+  /// trigger from the Google Sheet; never written back by the app):
+  ///   * [canEditSessions]      — create/edit/delete sessions in
+  ///     [managedDisciplines] (EAF ambassadors by default).
+  ///   * [canPostAnnouncements] — post announcements to a managed discipline.
+  ///   * [canCheckInFrontDesk]  — mark any attendee arrived at the front desk.
+  /// Admins implicitly have all of these regardless of the flags.
+  final bool canEditSessions;
+  final bool canPostAnnouncements;
+  final bool canCheckInFrontDesk;
+
+  /// Discipline ids a volunteer may manage, or `['*']` for a volunteer who
   /// manages every discipline. Set by the server (the allowlist enforcement
   /// trigger), read-only from the app's perspective. Empty for other roles.
   final List<String> managedDisciplines;
 
-  /// True if this account may manage the given discipline (admins: always;
-  /// mentors: if scoped to it or holding the `*` wildcard).
+  /// True if this account may manage content in the given discipline (admins:
+  /// always; volunteers: only when [canEditSessions] AND scoped to it — or the
+  /// `*` wildcard).
   bool canManageDiscipline(String disciplineId) {
     if (role == SummitRole.admin) return true;
-    if (role != SummitRole.mentor) return false;
+    if (role != SummitRole.volunteer || !canEditSessions) return false;
+    return managedDisciplines.contains('*') ||
+        managedDisciplines.contains(disciplineId);
+  }
+
+  /// True if this account may post an announcement targeting the given
+  /// discipline (admins: any; volunteers: [canPostAnnouncements] AND scoped).
+  bool canPostToDiscipline(String disciplineId) {
+    if (role == SummitRole.admin) return true;
+    if (role != SummitRole.volunteer || !canPostAnnouncements) return false;
     return managedDisciplines.contains('*') ||
         managedDisciplines.contains(disciplineId);
   }
@@ -184,6 +252,11 @@ class UserProfile {
         onboarded: (row['onboarded'] ?? false) as bool,
         notificationsEnabled: (row['notifications_enabled'] ?? true) as bool,
         volunteerHours: (row['volunteer_hours'] as num?)?.toDouble() ?? 0,
+        volunteerSubtype:
+            VolunteerSubtypeX.fromId(row['volunteer_subtype'] as String?),
+        canEditSessions: (row['can_edit_sessions'] ?? false) as bool,
+        canPostAnnouncements: (row['can_post_announcements'] ?? false) as bool,
+        canCheckInFrontDesk: (row['can_check_in_front_desk'] ?? false) as bool,
         managedDisciplines:
             (row['managed_disciplines'] as List?)?.cast<String>() ?? const [],
         details: (row['details'] as Map?)?.cast<String, dynamic>() ?? {},

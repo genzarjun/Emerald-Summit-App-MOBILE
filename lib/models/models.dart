@@ -59,6 +59,7 @@ class Session {
     required this.disciplineName,
     required this.track,
     required this.room,
+    this.roomId,
     required this.expertName,
     required this.start,
     required this.end,
@@ -77,6 +78,7 @@ class Session {
         disciplineName: (row['discipline_name'] ?? '') as String,
         track: (row['track'] ?? '') as String,
         room: (row['room'] ?? '') as String,
+        roomId: row['room_id']?.toString(),
         expertName: (row['expert_name'] ?? '') as String,
         start: (row['start_time'] ?? '00:00') as String,
         end: (row['end_time'] ?? '00:00') as String,
@@ -91,6 +93,10 @@ class Session {
   final String disciplineName;
   final String track;
   final String room;
+
+  /// The rooms-catalog id this session is tied to (nullable: "Unassigned").
+  /// The display string is [room]; [roomId] is the structured link admins set.
+  final String? roomId;
   final String expertName;
   final String start; // "HH:mm" 24h
   final String end; // "HH:mm" 24h
@@ -149,7 +155,7 @@ class Announcement {
   final bool pinned;
 
   /// When set, this announcement targets one discipline — it only reaches users
-  /// who have an activity in that discipline (plus admins / its mentors). Null
+  /// who have an activity in that discipline (plus admins / its volunteers). Null
   /// means it goes to everyone.
   final String? disciplineId;
 
@@ -193,4 +199,110 @@ class ResourceDoc {
   final String title;
   final String category;
   final IconData icon;
+}
+
+/// A room in the admin-managed catalog. Sessions are tied to one of these; the
+/// session editor picks from them and volunteers are assigned to the sessions.
+class Room {
+  const Room({required this.id, required this.name, this.sortOrder = 0});
+
+  final String id;
+  final String name;
+  final int sortOrder;
+
+  factory Room.fromMap(Map<String, dynamic> row) => Room(
+        id: row['id'].toString(),
+        name: (row['name'] ?? '') as String,
+        sortOrder: (row['sort_order'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// A volunteer as seen by an admin (from `fetch_volunteers` /
+/// `fetch_session_volunteers`) — for the assignment picker and assigned list.
+class VolunteerRef {
+  const VolunteerRef({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.subtype,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+
+  /// Stored subtype id (e.g. 'student_volunteer'), or null.
+  final String? subtype;
+
+  /// `id` for the directory RPC, `user_id` for the session-volunteers RPC.
+  factory VolunteerRef.fromMap(Map<String, dynamic> row) => VolunteerRef(
+        id: (row['id'] ?? row['user_id']).toString(),
+        name: (row['full_name'] ?? '') as String,
+        email: (row['email'] ?? '') as String,
+        subtype: row['subtype'] as String?,
+      );
+}
+
+/// One participant on a session's roster (from `fetch_session_roster`), with the
+/// attendance state a session-assigned volunteer can toggle.
+class RosterEntry {
+  const RosterEntry({
+    required this.userId,
+    required this.name,
+    required this.email,
+    required this.attended,
+  });
+
+  final String userId;
+  final String name;
+  final String email;
+  final bool attended;
+
+  factory RosterEntry.fromMap(Map<String, dynamic> row) => RosterEntry(
+        userId: row['user_id'].toString(),
+        name: (row['full_name'] ?? '') as String,
+        email: (row['email'] ?? '') as String,
+        attended: (row['attended'] ?? false) as bool,
+      );
+
+  RosterEntry copyWith({bool? attended}) => RosterEntry(
+        userId: userId,
+        name: name,
+        email: email,
+        attended: attended ?? this.attended,
+      );
+}
+
+/// A summit attendee in the front-desk directory (from
+/// `fetch_attendee_directory`), with their arrival state.
+class Attendee {
+  const Attendee({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.present,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String role;
+  final bool present;
+
+  factory Attendee.fromMap(Map<String, dynamic> row) => Attendee(
+        id: row['id'].toString(),
+        name: (row['full_name'] ?? '') as String,
+        email: (row['email'] ?? '') as String,
+        role: (row['role'] ?? '') as String,
+        present: (row['present'] ?? false) as bool,
+      );
+
+  Attendee copyWith({bool? present}) => Attendee(
+        id: id,
+        name: name,
+        email: email,
+        role: role,
+        present: present ?? this.present,
+      );
 }

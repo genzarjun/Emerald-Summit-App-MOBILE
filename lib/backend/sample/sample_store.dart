@@ -20,6 +20,45 @@ class SampleStore {
   /// matching the pre-seam sample behavior.
   UserProfile? profile;
 
+  // ---- Volunteers feature (rooms / assignments / attendance) --------------
+  // In-memory analogues of the Supabase tables/RPCs, so demo mode and unit tests
+  // exercise the same repository contracts. Seeded lazily on first access.
+
+  List<Room>? _rooms;
+
+  /// The rooms catalog, seeded from the distinct room strings the sample
+  /// sessions carry (mirrors the live migration in rooms_setup.sql).
+  List<Room> get rooms => _rooms ??= _seedRooms();
+
+  List<Room> _seedRooms() {
+    final names = <String>{
+      for (final s in allSessions)
+        if (s.room.trim().isNotEmpty) s.room.trim(),
+    };
+    var i = 0;
+    return [
+      for (final name in names) Room(id: 'room-${i++}', name: name, sortOrder: i),
+    ];
+  }
+
+  /// The signed-in volunteer's own assignments (session ids). Empty in demo.
+  final Set<String> myAssignedSessionIds = {};
+
+  /// userId → session ids they're assigned to (drives the overlap guard).
+  final Map<String, Set<String>> assignmentsByUser = {};
+
+  /// sessionId → volunteers assigned (admin view).
+  final Map<String, List<VolunteerRef>> sessionVolunteers = {};
+
+  /// The volunteer directory for the admin assignment picker.
+  final List<VolunteerRef> volunteers = [];
+
+  /// sessionId → its roster (registered participants + attendance state).
+  final Map<String, List<RosterEntry>> rosters = {};
+
+  /// The summit-wide attendee directory for front-desk check-in.
+  final List<Attendee> attendees = [];
+
   List<Session> get allSessions => [for (final d in disciplines) ...d.sessions];
 
   Session? sessionById(String id) {

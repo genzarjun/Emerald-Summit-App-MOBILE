@@ -10,10 +10,10 @@ import '../../models/user_profile.dart';
 /// Two steps:
 ///   1. Name + role.
 ///   2. Role-specific details — the questions come from the chosen role
-///      (see [SummitRoleX.onboardingFields]), so a mentor is asked for full
+///      (see [SummitRoleX.onboardingFields]), so a volunteer is asked for full
 ///      contact info while an expert is asked only the essentials.
 ///
-/// Gated roles (mentor/admin) are verified against the synced allowlist before
+/// Gated roles (volunteer/admin) are verified against the synced allowlist before
 /// the user can continue past step 1.
 ///
 /// On finish the profile is saved through the backend and the auth gate moves
@@ -77,7 +77,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    // Gated roles (mentor/admin) must be on the synced allowlist. This check is
+    // Gated roles (volunteer/admin) must be on the synced allowlist. This check is
     // advisory UX — the server trigger is the real guard — but it's what lets us
     // block ineligible sign-ups with a clear message before collecting details.
     if (_role.isGated) {
@@ -97,7 +97,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           _busy = false;
           _error = _role == SummitRole.admin
               ? "You aren't eligible to sign up as an admin."
-              : "You aren't eligible to sign up as a mentor.";
+              : "You aren't eligible to sign up as a volunteer.";
         });
         return;
       }

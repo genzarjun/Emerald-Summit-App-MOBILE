@@ -23,6 +23,11 @@ class SampleBackend {
       ..registerSingleton<ProfileRepository>(SampleProfileRepository(store))
       ..registerSingleton<AnnouncementsRepository>(
           SampleAnnouncementsRepository(store))
-      ..registerSingleton<AllowlistRepository>(SampleAllowlistRepository());
+      ..registerSingleton<AllowlistRepository>(SampleAllowlistRepository())
+      ..registerSingleton<RoomsRepository>(SampleRoomsRepository(store))
+      ..registerSingleton<AssignmentRepository>(
+          SampleAssignmentRepository(store))
+      ..registerSingleton<AttendanceRepository>(
+          SampleAttendanceRepository(store));
   }
 }

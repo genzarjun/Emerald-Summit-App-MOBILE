@@ -23,4 +23,12 @@ class SupabaseConfig {
   /// `--dart-define-from-file=env.json` flag.
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
+
+  /// TEST/DEV ONLY. When true, the sign-in screen attempts the `dev-login`
+  /// bypass for "code emails" before the normal OTP flow (see
+  /// [SUPABASE.md]). Off unless the build passes `--dart-define DEV_LOGIN=true`
+  /// (e.g. a `"DEV_LOGIN": true` entry in a dev `env.json`). NEVER enable it in
+  /// a production build; the Edge Function has its own second guard.
+  static const bool devLoginEnabled =
+      bool.fromEnvironment('DEV_LOGIN', defaultValue: false);
 }

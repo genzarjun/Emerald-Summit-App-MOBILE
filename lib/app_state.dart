@@ -154,6 +154,51 @@ class AppState extends ChangeNotifier {
     await loadCatalog();
   }
 
+  // ---- Rooms (admin-managed catalog) ---------------------------------------
+  List<Room> rooms = const [];
+
+  Future<void> loadRooms() async {
+    rooms = await roomsRepository.fetchAll();
+    notifyListeners();
+  }
+
+  Future<void> createRoom(Map<String, dynamic> data) async {
+    await roomsRepository.create(data);
+    await loadRooms();
+  }
+
+  Future<void> updateRoom(String id, Map<String, dynamic> data) async {
+    await roomsRepository.update(id, data);
+    await loadRooms();
+  }
+
+  Future<void> deleteRoom(String id) async {
+    await roomsRepository.delete(id);
+    await loadRooms();
+  }
+
+  // ---- Session assignments (volunteer roster/attendance access) ------------
+  Set<String> myAssignedSessionIds = const {};
+
+  /// The sessions the signed-in volunteer is assigned to (roster + attendance).
+  List<Session> get myAssignedSessions =>
+      [for (final s in allSessions) if (myAssignedSessionIds.contains(s.id)) s];
+
+  /// Loads the signed-in volunteer's session assignments. No-op for other roles.
+  Future<void> loadMyAssignments() async {
+    if (!isVolunteer) {
+      myAssignedSessionIds = const {};
+      return;
+    }
+    try {
+      myAssignedSessionIds =
+          await assignmentRepository.fetchMyAssignedSessionIds();
+    } catch (_) {
+      myAssignedSessionIds = const {};
+    }
+    notifyListeners();
+  }
+
   // ---- Announcements (News feed + live events) -----------------------------
   List<Announcement> announcements = const [];
   bool announcementsLoading = false;
@@ -168,7 +213,7 @@ class AppState extends ChangeNotifier {
       };
 
   /// Whether an announcement targeting [disciplineId] reaches this user:
-  /// everyone (null target), admins (all), a mentor who manages it, or anyone
+  /// everyone (null target), admins (all), a volunteer who manages it, or anyone
   /// with an activity in that discipline.
   bool announcementReaches(String? disciplineId) {
     if (disciplineId == null) return true;
@@ -333,18 +378,35 @@ class AppState extends ChangeNotifier {
 
   // ---- Role helpers --------------------------------------------------------
   bool get isAdmin => profile?.role == SummitRole.admin;
-  bool get isMentor => profile?.role == SummitRole.mentor;
+  bool get isVolunteer => profile?.role == SummitRole.volunteer;
+
+  /// Capability flags (server-owned; admins implicitly have them all).
+  bool get canEditSessions =>
+      isAdmin || (profile?.canEditSessions ?? false);
+  bool get canPostAnnouncements =>
+      isAdmin || (profile?.canPostAnnouncements ?? false);
+  bool get canCheckInFrontDesk =>
+      isAdmin || (profile?.canCheckInFrontDesk ?? false);
+
+  /// The volunteer's subtype label (e.g. "EAF Ambassador"), or null.
+  String? get volunteerSubtypeLabel => profile?.volunteerSubtype?.label;
 
   /// Whether the signed-in user may manage content in [disciplineId] (admins:
-  /// always; mentors: only their scoped disciplines or the `*` wildcard).
+  /// always; volunteers: only when they can edit sessions and are scoped to it
+  /// or hold the `*` wildcard).
   bool canManageDiscipline(String disciplineId) =>
       profile?.canManageDiscipline(disciplineId) ?? false;
 
-  /// For a mentor, the human-readable disciplines they manage (names, or "All
-  /// disciplines" for the `*` wildcard). Null for non-mentors / no scope yet.
-  String? get mentorScopeLabel {
+  /// Whether the signed-in user may post an announcement to [disciplineId].
+  bool canPostToDiscipline(String disciplineId) =>
+      profile?.canPostToDiscipline(disciplineId) ?? false;
+
+  /// For a volunteer, the human-readable disciplines they manage (names, or
+  /// "All disciplines" for the `*` wildcard). Null for non-volunteers / no
+  /// scope yet.
+  String? get volunteerScopeLabel {
     final p = profile;
-    if (p == null || p.role != SummitRole.mentor) return null;
+    if (p == null || p.role != SummitRole.volunteer) return null;
     final ids = p.managedDisciplines;
     if (ids.isEmpty) return null;
     if (ids.contains('*')) return 'All disciplines';
@@ -373,6 +435,7 @@ class AppState extends ChangeNotifier {
     await loadSchedule();
     await loadAnnouncements();
     await loadReadAnnouncements();
+    await loadMyAssignments();
     subscribeAnnouncements();
   }
 
@@ -381,8 +444,8 @@ class AppState extends ChangeNotifier {
   Future<void> completeOnboarding(UserProfile updated) async {
     updated.onboarded = true;
     await profileRepository.save(updated);
-    // Re-read so the server's enforced role + mentor scope (set by the
-    // role_allowlist trigger) are reflected locally, not just what we sent.
+    // Re-read so the server's enforced role + volunteer scope/capabilities (set
+    // by the role_allowlist trigger) are reflected locally, not just what we sent.
     profile = await profileRepository.fetchMine() ?? updated;
     notificationsEnabled = profile!.notificationsEnabled;
     volunteerHours = profile!.volunteerHours;
@@ -400,6 +463,8 @@ class AppState extends ChangeNotifier {
     _seenAnnouncementIds.clear();
     _openedAnnouncementIds.clear();
     _readStateLoaded = false;
+    myAssignedSessionIds = const {};
+    rooms = const [];
     notifyListeners();
   }
 

@@ -26,7 +26,7 @@ class SampleCatalogRepository implements CatalogRepository {
 
 class SampleContentRepository implements ContentRepository {
   // Session authoring is a no-op in demo mode; the catalog is read-only sample
-  // content. Kept so admin/mentor UIs don't crash when there's no backend.
+  // content. Kept so admin/volunteer UIs don't crash when there's no backend.
   @override
   Future<void> createSession(Map<String, dynamic> data) async {}
 
@@ -158,6 +158,141 @@ class SampleAllowlistRepository implements AllowlistRepository {
   Future<bool> isEligible(SummitRole role) async => false;
 }
 
+/// In-memory rooms catalog (seeded from the sample sessions' rooms).
+class SampleRoomsRepository implements RoomsRepository {
+  SampleRoomsRepository(this._store);
+
+  final SampleStore _store;
+
+  @override
+  Future<List<Room>> fetchAll() async {
+    final list = [..._store.rooms]
+      ..sort((a, b) {
+        final c = a.sortOrder.compareTo(b.sortOrder);
+        return c != 0 ? c : a.name.compareTo(b.name);
+      });
+    return list;
+  }
+
+  @override
+  Future<void> create(Map<String, dynamic> data) async {
+    _store.rooms.add(Room(
+      id: 'room-${DateTime.now().microsecondsSinceEpoch}',
+      name: (data['name'] ?? '') as String,
+      sortOrder: (data['sort_order'] as num?)?.toInt() ?? 0,
+    ));
+  }
+
+  @override
+  Future<void> update(String id, Map<String, dynamic> data) async {
+    final i = _store.rooms.indexWhere((r) => r.id == id);
+    if (i < 0) return;
+    final old = _store.rooms[i];
+    _store.rooms[i] = Room(
+      id: old.id,
+      name: (data['name'] ?? old.name) as String,
+      sortOrder: (data['sort_order'] as num?)?.toInt() ?? old.sortOrder,
+    );
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _store.rooms.removeWhere((r) => r.id == id);
+  }
+}
+
+/// In-memory volunteer↔session assignments, replicating the server overlap
+/// guard: an assignment is refused if the target session's time overlaps any of
+/// that volunteer's other assignments OR the demo user's personal registrations.
+class SampleAssignmentRepository implements AssignmentRepository {
+  SampleAssignmentRepository(this._store);
+
+  final SampleStore _store;
+
+  @override
+  Future<Set<String>> fetchMyAssignedSessionIds() async =>
+      {..._store.myAssignedSessionIds};
+
+  @override
+  Future<List<VolunteerRef>> fetchSessionVolunteers(String sessionId) async =>
+      [...?_store.sessionVolunteers[sessionId]];
+
+  @override
+  Future<List<VolunteerRef>> fetchVolunteers() async => [..._store.volunteers];
+
+  @override
+  Future<AssignmentResult> assign(String sessionId, String userId) async {
+    final target = _store.sessionById(sessionId);
+    if (target == null) {
+      return const AssignmentResult(AssignmentOutcome.assigned);
+    }
+    final existing = _store.assignmentsByUser[userId] ?? <String>{};
+    if (existing.contains(sessionId)) {
+      return const AssignmentResult(AssignmentOutcome.assigned);
+    }
+    // Overlap against the volunteer's other assignments + demo registrations.
+    final commitments = {...existing, ..._store.mySessionIds};
+    for (final id in commitments) {
+      if (id == sessionId) continue;
+      final other = _store.sessionById(id);
+      if (other != null && other.overlaps(target)) {
+        return AssignmentResult(AssignmentOutcome.conflict, other.title);
+      }
+    }
+    (_store.assignmentsByUser[userId] ??= <String>{}).add(sessionId);
+    final vols = _store.sessionVolunteers[sessionId] ??= <VolunteerRef>[];
+    final ref = _store.volunteers.where((v) => v.id == userId);
+    vols.add(ref.isNotEmpty
+        ? ref.first
+        : VolunteerRef(id: userId, name: userId, email: ''));
+    return const AssignmentResult(AssignmentOutcome.assigned);
+  }
+
+  @override
+  Future<void> unassign(String sessionId, String userId) async {
+    _store.assignmentsByUser[userId]?.remove(sessionId);
+    _store.sessionVolunteers[sessionId]?.removeWhere((v) => v.id == userId);
+  }
+}
+
+/// In-memory attendance: per-session rosters and the front-desk directory.
+class SampleAttendanceRepository implements AttendanceRepository {
+  SampleAttendanceRepository(this._store);
+
+  final SampleStore _store;
+
+  @override
+  Future<List<RosterEntry>> fetchSessionRoster(String sessionId) async =>
+      [...?_store.rosters[sessionId]];
+
+  @override
+  Future<void> markSessionAttendance(
+      String sessionId, String userId, bool attended) async {
+    final roster = _store.rosters[sessionId];
+    if (roster == null) return;
+    final i = roster.indexWhere((e) => e.userId == userId);
+    if (i >= 0) roster[i] = roster[i].copyWith(attended: attended);
+  }
+
+  @override
+  Future<List<Attendee>> fetchAttendeeDirectory([String query = '']) async {
+    final q = query.trim().toLowerCase();
+    return [
+      for (final a in _store.attendees)
+        if (q.isEmpty ||
+            a.name.toLowerCase().contains(q) ||
+            a.email.toLowerCase().contains(q))
+          a,
+    ];
+  }
+
+  @override
+  Future<void> markSummitCheckin(String attendeeId, bool present) async {
+    final i = _store.attendees.indexWhere((a) => a.id == attendeeId);
+    if (i >= 0) _store.attendees[i] = _store.attendees[i].copyWith(present: present);
+  }
+}
+
 /// No-account auth for demo mode: nobody is ever signed in, and the OTP calls
 /// are unreachable because the auth gate isn't shown without a live backend.
 class SampleAuthService implements AuthService {
@@ -182,6 +317,9 @@ class SampleAuthService implements AuthService {
   }) async {
     throw const AuthFailure('Sign-in is unavailable in demo mode.');
   }
+
+  @override
+  Future<bool> tryDevLogin(String email) async => false;
 
   @override
   Future<void> signOut() async {}

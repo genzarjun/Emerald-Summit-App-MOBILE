@@ -1,17 +1,20 @@
 // Emerald Summit — sync-allowlist Edge Function (private Google Sheets API)
 //
-// Copies the two Google Sheets (mentors, admins) into the role_allowlist table
-// that RLS enforces. Reads the sheets PRIVATELY via the Google Sheets API using
-// a service account — the sheets stay unpublished, so no mentor/admin emails are
-// ever exposed on a public URL. Uses the Supabase service role (bypasses RLS);
-// never expose this function's secrets to the client.
+// Copies the two Google Sheets (volunteers, admins) into the role_allowlist
+// table that RLS enforces. Reads the sheets PRIVATELY via the Google Sheets API
+// using a service account — the sheets stay unpublished, so no volunteer/admin
+// emails are ever exposed on a public URL. Uses the Supabase service role
+// (bypasses RLS); never expose this function's secrets to the client.
 //
 // Secrets (set with `supabase secrets set` or in the dashboard):
 //   GOOGLE_SERVICE_ACCOUNT_EMAIL  — the service account's email
 //   GOOGLE_PRIVATE_KEY            — its private key (PEM; keep the \n escapes)
-//   MENTORS_SHEET_ID             — the mentors spreadsheet id (from its URL)
+//   VOLUNTEERS_SHEET_ID          — the volunteers spreadsheet id (from its URL)
+//                                  (legacy MENTORS_SHEET_ID is accepted too)
 //   ADMINS_SHEET_ID             — the admins spreadsheet id
-//   MENTORS_RANGE (optional, default "A:B")  — email, disciplines
+//   VOLUNTEERS_RANGE (optional, default "A:F")
+//        columns: email | subtype | disciplines | can_edit_sessions |
+//                 can_post_announcements | can_check_in_front_desk
 //   ADMINS_RANGE  (optional, default "A:A")  — email
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 //
@@ -24,7 +27,39 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-interface AllowRow { email: string; role: "mentor" | "admin"; disciplines: string[]; }
+interface AllowRow {
+  email: string;
+  role: "volunteer" | "admin";
+  disciplines: string[];
+  subtype: string | null;
+  can_edit_sessions: boolean | null;
+  can_post_announcements: boolean | null;
+  can_check_in_front_desk: boolean | null;
+}
+
+// ---- Cell parsing ----------------------------------------------------------
+
+// TRUE/FALSE/blank → true/false/null. Blank means "use the subtype default"
+// (the DB trigger applies it), so we send NULL, not false.
+function parseBool(cell: string | undefined): boolean | null {
+  const v = (cell ?? "").trim().toLowerCase();
+  if (v === "") return null;
+  if (/^(true|yes|y|1|x|✓)$/.test(v)) return true;
+  if (/^(false|no|n|0)$/.test(v)) return false;
+  return null;
+}
+
+// Normalize the subtype cell to a stored id, tolerating a few spellings.
+function parseSubtype(cell: string | undefined): string | null {
+  const v = (cell ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (v === "") return null;
+  if (v === "eaf_ambassador" || v.includes("ambassador") || v === "eaf") {
+    return "eaf_ambassador";
+  }
+  if (v === "parent_volunteer" || v.startsWith("parent")) return "parent_volunteer";
+  if (v === "student_volunteer" || v.startsWith("student")) return "student_volunteer";
+  return null;
+}
 
 // ---- Google service-account auth (OAuth2 JWT bearer) -----------------------
 
@@ -90,7 +125,7 @@ async function readSheet(
   token: string,
   sheetId: string | undefined,
   range: string,
-  role: "mentor" | "admin",
+  role: "volunteer" | "admin",
 ): Promise<AllowRow[]> {
   if (!sheetId) return [];
   const url =
@@ -106,13 +141,34 @@ async function readSheet(
     if (!email || email === "email" || !email.includes("@")) continue; // header/blank
     if (seen.has(email)) continue;
     seen.add(email);
+
     let disciplines: string[] = [];
-    if (role === "mentor") {
-      const cell = (r[1] ?? "").trim();
+    let subtype: string | null = null;
+    let canEdit: boolean | null = null;
+    let canPost: boolean | null = null;
+    let canFrontDesk: boolean | null = null;
+
+    if (role === "volunteer") {
+      // A email | B subtype | C disciplines | D can_edit_sessions |
+      // E can_post_announcements | F can_check_in_front_desk
+      subtype = parseSubtype(r[1]);
+      const cell = (r[2] ?? "").trim();
       if (/^(all|\*)$/i.test(cell)) disciplines = ["*"];
       else if (cell) disciplines = cell.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+      canEdit = parseBool(r[3]);
+      canPost = parseBool(r[4]);
+      canFrontDesk = parseBool(r[5]);
     }
-    out.push({ email, role, disciplines });
+
+    out.push({
+      email,
+      role,
+      disciplines,
+      subtype,
+      can_edit_sessions: canEdit,
+      can_post_announcements: canPost,
+      can_check_in_front_desk: canFrontDesk,
+    });
   }
   return out;
 }
@@ -127,15 +183,17 @@ Deno.serve(async () => {
     );
 
     const token = await getAccessToken();
-    const mentors = await readSheet(
-      token, Deno.env.get("MENTORS_SHEET_ID"),
-      Deno.env.get("MENTORS_RANGE") ?? "A:B", "mentor",
+    const volunteers = await readSheet(
+      token,
+      Deno.env.get("VOLUNTEERS_SHEET_ID") ?? Deno.env.get("MENTORS_SHEET_ID"),
+      Deno.env.get("VOLUNTEERS_RANGE") ?? Deno.env.get("MENTORS_RANGE") ?? "A:F",
+      "volunteer",
     );
     const admins = await readSheet(
       token, Deno.env.get("ADMINS_SHEET_ID"),
       Deno.env.get("ADMINS_RANGE") ?? "A:A", "admin",
     );
-    const all = [...mentors, ...admins];
+    const all = [...volunteers, ...admins];
 
     if (all.length > 0) {
       const { error } = await supabase
@@ -149,10 +207,10 @@ Deno.serve(async () => {
       }
     }
 
-    await prune(supabase, "mentor", mentors.map((m) => m.email));
+    await prune(supabase, "volunteer", volunteers.map((v) => v.email));
     await prune(supabase, "admin", admins.map((a) => a.email));
 
-    return json({ ok: true, mentors: mentors.length, admins: admins.length });
+    return json({ ok: true, volunteers: volunteers.length, admins: admins.length });
   } catch (e) {
     // Serialize properly so the real message shows instead of "[object Object]".
     const msg = e instanceof Error
@@ -164,7 +222,7 @@ Deno.serve(async () => {
 
 async function prune(
   supabase: ReturnType<typeof createClient>,
-  role: "mentor" | "admin",
+  role: "volunteer" | "admin",
   keepEmails: string[],
 ) {
   let q = supabase.from("role_allowlist").delete().eq("role", role);

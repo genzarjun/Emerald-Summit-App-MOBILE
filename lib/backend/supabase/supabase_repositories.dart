@@ -48,8 +48,8 @@ class SupabaseCatalogRepository implements CatalogRepository {
   }
 }
 
-/// Create/update/delete sessions. Writes are gated by RLS to admins and mentors
-/// scoped to the session's discipline.
+/// Create/update/delete sessions. Writes are gated by RLS to admins and
+/// volunteers who can edit sessions and are scoped to the session's discipline.
 class SupabaseContentRepository implements ContentRepository {
   SupabaseContentRepository(this._client);
 
@@ -319,5 +319,148 @@ class SupabaseAllowlistRepository implements AllowlistRepository {
         .eq('role', role.id)
         .maybeSingle();
     return row != null;
+  }
+}
+
+/// The admin-managed rooms catalog. Public read; writes are RLS-gated to admins.
+class SupabaseRoomsRepository implements RoomsRepository {
+  SupabaseRoomsRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<List<Room>> fetchAll() async {
+    final rows = await _client
+        .from('rooms')
+        .select()
+        .order('sort_order')
+        .order('name');
+    return rows.map((r) => Room.fromMap(r)).toList();
+  }
+
+  @override
+  Future<void> create(Map<String, dynamic> data) async {
+    await _client.from('rooms').insert(data);
+  }
+
+  @override
+  Future<void> update(String id, Map<String, dynamic> data) async {
+    await _client.from('rooms').update(data).eq('id', id);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _client.from('rooms').delete().eq('id', id);
+  }
+}
+
+/// Volunteer↔session assignments. Reads are RLS-scoped; the assign path goes
+/// through the `assign_volunteer_to_session` RPC (admin-only, overlap-guarded),
+/// and the admin directory/list come from SECURITY DEFINER RPCs.
+class SupabaseAssignmentRepository implements AssignmentRepository {
+  SupabaseAssignmentRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<Set<String>> fetchMyAssignedSessionIds() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return {};
+    final rows = await _client
+        .from('session_volunteers')
+        .select('session_id')
+        .eq('user_id', uid);
+    return rows.map((r) => r['session_id'].toString()).toSet();
+  }
+
+  @override
+  Future<List<VolunteerRef>> fetchSessionVolunteers(String sessionId) async {
+    final res = await _client.rpc(
+      'fetch_session_volunteers',
+      params: {'p_session_id': sessionId},
+    );
+    return (res as List)
+        .map((r) => VolunteerRef.fromMap((r as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  @override
+  Future<List<VolunteerRef>> fetchVolunteers() async {
+    final res = await _client.rpc('fetch_volunteers');
+    return (res as List)
+        .map((r) => VolunteerRef.fromMap((r as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  @override
+  Future<AssignmentResult> assign(String sessionId, String userId) async {
+    final res = await _client.rpc(
+      'assign_volunteer_to_session',
+      params: {'p_session_id': sessionId, 'p_user_id': userId},
+    );
+    final map = (res as Map).cast<String, dynamic>();
+    final outcome = switch ((map['outcome'] ?? 'assigned') as String) {
+      'conflict' => AssignmentOutcome.conflict,
+      _ => AssignmentOutcome.assigned,
+    };
+    return AssignmentResult(outcome, map['conflicting_title'] as String?);
+  }
+
+  @override
+  Future<void> unassign(String sessionId, String userId) async {
+    await _client
+        .from('session_volunteers')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('user_id', userId);
+  }
+}
+
+/// Attendance: session rosters + mark, and the front-desk attendee directory +
+/// check-in. Every call is a SECURITY DEFINER RPC that enforces the right gate
+/// (session assignment, or the front-desk capability) server-side.
+class SupabaseAttendanceRepository implements AttendanceRepository {
+  SupabaseAttendanceRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<List<RosterEntry>> fetchSessionRoster(String sessionId) async {
+    final res = await _client.rpc(
+      'fetch_session_roster',
+      params: {'p_session_id': sessionId},
+    );
+    return (res as List)
+        .map((r) => RosterEntry.fromMap((r as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  @override
+  Future<void> markSessionAttendance(
+      String sessionId, String userId, bool attended) async {
+    await _client.rpc('mark_session_attendance', params: {
+      'p_session_id': sessionId,
+      'p_user_id': userId,
+      'p_attended': attended,
+    });
+  }
+
+  @override
+  Future<List<Attendee>> fetchAttendeeDirectory([String query = '']) async {
+    final res = await _client.rpc(
+      'fetch_attendee_directory',
+      params: {'p_query': query},
+    );
+    return (res as List)
+        .map((r) => Attendee.fromMap((r as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  @override
+  Future<void> markSummitCheckin(String attendeeId, bool present) async {
+    await _client.rpc('mark_summit_checkin', params: {
+      'p_attendee_id': attendeeId,
+      'p_present': present,
+    });
   }
 }

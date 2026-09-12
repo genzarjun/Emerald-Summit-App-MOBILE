@@ -12,9 +12,17 @@ Tri-Valley's student-run STEAM summit at Emerald High, Dublin CA
 > in [`supabase/`](supabase/) (see [SUPABASE.md](SUPABASE.md) to reproduce on a
 > fresh project). On top of that: **admins
 > post announcements in-app** (live to every device via **Realtime** + an
-> in-app banner), **mentors create/edit sessions** in the disciplines they own,
-> and **mentor/admin roles are gated by a Google-Sheet allowlist** the database
-> enforces. Without `env.json` the app still runs standalone on **sample data**.
+> in-app banner), and **volunteer/admin roles are gated by a Google-Sheet
+> allowlist** the database enforces. The **Volunteer** role (EAF ambassadors,
+> parent & student volunteers) carries **fine-grained, per-person permissions**
+> from the sheet: EAF ambassadors **create/edit sessions** (and optionally post
+> announcements) in the disciplines they own; any volunteer an admin **assigns
+> to a session** can pull its **roster and mark attendance**; and volunteers
+> flagged for the **front desk** can check in *any* attendee summit-wide. Admins
+> manage a **rooms catalog** that sessions are tied to. *(All the volunteer
+> features are code-complete; run the SQL in [SUPABASE.md](SUPABASE.md) to
+> activate them.)* Without `env.json` the app still runs standalone on
+> **sample data**.
 > **OS push notifications** (banner when the app is closed) and server-side PDF
 > generation are the main things still to come (see Roadmap).
 
@@ -44,15 +52,21 @@ Home header** (Uber-style), not a bottom-bar tab.
   `sessions_with_counts` view). **Add to my day** enforces the real rules via a
   server-side RPC (`register_for_session`): no double-booking (time-conflict
   dialog) and capacity caps (full/waitlist), so they can't be bypassed from the
-  client. Mentors/admins get **New session / Edit** controls (scoped to their
-  disciplines); admins get **New discipline**.
+  client. Admins and EAF ambassadors who can edit sessions get **New session /
+  Edit** controls (scoped to their disciplines); the editor ties a session to a
+  **room** picked from the admin catalog. Admins get **New discipline** and, on
+  each session, **Manage volunteers** — assigning a volunteer to a session is
+  overlap-guarded server-side (an admin sees *"This person has a schedule
+  conflict…"* if it clashes with their other assignments or registrations).
 - **News** — the announcements feed (pinned items, audience tags). Reads live
   from Supabase and stays **live via Realtime** — a new announcement appears the
   instant an admin posts it, alongside an **Instagram-style in-app banner** when
   the app is foregrounded. **Admins** get a **New announcement** composer
   (title, message, audience, pin). **Audience targeting:** an announcement aimed
   at a discipline reaches only users who have an **activity in that discipline**
-  (plus admins and mentors who manage it); "Everyone" reaches all. Filtering is
+  (plus admins and the volunteers who manage it); "Everyone" reaches all.
+  A volunteer with the **post-announcements** capability gets the composer too,
+  but scoped: they can only target the discipline(s) they manage. Filtering is
   applied to both the feed and the banner. **Per-user read state (two-tier,
   Instagram-style):** the News tab and Home "What's new" tile show a red count
   of *unseen* announcements; opening the News tab marks the feed **seen** and
@@ -66,9 +80,12 @@ Home header** (Uber-style), not a bottom-bar tab.
   app is closed) is designed but not yet built (see Roadmap).
 - **Resources** — searchable document hub.
 - **Profile** (reached from the Home-header avatar) — contact card with role
-  badge (mentors also show the discipline(s) they manage), notifications toggle,
-  **Change role** (re-runs the gated role picker), sign-out, and volunteer hours
-  with a "Download certificate" action.
+  badge (volunteers also show their **subtype** and the discipline(s) they
+  manage), notifications toggle, and role-gated shortcuts: **My sessions**
+  (a volunteer's assigned sessions → roster + attendance), **Front desk
+  check-in** (for front-desk-flagged volunteers/admins), **Manage rooms**
+  (admins). Plus **Change role** (re-runs the gated role picker), sign-out, and
+  volunteer hours with a "Download certificate" action.
 
 **Launch splash.** An animated splash plays once at app start
 ([lib/screens/splash_screen.dart](lib/screens/splash_screen.dart)): an emerald
@@ -86,19 +103,29 @@ flash.
   and types it in — no password is ever created or stored. First-time sign-in
   creates the account. In sample mode (no backend) the app skips auth and opens
   straight to the demo data.
+  - **Dev/test login (dev project only).** A `test_accounts` table + `dev-login`
+    Edge Function let designated "code emails" sign in **without an OTP** and
+    simulate that account — with a *real* session, so permissions/RLS behave for
+    real. Make one code email per privilege scenario. Guarded twice (a
+    `DEV_LOGIN_ENABLED=true` function secret **and** an app built with
+    `--dart-define DEV_LOGIN=true`) and must never be enabled in production. See
+    [SUPABASE.md](SUPABASE.md) §3b.
 - **Role-based onboarding.** First run collects name + **role**, then asks
   **role-specific** details. The five roles are **participant**, **expert**,
   **parent / spectator** (open to anyone — the last covers non-participating
-  middle-schoolers), and the two management roles **mentor** and **admin**.
-  Mentors get the full contact/emergency-contact questionnaire; experts are kept
-  light (org + expertise only); admins need nothing extra. Fields are declared
-  per role in [lib/models/user_profile.dart](lib/models/user_profile.dart), so
-  the sign-up flow customizes itself.
+  middle-schoolers), and the two gated roles **volunteer** and **admin**.
+  Volunteers get the full contact/emergency-contact questionnaire; experts are
+  kept light (org + expertise only); admins need nothing extra. Fields are
+  declared per role in [lib/models/user_profile.dart](lib/models/user_profile.dart),
+  so the sign-up flow customizes itself. A volunteer's **subtype** (EAF
+  ambassador / parent / student) and permissions come from the sheet, not the
+  picker. *(Per-subtype onboarding questions are a planned refinement — see
+  Roadmap.)*
 - **Gated management roles.** Anyone can be a participant/expert/parent, but
-  **mentor** and **admin** are verified against an allowlist synced from two
+  **volunteer** and **admin** are verified against an allowlist synced from two
   Google Sheets (see "Roles & permissions" below). Picking a gated role you're
   not listed for is blocked with *"You aren't eligible to sign up as a
-  mentor/admin."*
+  volunteer/admin."*
 - **The account is tied to the email**, not the device. The session persists
   across app restarts and auto-refreshes; signing in on another device (or
   after reinstalling) pulls the same profile, role, and data back down. Only
@@ -135,10 +162,15 @@ lib/
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
     discover_screen.dart    Disciplines grid (+ admin "New discipline")
     discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)
-    session_detail_screen.dart   Marketing page + add/remove
-    session_editor_screen.dart   Create/edit a session (mentor/admin)
+    session_detail_screen.dart   Marketing page + add/remove (+ admin "Manage volunteers")
+    session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown)
+    session_volunteers_screen.dart  Assign/unassign volunteers to a session (admin)
+    session_roster_screen.dart   A session's roster + mark attendance (assigned volunteer)
+    my_assignments_screen.dart   A volunteer's assigned sessions
+    front_desk_screen.dart       Summit-wide check-in (front-desk capability)
+    rooms_manager_screen.dart    Admin rooms catalog CRUD
     discipline_editor_screen.dart  Create a discipline (admin)
-    announcement_compose_screen.dart  Post an announcement (admin)
+    announcement_compose_screen.dart  Post an announcement (admin / scoped volunteer)
     announcements_screen.dart, resources_screen.dart, profile_screen.dart
 supabase/                   SQL migrations + Edge Functions (see Backend)
 test/widget_test.dart       Widget tests
@@ -189,40 +221,69 @@ test/widget_test.dart       Widget tests
   [SUPABASE.md](SUPABASE.md)'s order to create these:
   - `disciplines` — the catalog categories (public read; **admin** write).
     [disciplines_setup.sql](supabase/disciplines_setup.sql)
-  - `sessions` — activities under a discipline (public read; **admin or mentor
-    scoped to the discipline** write). `enrolled` is never stored — the
-    `sessions_with_counts` **view** derives it live from `registrations` and adds
-    the discipline name. [sessions_setup.sql](supabase/sessions_setup.sql)
+  - `sessions` — activities under a discipline (public read; **admin, or a
+    volunteer who can edit sessions and is scoped to the discipline**, write).
+    `enrolled` is never stored — the `sessions_with_counts` **view** derives it
+    live from `registrations` and adds the discipline name. Gains a `room_id`
+    (→ `rooms`) in the volunteers upgrade. [sessions_setup.sql](supabase/sessions_setup.sql)
   - `registrations` — the personal schedule (RLS: each user only their own).
     Adds/removes go through the **`register_for_session` RPC**, the single
-    server-side enforcer of capacity + no-time-overlap.
+    server-side enforcer of capacity + no-time-overlap. Gains `attended` /
+    `attended_at` / `marked_by` for session attendance.
     [registrations_setup.sql](supabase/registrations_setup.sql)
-  - `profiles` gains `notifications_enabled`, `volunteer_hours`, and
-    `managed_disciplines` (a mentor's scope; `{'*'}` = all).
-    [profiles_extend.sql](supabase/profiles_extend.sql)
+  - `profiles` gains `notifications_enabled`, `volunteer_hours`,
+    `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
+    server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /
+    `can_post_announcements` / `can_check_in_front_desk`.
+    [profiles_extend.sql](supabase/profiles_extend.sql),
+    [profiles_capabilities.sql](supabase/profiles_capabilities.sql)
+  - `rooms` — the admin-managed room catalog (public read; **admin** write);
+    `sessions.room_id` references it. Auto-seeded from existing sessions.
+    [rooms_setup.sql](supabase/rooms_setup.sql)
+  - `session_volunteers` — volunteer↔session assignments. Assigning goes through
+    the admin-only, overlap-guarded **`assign_volunteer_to_session` RPC**; being
+    assigned is what unlocks a session's roster + attendance.
+    [session_volunteers_setup.sql](supabase/session_volunteers_setup.sql)
+  - `summit_checkins` + attendance RPCs — session rosters
+    (`fetch_session_roster` / `mark_session_attendance`, gated by assignment) and
+    the summit-wide front-desk directory (`fetch_attendee_directory` /
+    `mark_summit_checkin`, gated by the front-desk capability).
+    [attendance_setup.sql](supabase/attendance_setup.sql)
   - `announcements` gains `created_by` + `discipline_id`, **admin** write
     policies, and **Realtime**. [announcements_write_setup.sql](supabase/announcements_write_setup.sql)
   - Seed the six disciplines + sample sessions with
     [seed_catalog.sql](supabase/seed_catalog.sql).
 - **Roles & permissions.** Five roles: `participant`, `expert`, `parent`
-  (open), `mentor`, `admin` (gated). Enforcement lives in
-  [role_allowlist_setup.sql](supabase/role_allowlist_setup.sql):
-  - `role_allowlist(email, role, disciplines[])` is the synced source of truth.
-    A user may read only their **own** row.
+  (open), `volunteer`, `admin` (gated). Base enforcement is in
+  [role_allowlist_setup.sql](supabase/role_allowlist_setup.sql); the volunteer
+  upgrade is in [role_allowlist_v2.sql](supabase/role_allowlist_v2.sql):
+  - `role_allowlist(email, role, disciplines[], subtype, can_edit_sessions,
+    can_post_announcements, can_check_in_front_desk)` is the synced source of
+    truth. A user may read only their **own** row.
   - A **`profiles` BEFORE INSERT/UPDATE trigger** is the real gate: it refuses
-    to set `role` to mentor/admin unless the email is allow-listed, forcing
-    `participant` otherwise, and it **owns** `managed_disciplines` (set from the
-    sheet for mentors; empty for global admins). Self-elevation via a crafted
-    API call is impossible.
-  - Helpers `is_admin()` and `can_manage_discipline(id)` back the write policies
-    on disciplines/sessions/announcements.
+    to set `role` to volunteer/admin unless the email is allow-listed (forcing
+    `participant` otherwise), and it **owns** every volunteer column —
+    `managed_disciplines`, `volunteer_subtype`, and the three capability flags —
+    setting them from the sheet (applying subtype defaults for blank capability
+    cells: EAF ambassadors edit sessions by default; parents/students don't;
+    announcements + front-desk are opt-in). Self-elevation via a crafted API
+    call is impossible.
+  - Capabilities are the levers: `can_edit_sessions` (session CRUD, scoped to
+    `managed_disciplines`), `can_post_announcements` (post to a managed
+    discipline), `can_check_in_front_desk` (summit-wide check-in). Being
+    **assigned to a session** (admin action, not a sheet flag) is what unlocks
+    that session's roster + attendance — for any subtype.
+  - Helpers `is_admin()`, `can_manage_discipline(id)`, `can_post_to_discipline(id)`,
+    `can_check_in_front_desk()`, and `is_assigned_to_session(id)` back the write
+    policies and the SECURITY DEFINER RPCs.
   - The allowlist is filled by the **`sync-allowlist` Edge Function**
     ([supabase/functions/sync-allowlist](supabase/functions/sync-allowlist)),
-    which reads two **private Google Sheets** (mentors, admins) via the **Google
-    Sheets API using a service account** — the sheets stay unpublished, so no
-    mentor/admin emails are ever exposed on a public link — and upserts/prunes
-    rows on a cron. A reconcile trigger re-applies changes to existing profiles
-    (including demoting anyone removed from a sheet). Setup in [SUPABASE.md](SUPABASE.md).
+    which reads two **private Google Sheets** (volunteers `A:F`, admins) via the
+    **Google Sheets API using a service account** — the sheets stay unpublished,
+    so no volunteer/admin emails are ever exposed on a public link — and
+    upserts/prunes rows on a cron. A reconcile trigger re-applies changes to
+    existing profiles (including demoting anyone removed from a sheet). Setup in
+    [SUPABASE.md](SUPABASE.md).
 - Note the dev project has "auto-expose new tables" **off**, so every table's
   SQL must `grant` privileges to the right role explicitly (`anon` for public
   reads, `authenticated` for per-user tables).
@@ -290,6 +351,39 @@ flutter run --dart-define-from-file=env.json      # choose a device when prompte
 > shows "Sample data — no backend configured yet" and Discover shows the sample
 > disciplines. Relaunch with the flag (or the VS Code "Supabase" config).
 
+### Dev-testing build vs. production build (the `DEV_LOGIN` bypass)
+The **code-email login bypass** (sign in as a test account without an OTP — see
+[SUPABASE.md](SUPABASE.md) §3b) is controlled by the `DEV_LOGIN` compile-time
+flag, injected from `env.json` like the Supabase keys. Because it's a login
+backdoor, it is **off by default** and must be enabled in **two** places at once
+— either alone does nothing.
+
+**To build for DEV testing** (your dev Supabase project only):
+1. In your **dev** `env.json`, add `"DEV_LOGIN": true` alongside the dev
+   project's URL + publishable key. (`env.json` is gitignored, so this flag never
+   reaches source control or another machine.)
+2. On that **dev** project, deploy the `dev-login` Edge Function and set its
+   `DEV_LOGIN_ENABLED=true` secret, and run `test_accounts_setup.sql` (full steps
+   in [SUPABASE.md](SUPABASE.md) §3b).
+3. Run/build as usual with `--dart-define-from-file=env.json`. Code emails now
+   bypass OTP; everyone else uses normal OTP.
+
+**To build for PRODUCTION** (never ship the bypass):
+1. Use your **production** `env.json` — the prod URL + publishable key — with
+   **`DEV_LOGIN` absent or `false`**. The committed [env.example.json](env.example.json)
+   ships `false`; keep it that way for any prod/TestFlight build. With the flag
+   off the app never even calls the bypass function.
+2. On the **production** project, **do not** deploy `dev-login`, **do not** set
+   `DEV_LOGIN_ENABLED`, and **do not** run `test_accounts_setup.sql`. That is the
+   second guard: even a mis-flagged app can't bypass a project that has no
+   enabled function.
+3. Sanity check before a release: `grep DEV_LOGIN env.json` should show `false`
+   (or nothing). Because `DEV_LOGIN` is a compile-time constant, a release built
+   without it has the bypass path dead-stripped.
+
+Keeping separate dev and production Supabase projects (below) is what makes this
+clean: the bypass lives entirely on dev.
+
 ## Test & analyze
 ```bash
 flutter test
@@ -306,10 +400,16 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
 - ✅ **Per-user data in Supabase** — catalog (disciplines/sessions) + personal
   schedule (`registrations`) + per-user settings, all behind RLS; capacity and
   time-conflict rules enforced server-side. *(code done; run the SQL to activate)*
-- ✅ **Role-driven management** — gated mentor/admin roles from a Google-Sheet
+- ✅ **Role-driven management** — gated volunteer/admin roles from a Google-Sheet
   allowlist the DB enforces; admins post announcements in-app (live via Realtime
-  + in-app banner); mentors create/edit sessions in their disciplines; admins
-  create disciplines. *(code done; needs the SQL + Edge Function deployed)*
+  + in-app banner); EAF ambassadors create/edit sessions in their disciplines;
+  admins create disciplines. *(code done; needs the SQL + Edge Function deployed)*
+- ✅ **Volunteer permissions, rooms & attendance** — the Volunteer role (EAF
+  ambassador / parent / student) with per-person capabilities from the sheet;
+  an admin rooms catalog that sessions tie to; admin assignment of volunteers to
+  sessions (overlap-guarded); per-session roster + attendance for assigned
+  volunteers; and summit-wide front-desk check-in. *(code done; run the new SQL
+  files in [SUPABASE.md](SUPABASE.md) + redeploy the Edge Function to activate)*
 - ⏳ **Next: OS push notifications** — deliver announcements as real push even
   when the app is closed (see Roadmap for the planned pipeline).
 
@@ -337,6 +437,10 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   - Foreground messages reuse the existing in-app banner
     ([lib/widgets/in_app_banner.dart](lib/widgets/in_app_banner.dart)).
   - Also planned: per-user "next session" reminders; email fan-out.
+- **Per-subtype volunteer onboarding** — tailor the sign-up questionnaire to the
+  volunteer subtype (EAF ambassador / parent / student). Deferred: the subtype
+  currently arrives from the sheet *after* sign-up, so all volunteers share one
+  questionnaire for now (see [user_profile.dart](lib/models/user_profile.dart)).
 - Team formation; spectator seats; check-in dashboard; pre-summit milestone
   reminders; sponsor blocks; post-event social posts; server-rendered
   certificate / feedback PDFs.

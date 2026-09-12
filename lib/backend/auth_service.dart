@@ -46,6 +46,17 @@ abstract interface class AuthService {
   /// Throws [AuthFailure] with a user-safe message on failure.
   Future<void> verifyEmailOtp({required String email, required String code});
 
+  /// TEST/DEV ONLY. If [email] is a registered "code email" (a test account),
+  /// establishes a real session for it WITHOUT an emailed OTP and returns true.
+  /// Returns false when dev login is disabled, the email isn't a code email, or
+  /// the bypass isn't available — so the caller falls back to normal OTP. Throws
+  /// [AuthFailure] only when a known code email's sign-in genuinely fails.
+  ///
+  /// Guarded two ways (see the dev-login Edge Function + [SUPABASE.md]): the app
+  /// must be built with `--dart-define DEV_LOGIN=true` AND the function must have
+  /// `DEV_LOGIN_ENABLED=true`. It must never be enabled in production.
+  Future<bool> tryDevLogin(String email);
+
   /// Ends the current session.
   Future<void> signOut();
 }

@@ -69,14 +69,48 @@ matters (later files reference earlier tables/functions):
 10. `supabase/announcement_reads_opened.sql` — adds `opened_at` (per-card dot)
 11. `supabase/seed_catalog.sql` — six disciplines + sample sessions
 
+**Volunteers upgrade** (renames `mentor`→`volunteer`, adds per-volunteer
+permissions, rooms, session assignments, and attendance). Run these in order,
+**after** the eleven above:
+
+12. `supabase/rename_mentor_to_volunteer.sql` — migrates the role string
+    `mentor`→`volunteer` in `role_allowlist` + `profiles` (run FIRST of the
+    upgrade, before the new trigger).
+13. `supabase/profiles_capabilities.sql` — adds `volunteer_subtype` +
+    `can_edit_sessions` / `can_post_announcements` / `can_check_in_front_desk`.
+14. `supabase/role_allowlist_v2.sql` — adds the sheet's new columns, rewrites the
+    enforcement trigger to set subtype + capabilities (with subtype defaults),
+    updates `can_manage_discipline()`, adds `can_post_to_discipline()` /
+    `can_check_in_front_desk()`, and lets scoped volunteers post announcements.
+15. `supabase/rooms_setup.sql` — the admin rooms catalog + `sessions.room_id`;
+    **auto-seeds rooms from the existing sessions' room strings and backfills
+    room_id** (so current sessions keep their room with no admin work).
+16. `supabase/session_volunteers_setup.sql` — volunteer↔session assignments +
+    the admin-only, overlap-guarded `assign_volunteer_to_session` RPC + the
+    admin `fetch_volunteers` / `fetch_session_volunteers` RPCs.
+17. `supabase/attendance_setup.sql` — session-roster attendance
+    (`fetch_session_roster` / `mark_session_attendance`, gated by assignment) and
+    front-desk check-in (`fetch_attendee_directory` / `mark_summit_checkin`,
+    gated by the front-desk capability).
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 
-## 2. The two Google Sheets (mentor/admin allowlist) — kept PRIVATE
+## 2. The two Google Sheets (volunteer/admin allowlist) — kept PRIVATE
 Create two Google Sheets (leave them unpublished/private):
 
-- **Mentors** — columns `email`, `disciplines`. Put a comma/semicolon list of
-  discipline ids (e.g. `techverse, robosphere`) or `all` (= every discipline).
+- **Volunteers** — columns, in order: `email`, `subtype`, `disciplines`,
+  `can_edit_sessions`, `can_post_announcements`, `can_check_in_front_desk`.
+  - `subtype`: `eaf_ambassador`, `parent_volunteer`, or `student_volunteer`.
+  - `disciplines`: a comma/semicolon list of discipline ids
+    (e.g. `techverse, robosphere`) or `all`/`*` (= every discipline) — mainly
+    for EAF ambassadors who edit sessions.
+  - the three capability columns take `TRUE`/`FALSE`/**blank**. Blank uses the
+    subtype default (ambassadors get `can_edit_sessions` on; everything else
+    off), so most rows only need `email` + `subtype` (+ `disciplines` for
+    ambassadors). Set a cell `TRUE` to grant that capability to that person.
+  - rooms and session assignments are **not** in the sheet — admins manage them
+    in the app.
 - **Admins** — column `email`.
 
 From each sheet's URL note its **spreadsheet id** — the long token in
@@ -108,18 +142,22 @@ supabase functions deploy sync-allowlist --no-verify-jwt   # matches the header-
 supabase secrets set \
   GOOGLE_SERVICE_ACCOUNT_EMAIL="<client_email from the JSON>" \
   GOOGLE_PRIVATE_KEY="<private_key from the JSON, keep the \n escapes>" \
-  MENTORS_SHEET_ID="<mentors spreadsheet id>" \
+  VOLUNTEERS_SHEET_ID="<volunteers spreadsheet id>" \
   ADMINS_SHEET_ID="<admins spreadsheet id>"
 ```
+
+> The legacy secret names `MENTORS_SHEET_ID` / `MENTORS_RANGE` are still accepted
+> as fallbacks, so an existing deployment keeps working; prefer the
+> `VOLUNTEERS_*` names going forward.
 
 Nothing here is public — the sheets stay private and only the service account
 reads them. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected into the
 function automatically (the service-role key is never in `env.json`; the app
-only carries the publishable key). Optional overrides: `MENTORS_RANGE` (default
-`A:B`), `ADMINS_RANGE` (default `A:A`).
+only carries the publishable key). Optional overrides: `VOLUNTEERS_RANGE`
+(default `A:F`), `ADMINS_RANGE` (default `A:A`).
 
 Trigger it once to verify (Dashboard → Edge Functions → sync-allowlist → Invoke,
-or `curl` its URL); it returns `{ ok: true, mentors: N, admins: M }` and fills
+or `curl` its URL); it returns `{ ok: true, volunteers: N, admins: M }` and fills
 `role_allowlist`. Then **schedule it** every ~5 min (Dashboard → Integrations →
 Cron, or a `pg_cron` job POSTing the function URL — see below).
 
@@ -129,6 +167,37 @@ Cron, or a `pg_cron` job POSTing the function URL — see below).
 
 To become an admin: add your email to the Admins sheet, wait for the next sync
 (or Invoke it), then sign up / re-open onboarding and pick **Admin**.
+
+## 3b. Test/dev login — "code emails" that bypass OTP (DEV PROJECT ONLY)
+So you can test each privilege level without a real inbox, a **code email**
+(e.g. `student-frontdesk@ehsacademics.org`) can sign in **without an emailed
+OTP** and simulate that account. It still gets a **real Supabase session**, so
+RLS, the role trigger, and every RPC behave exactly like production — the only
+shortcut is the login. Permissions come from the Google Sheets as usual: put the
+same mock emails in the Volunteers/Admins sheet with the roles/capabilities you
+want to test. Make **one code email per scenario** to cover unique permissions.
+
+> ⚠️ This is a login backdoor. Deploy it to your **dev project only** and never
+> enable it in production. It is guarded twice — see below.
+
+1. **Create the table.** Run [`supabase/test_accounts_setup.sql`](supabase/test_accounts_setup.sql)
+   and add your code emails (in the SQL, or in Table Editor → `test_accounts`).
+   Add the **same emails** to the Volunteers/Admins sheets (and re-sync).
+2. **Deploy the function** (dashboard editor, like sync-allowlist, or CLI):
+   paste [`supabase/functions/dev-login/index.ts`](supabase/functions/dev-login/index.ts),
+   deploy with **Verify JWT OFF**, and set the secret **`DEV_LOGIN_ENABLED=true`**
+   (guard #1 — omit it in prod and the function refuses).
+   ```bash
+   supabase functions deploy dev-login --no-verify-jwt
+   supabase secrets set DEV_LOGIN_ENABLED=true
+   ```
+3. **Build the app with the dev flag** (guard #2): add `"DEV_LOGIN": true` to
+   your dev `env.json`, then run as usual
+   (`flutter run --dart-define-from-file=env.json`). Without this flag the app
+   never calls the function, so production builds are unaffected.
+4. **Test:** on the sign-in screen, type a code email and tap *Email me a code* —
+   you're signed straight in as that account. Non-code emails fall through to the
+   normal OTP flow untouched.
 
 ## 4. Verify Realtime
 Dashboard → Database → Replication → ensure `announcements` is in the

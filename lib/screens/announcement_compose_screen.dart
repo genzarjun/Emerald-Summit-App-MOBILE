@@ -4,8 +4,10 @@ import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
 
-/// Admin-only composer for a new announcement. Posting inserts a row that the
-/// live feed pushes to every open app (and, later, fires a push notification).
+/// Composer for a new announcement. Admins can target Everyone or any
+/// discipline; a volunteer with can_post_announcements may target only the
+/// discipline(s) they manage (the server enforces this). Posting inserts a row
+/// the live feed pushes to every open app (and, later, fires a push).
 class AnnouncementComposeScreen extends StatefulWidget {
   const AnnouncementComposeScreen({super.key});
 
@@ -24,6 +26,31 @@ class _AnnouncementComposeScreenState extends State<AnnouncementComposeScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Admins may post to Everyone; scoped volunteers must pick a discipline.
+  bool get _everyoneAllowed => appState.isAdmin;
+
+  /// The disciplines this user may target: all for admins; the managed set
+  /// (or all, for a '*' volunteer) otherwise.
+  List<Discipline> get _allowedDisciplines {
+    if (appState.isAdmin) return appState.disciplines;
+    final managed = appState.profile?.managedDisciplines ?? const [];
+    if (managed.contains('*')) return appState.disciplines;
+    return appState.disciplines
+        .where((d) => managed.contains(d.id))
+        .toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // A scoped volunteer can't post to Everyone, so default to their first
+    // allowed discipline.
+    if (!_everyoneAllowed) {
+      final allowed = _allowedDisciplines;
+      if (allowed.isNotEmpty) _audience = allowed.first;
+    }
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -36,6 +63,10 @@ class _AnnouncementComposeScreenState extends State<AnnouncementComposeScreen> {
     final body = _bodyController.text.trim();
     if (title.isEmpty || body.isEmpty) {
       setState(() => _error = 'Please add a title and a message.');
+      return;
+    }
+    if (!_everyoneAllowed && _audience == null) {
+      setState(() => _error = 'Pick a discipline to post to.');
       return;
     }
     setState(() {
@@ -112,11 +143,12 @@ class _AnnouncementComposeScreenState extends State<AnnouncementComposeScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: [
-                    const DropdownMenuItem<Discipline?>(
-                      value: null,
-                      child: Text('Everyone'),
-                    ),
-                    for (final d in appState.disciplines)
+                    if (_everyoneAllowed)
+                      const DropdownMenuItem<Discipline?>(
+                        value: null,
+                        child: Text('Everyone'),
+                      ),
+                    for (final d in _allowedDisciplines)
                       DropdownMenuItem<Discipline?>(
                         value: d,
                         child: Text(d.name),

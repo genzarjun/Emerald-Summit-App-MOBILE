@@ -39,6 +39,9 @@ ProfileRepository get profileRepository => getIt<ProfileRepository>();
 AnnouncementsRepository get announcementsRepository =>
     getIt<AnnouncementsRepository>();
 AllowlistRepository get allowlistRepository => getIt<AllowlistRepository>();
+RoomsRepository get roomsRepository => getIt<RoomsRepository>();
+AssignmentRepository get assignmentRepository => getIt<AssignmentRepository>();
+AttendanceRepository get attendanceRepository => getIt<AttendanceRepository>();
 
 /// Description of the active backend, for UI copy.
 BackendDescriptor get backendInfo => getIt<BackendDescriptor>();

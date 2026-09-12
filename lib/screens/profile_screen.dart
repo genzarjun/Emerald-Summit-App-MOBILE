@@ -4,6 +4,9 @@ import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../theme.dart';
 import 'auth/onboarding_screen.dart';
+import 'front_desk_screen.dart';
+import 'my_assignments_screen.dart';
+import 'rooms_manager_screen.dart';
 
 /// "Profile" tab — the user's contact card, role, notification settings,
 /// and volunteer hours / certificate (spec section 04 — Profiles &
@@ -79,9 +82,15 @@ class _ContactCard extends StatelessWidget {
                             style: theme.textTheme.labelMedium
                                 ?.copyWith(color: theme.colorScheme.primary)),
                       ),
-                      if (appState.mentorScopeLabel != null) ...[
+                      if (appState.volunteerSubtypeLabel != null) ...[
+                        const SizedBox(height: 2),
+                        Text(appState.volunteerSubtypeLabel!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ],
+                      if (appState.volunteerScopeLabel != null) ...[
                         const SizedBox(height: 6),
-                        Text('Manages ${appState.mentorScopeLabel}',
+                        Text('Manages ${appState.volunteerScopeLabel}',
                             style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant)),
                       ],
@@ -126,6 +135,43 @@ class _VisibilityCard extends StatelessWidget {
                   value: appState.notificationsEnabled,
                   onChanged: appState.setNotifications,
                 ),
+                if (appState.isVolunteer)
+                  ListTile(
+                    leading: Icon(Icons.event_available_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('My sessions'),
+                    subtitle:
+                        const Text('Sessions you help run & their attendance'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const MyAssignmentsScreen()),
+                    ),
+                  ),
+                if (appState.canCheckInFrontDesk)
+                  ListTile(
+                    leading: Icon(Icons.how_to_reg_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Front desk check-in'),
+                    subtitle: const Text('Mark attendees arrived at the summit'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const FrontDeskScreen()),
+                    ),
+                  ),
+                if (appState.isAdmin)
+                  ListTile(
+                    leading: Icon(Icons.meeting_room_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Manage rooms'),
+                    subtitle: const Text('The rooms sessions can be held in'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const RoomsManagerScreen()),
+                    ),
+                  ),
                 if (backendInfo.isLive)
                   ListTile(
                     leading: Icon(Icons.badge_outlined,
