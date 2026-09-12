@@ -52,7 +52,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 ),
             ],
           ),
-          floatingActionButton: appState.canPostAnnouncements
+          floatingActionButton: appState.canComposeAnnouncement
               ? FloatingActionButton.extended(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(

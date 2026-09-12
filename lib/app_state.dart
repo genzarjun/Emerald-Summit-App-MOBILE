@@ -388,6 +388,17 @@ class AppState extends ChangeNotifier {
   bool get canCheckInFrontDesk =>
       isAdmin || (profile?.canCheckInFrontDesk ?? false);
 
+  /// Whether to surface the "New announcement" composer. Admins always; a
+  /// volunteer only when they can post AND actually have a discipline to target
+  /// (posting requires a scope, so `can_post_announcements` with no discipline
+  /// is inert — don't show a composer that leads nowhere).
+  bool get canComposeAnnouncement {
+    if (isAdmin) return true;
+    final p = profile;
+    if (p == null || !p.canPostAnnouncements) return false;
+    return p.managedDisciplines.isNotEmpty;
+  }
+
   /// The volunteer's subtype label (e.g. "EAF Ambassador"), or null.
   String? get volunteerSubtypeLabel => profile?.volunteerSubtype?.label;
 
