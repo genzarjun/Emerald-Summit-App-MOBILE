@@ -428,11 +428,15 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   sessions (overlap-guarded); per-session roster + attendance for assigned
   volunteers; and summit-wide front-desk check-in. *(code done + **verified
   end-to-end on the dev backend** in the iOS simulator: dev-login + role
-  auto-assign for admin/volunteer, admin session create, the rooms dropdown +
-  auto-seeded catalog + inline add-a-room, volunteer assignment, and the
-  assignment schedule-conflict guard. Run the SQL files in
-  [SUPABASE.md](SUPABASE.md) + deploy the Edge Functions to activate on a fresh
-  project.)*
+  auto-assign for admin/volunteer/expert/spectator; admin session create; the
+  rooms dropdown + auto-seeded catalog + inline add-a-room; volunteer assignment
+  and the assignment schedule-conflict guard; EAF-ambassador **scoped session
+  editing** (edit in own discipline, blocked in others) and **scoped
+  announcements** (composer limited to the managed discipline, post allowed by
+  RLS); and the sign-out-to-sign-in fix. Front-desk check-in and per-session
+  attendance marking are implemented but not yet live-tested. Run the SQL files
+  in [SUPABASE.md](SUPABASE.md) + deploy the Edge Functions to activate on a
+  fresh project.)*
 - ⏳ **Next: OS push notifications** — deliver announcements as real push even
   when the app is closed (see Roadmap for the planned pipeline).
 
