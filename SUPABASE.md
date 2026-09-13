@@ -95,6 +95,12 @@ permissions, rooms, session assignments, and attendance). Run these in order,
 18. `supabase/rooms_editor_insert.sql` — lets admins **and** session-editing
     ambassadors INSERT rooms (so a missing room can be added inline from the
     session editor); UPDATE/DELETE stay admin-only.
+19. `supabase/assignment_notifications.sql` — adds `announcements.target_user_id`
+    (personal announcements, RLS-scoped to the recipient) and upgrades
+    `assign_volunteer_to_session` to (a) drop a personal "you're managing X"
+    notification into the volunteer's feed on assignment and (b) return
+    `registered_confirm` when the volunteer is already registered for that
+    session, so the admin can confirm before assigning.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

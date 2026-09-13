@@ -173,6 +173,22 @@ void main() {
       expect(after.any((v) => v.id == 'vol-1'), isFalse);
     });
 
+    test('assigning a volunteer registered for the session asks to confirm',
+        () async {
+      final repo = SampleAssignmentRepository(store);
+      final s = store.allSessions.first;
+      // The volunteer is registered for this very session.
+      store.mySessionIds.add(s.id);
+
+      final first = await repo.assign(s.id, 'vol-9');
+      expect(first.outcome, AssignmentOutcome.registeredConfirm);
+
+      // Confirming proceeds with the assignment.
+      final confirmed =
+          await repo.assign(s.id, 'vol-9', confirmRegistered: true);
+      expect(confirmed.outcome, AssignmentOutcome.assigned);
+    });
+
     test('session attendance can be marked on a seeded roster', () async {
       final repo = SampleAttendanceRepository(store);
       const sid = 's1';

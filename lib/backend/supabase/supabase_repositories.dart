@@ -276,6 +276,7 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
                 body: (row['body'] ?? '') as String,
                 createdBy: row['created_by']?.toString(),
                 disciplineId: row['discipline_id'] as String?,
+                targetUserId: row['target_user_id'] as String?,
               ));
             },
           )
@@ -393,14 +394,20 @@ class SupabaseAssignmentRepository implements AssignmentRepository {
   }
 
   @override
-  Future<AssignmentResult> assign(String sessionId, String userId) async {
+  Future<AssignmentResult> assign(String sessionId, String userId,
+      {bool confirmRegistered = false}) async {
     final res = await _client.rpc(
       'assign_volunteer_to_session',
-      params: {'p_session_id': sessionId, 'p_user_id': userId},
+      params: {
+        'p_session_id': sessionId,
+        'p_user_id': userId,
+        'p_confirm_registered': confirmRegistered,
+      },
     );
     final map = (res as Map).cast<String, dynamic>();
     final outcome = switch ((map['outcome'] ?? 'assigned') as String) {
       'conflict' => AssignmentOutcome.conflict,
+      'registered_confirm' => AssignmentOutcome.registeredConfirm,
       _ => AssignmentOutcome.assigned,
     };
     return AssignmentResult(outcome, map['conflicting_title'] as String?);

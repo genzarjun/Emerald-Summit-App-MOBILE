@@ -32,7 +32,7 @@ class RegistrationResult {
 /// Outcome of an admin assigning a volunteer to a session. [conflict] mirrors
 /// the server-side overlap guard (the volunteer is already committed to an
 /// overlapping session or personal registration).
-enum AssignmentOutcome { assigned, conflict }
+enum AssignmentOutcome { assigned, conflict, registeredConfirm }
 
 /// Result of a volunteer→session assignment. [conflictingTitle] is set only for
 /// [AssignmentOutcome.conflict].
@@ -52,6 +52,7 @@ class AnnouncementEvent {
     required this.body,
     this.createdBy,
     this.disciplineId,
+    this.targetUserId,
   });
 
   final String id;
@@ -63,6 +64,10 @@ class AnnouncementEvent {
 
   /// Target discipline, or null for an everyone-announcement.
   final String? disciplineId;
+
+  /// When set, a personal announcement for that single user (e.g. an assignment
+  /// notification) — only they should see/banner it.
+  final String? targetUserId;
 }
 
 /// The session catalog: disciplines with their sessions nested underneath.
@@ -180,10 +185,15 @@ abstract interface class AssignmentRepository {
   /// The full volunteer directory, for the admin assignment picker.
   Future<List<VolunteerRef>> fetchVolunteers();
 
-  /// Assigns [userId] to [sessionId], enforcing the no-overlap guard. Returns
-  /// [AssignmentOutcome.conflict] (with the clashing title) if the volunteer is
-  /// already committed to an overlapping session/registration.
-  Future<AssignmentResult> assign(String sessionId, String userId);
+  /// Assigns [userId] to [sessionId], enforcing the no-overlap guard, and drops
+  /// a personal "you're managing this session" notification into the volunteer's
+  /// feed. Returns [AssignmentOutcome.conflict] (with the clashing title) if the
+  /// volunteer is already committed to an overlapping session/registration; or
+  /// [AssignmentOutcome.registeredConfirm] if they're already registered for
+  /// this very session and [confirmRegistered] is false — call again with
+  /// [confirmRegistered] true to proceed.
+  Future<AssignmentResult> assign(String sessionId, String userId,
+      {bool confirmRegistered = false});
 
   Future<void> unassign(String sessionId, String userId);
 }

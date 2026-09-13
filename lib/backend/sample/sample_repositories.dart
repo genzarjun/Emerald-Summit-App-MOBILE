@@ -221,7 +221,8 @@ class SampleAssignmentRepository implements AssignmentRepository {
   Future<List<VolunteerRef>> fetchVolunteers() async => [..._store.volunteers];
 
   @override
-  Future<AssignmentResult> assign(String sessionId, String userId) async {
+  Future<AssignmentResult> assign(String sessionId, String userId,
+      {bool confirmRegistered = false}) async {
     final target = _store.sessionById(sessionId);
     if (target == null) {
       return const AssignmentResult(AssignmentOutcome.assigned);
@@ -230,7 +231,8 @@ class SampleAssignmentRepository implements AssignmentRepository {
     if (existing.contains(sessionId)) {
       return const AssignmentResult(AssignmentOutcome.assigned);
     }
-    // Overlap against the volunteer's other assignments + demo registrations.
+    // Overlap against the volunteer's other assignments + demo registrations
+    // (excluding this session — registering for it is not a conflict).
     final commitments = {...existing, ..._store.mySessionIds};
     for (final id in commitments) {
       if (id == sessionId) continue;
@@ -238,6 +240,10 @@ class SampleAssignmentRepository implements AssignmentRepository {
       if (other != null && other.overlaps(target)) {
         return AssignmentResult(AssignmentOutcome.conflict, other.title);
       }
+    }
+    // Registered for this very session → confirm first.
+    if (!confirmRegistered && _store.mySessionIds.contains(sessionId)) {
+      return const AssignmentResult(AssignmentOutcome.registeredConfirm);
     }
     (_store.assignmentsByUser[userId] ??= <String>{}).add(sessionId);
     final vols = _store.sessionVolunteers[sessionId] ??= <VolunteerRef>[];

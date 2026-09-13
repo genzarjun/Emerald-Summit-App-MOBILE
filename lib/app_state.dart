@@ -222,9 +222,22 @@ class AppState extends ChangeNotifier {
     return myDisciplineIds.contains(disciplineId);
   }
 
-  /// The announcements this user should actually see (audience-filtered).
-  List<Announcement> get visibleAnnouncements =>
-      announcements.where((a) => announcementReaches(a.disciplineId)).toList();
+  String? get _myUserId => profile?.id ?? authService.currentUser?.id;
+
+  /// Whether an announcement reaches this user, accounting for PERSONAL
+  /// targeting: a targeted announcement reaches only its recipient; otherwise
+  /// the discipline-audience rules apply.
+  bool reachesMe({String? disciplineId, String? targetUserId}) {
+    if (targetUserId != null) return targetUserId == _myUserId;
+    return announcementReaches(disciplineId);
+  }
+
+  /// The announcements this user should actually see (audience-filtered, and
+  /// personal announcements only for their recipient).
+  List<Announcement> get visibleAnnouncements => announcements
+      .where((a) =>
+          reachesMe(disciplineId: a.disciplineId, targetUserId: a.targetUserId))
+      .toList();
 
   // ---- Read state (per-user, two-tier) -------------------------------------
   // [_seen] clears the red unread count (set when the News feed is viewed);
@@ -340,8 +353,11 @@ class AppState extends ChangeNotifier {
       return;
     }
     if (!notificationsEnabled) return;
-    // Only banner if the announcement's audience actually reaches this user.
-    if (!announcementReaches(event.disciplineId)) return;
+    // Only banner if it actually reaches this user (audience or personal target).
+    if (!reachesMe(
+        disciplineId: event.disciplineId, targetUserId: event.targetUserId)) {
+      return;
+    }
     inAppBanner.show(BannerMessage(
       title: event.title,
       body: event.body,

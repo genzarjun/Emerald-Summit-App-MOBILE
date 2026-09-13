@@ -71,33 +71,60 @@ class _SessionVolunteersScreenState extends State<SessionVolunteersScreen> {
     await _assign(picked);
   }
 
-  Future<void> _assign(VolunteerRef v) async {
+  Future<void> _assign(VolunteerRef v, {bool confirmRegistered = false}) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final result =
-          await assignmentRepository.assign(widget.session.id, v.id);
+      final result = await assignmentRepository.assign(widget.session.id, v.id,
+          confirmRegistered: confirmRegistered);
       if (!mounted) return;
-      if (result.outcome == AssignmentOutcome.conflict) {
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Schedule conflict'),
-            content: Text(
-              '${v.name} has a schedule conflict and can\'t be added to this '
-              'session — it overlaps with "${result.conflictingTitle}".',
+      switch (result.outcome) {
+        case AssignmentOutcome.conflict:
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Schedule conflict'),
+              content: Text(
+                '${v.name} has a schedule conflict and can\'t be added to this '
+                'session — it overlaps with "${result.conflictingTitle}".',
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Got it')),
+              ],
             ),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Got it')),
-            ],
-          ),
-        );
-        return;
+          );
+          return;
+        case AssignmentOutcome.registeredConfirm:
+          // The volunteer already registered for this session (as a
+          // participant) — confirm before assigning them to manage it.
+          final proceed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Already registered'),
+              content: Text(
+                '${v.name} is registered for this session. Do you want to '
+                'assign them to manage it?',
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Assign')),
+              ],
+            ),
+          );
+          if (proceed == true && mounted) {
+            await _assign(v, confirmRegistered: true);
+          }
+          return;
+        case AssignmentOutcome.assigned:
+          await _load();
+          messenger.showSnackBar(
+              SnackBar(content: Text('Assigned ${v.name} to this session')));
       }
-      await _load();
-      messenger.showSnackBar(
-          SnackBar(content: Text('Assigned ${v.name} to this session')));
     } catch (e) {
       messenger.showSnackBar(
           const SnackBar(content: Text('Could not assign. Admins only.')));

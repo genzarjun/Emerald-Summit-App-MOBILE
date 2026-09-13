@@ -60,7 +60,11 @@ Home header** (Uber-style), not a bottom-bar tab.
   page. Admins get **New discipline** and, on
   each session, **Manage volunteers** — assigning a volunteer to a session is
   overlap-guarded server-side (an admin sees *"This person has a schedule
-  conflict…"* if it clashes with their other assignments or registrations).
+  conflict…"* if it clashes with their other assignments or registrations). If
+  the volunteer is already **registered** for that very session, the admin gets
+  an *"…is registered for this session. Assign them to manage it?"* confirm
+  first. On assignment the volunteer receives an automatic personal
+  announcement + banner.
 - **News** — the announcements feed (pinned items, audience tags). Reads live
   from Supabase and stays **live via Realtime** — a new announcement appears the
   instant an admin posts it, alongside an **Instagram-style in-app banner** when
@@ -69,7 +73,12 @@ Home header** (Uber-style), not a bottom-bar tab.
   at a discipline reaches only users who have an **activity in that discipline**
   (plus admins and the volunteers who manage it); "Everyone" reaches all.
   A volunteer with the **post-announcements** capability gets the composer too,
-  but scoped: they can only target the discipline(s) they manage. Filtering is
+  but scoped: they can only target the discipline(s) they manage. **Personal
+  announcements:** the feed also carries per-user items (a `target_user_id`) —
+  e.g. when an admin assigns a volunteer to a session, that volunteer gets an
+  automatic *"You have been assigned to manage &lt;session&gt; in
+  &lt;discipline&gt;"* item (and in-app banner), visible only to them (RLS-scoped).
+  Filtering is
   applied to both the feed and the banner. **Per-user read state (two-tier,
   Instagram-style):** the News tab and Home "What's new" tile show a red count
   of *unseen* announcements; opening the News tab marks the feed **seen** and
@@ -248,8 +257,11 @@ test/widget_test.dart       Widget tests
     [rooms_editor_insert.sql](supabase/rooms_editor_insert.sql)
   - `session_volunteers` — volunteer↔session assignments. Assigning goes through
     the admin-only, overlap-guarded **`assign_volunteer_to_session` RPC**; being
-    assigned is what unlocks a session's roster + attendance.
-    [session_volunteers_setup.sql](supabase/session_volunteers_setup.sql)
+    assigned is what unlocks a session's roster + attendance. The RPC also posts
+    the assignee a personal notification and returns `registered_confirm` if the
+    volunteer is already registered for that session (so the admin can confirm).
+    [session_volunteers_setup.sql](supabase/session_volunteers_setup.sql),
+    [assignment_notifications.sql](supabase/assignment_notifications.sql)
   - `summit_checkins` + attendance RPCs — session rosters
     (`fetch_session_roster` / `mark_session_attendance`, gated by assignment) and
     the summit-wide front-desk directory (`fetch_attendee_directory` /
@@ -257,6 +269,9 @@ test/widget_test.dart       Widget tests
     [attendance_setup.sql](supabase/attendance_setup.sql)
   - `announcements` gains `created_by` + `discipline_id`, **admin** write
     policies, and **Realtime**. [announcements_write_setup.sql](supabase/announcements_write_setup.sql)
+    Later gains `target_user_id` for **personal** announcements (RLS: a targeted
+    row is readable only by its recipient), used by assignment notifications.
+    [assignment_notifications.sql](supabase/assignment_notifications.sql)
   - Seed the six disciplines + sample sessions with
     [seed_catalog.sql](supabase/seed_catalog.sql).
 - **Roles & permissions.** Five roles: `participant`, `expert`, `parent`

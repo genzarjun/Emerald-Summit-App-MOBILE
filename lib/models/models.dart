@@ -144,6 +144,7 @@ class Announcement {
     required this.timeAgo,
     this.pinned = false,
     this.disciplineId,
+    this.targetUserId,
   });
 
   final String id;
@@ -159,6 +160,11 @@ class Announcement {
   /// means it goes to everyone.
   final String? disciplineId;
 
+  /// When set, this is a PERSONAL announcement for one user (e.g. "you've been
+  /// assigned to manage X") — shown only to that user, never in anyone else's
+  /// feed. Null for normal broadcast/discipline announcements.
+  final String? targetUserId;
+
   /// Builds an [Announcement] from a backend row (see the repository row
   /// contract). Columns map 1:1 except [timeAgo], derived from `created_at`.
   factory Announcement.fromMap(Map<String, dynamic> row) {
@@ -171,6 +177,7 @@ class Announcement {
       pinned: (row['pinned'] ?? false) as bool,
       timeAgo: _relativeTime(row['created_at'] as String?),
       disciplineId: row['discipline_id'] as String?,
+      targetUserId: row['target_user_id'] as String?,
     );
   }
 
