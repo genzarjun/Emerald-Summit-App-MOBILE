@@ -54,6 +54,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           ),
           floatingActionButton: appState.canComposeAnnouncement
               ? FloatingActionButton.extended(
+                  heroTag: 'fab-new-announcement',
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const AnnouncementComposeScreen(),

@@ -150,6 +150,7 @@ class _SessionVolunteersScreenState extends State<SessionVolunteersScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Session volunteers')),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab-assign-volunteer',
         onPressed: _pickAndAssign,
         icon: const Icon(Icons.person_add_alt),
         label: const Text('Assign volunteer'),

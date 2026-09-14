@@ -105,6 +105,7 @@ class _RoomsManagerScreenState extends State<RoomsManagerScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Manage rooms')),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab-add-room',
         onPressed: () => _addOrRename(),
         icon: const Icon(Icons.add),
         label: const Text('Add room'),

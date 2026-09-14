@@ -30,6 +30,7 @@ class DisciplineScreen extends StatelessWidget {
           appBar: AppBar(title: Text(current.name)),
           floatingActionButton: canManage
               ? FloatingActionButton.extended(
+                  heroTag: 'fab-new-session',
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) =>

@@ -35,6 +35,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         listenable: appState,
         builder: (context, _) => appState.isAdmin
             ? FloatingActionButton.extended(
+                heroTag: 'fab-new-discipline',
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const DisciplineEditorScreen(),
