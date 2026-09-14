@@ -101,6 +101,11 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     notification into the volunteer's feed on assignment and (b) return
     `registered_confirm` when the volunteer is already registered for that
     session, so the admin can confirm before assigning.
+20. `supabase/unassign_notification.sql` — adds `announcements.session_id`, tags
+    the "you're managing X" notice with it, and adds the
+    `unassign_volunteer_from_session` RPC: removing a volunteer deletes the
+    assignment, deletes that stale "managing" notice from their feed, and posts a
+    "you're no longer managing X" notice (feed item + in-app banner).
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

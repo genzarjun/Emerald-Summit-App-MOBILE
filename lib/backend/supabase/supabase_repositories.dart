@@ -415,11 +415,12 @@ class SupabaseAssignmentRepository implements AssignmentRepository {
 
   @override
   Future<void> unassign(String sessionId, String userId) async {
-    await _client
-        .from('session_volunteers')
-        .delete()
-        .eq('session_id', sessionId)
-        .eq('user_id', userId);
+    // SECURITY DEFINER RPC: deletes the assignment and notifies the volunteer
+    // (personal announcement + in-app banner). Admin-only, enforced server-side.
+    await _client.rpc('unassign_volunteer_from_session', params: {
+      'p_session_id': sessionId,
+      'p_user_id': userId,
+    });
   }
 }
 

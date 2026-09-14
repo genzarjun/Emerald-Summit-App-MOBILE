@@ -367,6 +367,11 @@ class AppState extends ChangeNotifier {
   void _onAnnouncementInserted(AnnouncementEvent event) {
     // Refresh the feed for everyone (keeps ordering/pinned correct).
     loadAnnouncements();
+    // A personal notice aimed at me is usually an assign/unassign change — pull
+    // my assignments so the Schedule + "managing" list update live too.
+    if (event.targetUserId != null && event.targetUserId == _myUserId) {
+      loadMyAssignments();
+    }
     // Don't banner the poster, or if they muted notifications.
     if (event.createdBy != null &&
         event.createdBy == authService.currentUser?.id) {

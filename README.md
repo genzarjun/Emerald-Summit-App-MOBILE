@@ -267,8 +267,14 @@ test/widget_test.dart       Widget tests
     assigned is what unlocks a session's roster + attendance. The RPC also posts
     the assignee a personal notification and returns `registered_confirm` if the
     volunteer is already registered for that session (so the admin can confirm).
+    **Unassigning** goes through **`unassign_volunteer_from_session`**, which
+    removes the row, deletes the stale "you're managing X" notice, and posts a
+    "you're no longer managing X" notice — both assign and unassign reach the
+    volunteer as a feed item + live in-app banner, and their Schedule/managing
+    list update live.
     [session_volunteers_setup.sql](supabase/session_volunteers_setup.sql),
-    [assignment_notifications.sql](supabase/assignment_notifications.sql)
+    [assignment_notifications.sql](supabase/assignment_notifications.sql),
+    [unassign_notification.sql](supabase/unassign_notification.sql)
   - `summit_checkins` + attendance RPCs — session rosters
     (`fetch_session_roster` / `mark_session_attendance`, gated by assignment) and
     the summit-wide front-desk directory (`fetch_attendee_directory` /
@@ -277,8 +283,10 @@ test/widget_test.dart       Widget tests
   - `announcements` gains `created_by` + `discipline_id`, **admin** write
     policies, and **Realtime**. [announcements_write_setup.sql](supabase/announcements_write_setup.sql)
     Later gains `target_user_id` for **personal** announcements (RLS: a targeted
-    row is readable only by its recipient), used by assignment notifications.
-    [assignment_notifications.sql](supabase/assignment_notifications.sql)
+    row is readable only by its recipient) and `session_id` (so an assignment
+    notice can be cleaned up on unassign), used by assign/unassign notifications.
+    [assignment_notifications.sql](supabase/assignment_notifications.sql),
+    [unassign_notification.sql](supabase/unassign_notification.sql)
   - Seed the six disciplines + sample sessions with
     [seed_catalog.sql](supabase/seed_catalog.sql).
 - **Roles & permissions.** Five roles: `participant`, `expert`, `parent`
