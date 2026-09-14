@@ -74,6 +74,9 @@ class SessionDetailScreen extends StatelessWidget {
             orElse: () => session,
           );
           final registered = appState.isRegistered(current.id);
+          // A volunteer assigned (by an admin) to manage this session can't
+          // add/remove it themselves — it's already on their schedule.
+          final managing = appState.isManaging(current.id);
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             children: [
@@ -121,20 +124,45 @@ class SessionDetailScreen extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 28),
-              FilledButton.icon(
-                onPressed: () {
-                  _onToggle(context);
-                },
-                style: registered
-                    ? FilledButton.styleFrom(
-                        backgroundColor: theme.colorScheme.errorContainer,
-                        foregroundColor: theme.colorScheme.onErrorContainer,
-                      )
-                    : null,
-                icon: Icon(registered ? Icons.remove_circle : Icons.add),
-                label: Text(
-                    registered ? 'Remove from my day' : 'Add to my day'),
-              ),
+              if (managing)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.assignment_ind,
+                          size: 20,
+                          color: theme.colorScheme.onPrimaryContainer),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "You're managing this session. It was added to your "
+                          'schedule by an admin.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                FilledButton.icon(
+                  onPressed: () {
+                    _onToggle(context);
+                  },
+                  style: registered
+                      ? FilledButton.styleFrom(
+                          backgroundColor: theme.colorScheme.errorContainer,
+                          foregroundColor: theme.colorScheme.onErrorContainer,
+                        )
+                      : null,
+                  icon: Icon(registered ? Icons.remove_circle : Icons.add),
+                  label: Text(
+                      registered ? 'Remove from my day' : 'Add to my day'),
+                ),
               if (appState.isAdmin) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(

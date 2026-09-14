@@ -208,6 +208,18 @@ class ResourceDoc {
   final IconData icon;
 }
 
+/// One entry on a user's personal schedule: a [session] plus the role they play
+/// in it — [managing] (assigned by an admin to run it) or attending (registered
+/// as a participant). Managing takes precedence when both are true.
+class ScheduleEntry {
+  const ScheduleEntry({required this.session, required this.managing});
+
+  final Session session;
+  final bool managing;
+
+  String get roleLabel => managing ? 'Managing' : 'Attending';
+}
+
 /// A room in the admin-managed catalog. Sessions are tied to one of these; the
 /// session editor picks from them and volunteers are assigned to the sessions.
 class Room {

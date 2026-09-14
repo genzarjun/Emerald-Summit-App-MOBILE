@@ -6,10 +6,29 @@ import '../models/models.dart';
 import 'discover_screen.dart';
 import 'session_detail_screen.dart';
 
-/// "My Day" tab — the participant's personal schedule, built from the
-/// sessions they've added (spec section 04 — Build your own schedule).
-class ScheduleScreen extends StatelessWidget {
+/// "My Day" tab — the user's full personal schedule: sessions they're attending
+/// (registered) AND sessions they're managing (assigned by an admin), each
+/// labeled with their role (spec section 04 — Build your own schedule).
+class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
+
+  @override
+  State<ScheduleScreen> createState() => _ScheduleScreenState();
+}
+
+class _ScheduleScreenState extends State<ScheduleScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh both halves of the schedule (registrations + assignments) when the
+    // tab first opens, so an admin's just-made assignment shows up here too.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  Future<void> _refresh() async {
+    await appState.loadSchedule();
+    await appState.loadMyAssignments();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,13 +40,16 @@ class ScheduleScreen extends StatelessWidget {
       body: ListenableBuilder(
         listenable: appState,
         builder: (context, _) {
-          final sessions = appState.mySessions;
-          if (sessions.isEmpty) return const _EmptyPlan();
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            itemCount: sessions.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _ScheduleCard(session: sessions[i]),
+          final entries = appState.scheduleEntries;
+          if (entries.isEmpty) return const _EmptyPlan();
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              itemCount: entries.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemBuilder: (context, i) => _ScheduleCard(entry: entries[i]),
+            ),
           );
         },
       ),
@@ -99,12 +121,13 @@ class _EmptyPlan extends StatelessWidget {
 }
 
 class _ScheduleCard extends StatelessWidget {
-  const _ScheduleCard({required this.session});
-  final Session session;
+  const _ScheduleCard({required this.entry});
+  final ScheduleEntry entry;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final session = entry.session;
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -141,7 +164,16 @@ class _ScheduleCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(session.title, style: theme.textTheme.titleMedium),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(session.title,
+                              style: theme.textTheme.titleMedium),
+                        ),
+                        const SizedBox(width: 8),
+                        _RoleChip(managing: entry.managing),
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     Text('${session.disciplineName} · ${session.room}',
                         style: theme.textTheme.bodySmall),
@@ -152,6 +184,35 @@ class _ScheduleCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A small pill showing the user's role in a scheduled session.
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({required this.managing});
+  final bool managing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bg = managing
+        ? theme.colorScheme.primary
+        : theme.colorScheme.surfaceContainerHighest;
+    final fg = managing
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        managing ? 'Managing' : 'Attending',
+        style: theme.textTheme.labelSmall?.copyWith(
+            color: fg, fontWeight: FontWeight.w600),
       ),
     );
   }

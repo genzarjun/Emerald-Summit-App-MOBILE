@@ -31,7 +31,7 @@ class _MyAssignmentsScreenState extends State<MyAssignmentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My sessions')),
+      appBar: AppBar(title: const Text("Sessions I'm managing")),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())

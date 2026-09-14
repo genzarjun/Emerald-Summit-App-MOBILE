@@ -43,10 +43,17 @@ Home header** (Uber-style), not a bottom-bar tab.
   ("Good morning") and playful ("What's cooking", "What's building") lines with
   an animated shimmer sweep (echoing the website wordmark); the quote card wipes
   down on first view.
-- **Schedule** — the participant's personal schedule (formerly the "My Day"
-  first tab; the in-app header still reads "My Day"). Backed by the
-  `registrations` table (RLS-scoped to the user), so it follows the account
-  across devices and reinstalls. Empty-state → browse flow.
+- **Schedule** — the user's full personal schedule (formerly the "My Day" first
+  tab; the in-app header still reads "My Day"). Shows **everything they're
+  committed to**, each tagged with the role: sessions they're **Attending**
+  (from `registrations`) and sessions they're **Managing** (volunteer
+  assignments from `session_volunteers`), merged and sorted by time (managing
+  wins if both). RLS-scoped, so it follows the account across devices. A session
+  a volunteer is **assigned to manage shows no "Add/Remove to my day"** — it's
+  on their schedule by admin action and only an admin can unassign it; the detail
+  page shows a "You're managing this session" status instead. The profile entry
+  to the managing list + attendance is labeled **"Sessions I'm managing"**.
+  Empty-state → browse flow.
 - **Discover** — catalog of the disciplines → each discipline's sessions → a
   rich session "marketing page." Reads live from Supabase (`disciplines` +
   `sessions_with_counts` view). **Add to my day** enforces the real rules via a

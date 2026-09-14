@@ -90,6 +90,26 @@ class AppState extends ChangeNotifier {
 
   bool isRegistered(String id) => _mySessionIds.contains(id);
 
+  /// True if the signed-in volunteer is assigned to manage this session (an
+  /// admin action — the user can't add/remove it themselves).
+  bool isManaging(String id) => myAssignedSessionIds.contains(id);
+
+  /// The user's full schedule: sessions they manage (assigned) AND sessions they
+  /// attend (registered), each tagged with the role, sorted by start time.
+  /// Managing wins if a session is both.
+  List<ScheduleEntry> get scheduleEntries {
+    final byId = <String, ScheduleEntry>{};
+    for (final s in myAssignedSessions) {
+      byId[s.id] = ScheduleEntry(session: s, managing: true);
+    }
+    for (final s in mySessions) {
+      byId.putIfAbsent(s.id, () => ScheduleEntry(session: s, managing: false));
+    }
+    final list = byId.values.toList()
+      ..sort((a, b) => a.session.startMinutes.compareTo(b.session.startMinutes));
+    return list;
+  }
+
   /// Loads the user's registrations into the local cache the UI reads.
   Future<void> loadSchedule() async {
     try {

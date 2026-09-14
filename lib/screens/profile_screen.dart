@@ -139,9 +139,9 @@ class _VisibilityCard extends StatelessWidget {
                   ListTile(
                     leading: Icon(Icons.event_available_outlined,
                         color: theme.colorScheme.primary),
-                    title: const Text('My sessions'),
+                    title: const Text("Sessions I'm managing"),
                     subtitle:
-                        const Text('Sessions you help run & their attendance'),
+                        const Text('Take attendance for sessions you run'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
