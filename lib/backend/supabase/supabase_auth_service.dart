@@ -119,17 +119,20 @@ class SupabaseAuthService implements AuthService {
       if (idToken == null) {
         throw const AuthFailure('Google sign-in failed: no identity token.');
       }
-      // An access token is needed alongside the ID token; authorize the basic
-      // scopes to obtain one.
-      final authorization =
-          await account.authorizationClient.authorizeScopes(['email', 'profile']);
 
-      // Supabase verifies the ID token and, when the email matches an existing
-      // confirmed account, links this Google identity to it (same user).
+      // Pass ONLY the ID token — no access token. In google_sign_in v7,
+      // authentication (the ID token) and authorization (an access token from
+      // authorizeScopes) are separate steps producing tokens that don't match:
+      // the ID token's `at_hash` is bound to a different access token, so
+      // supplying the authorized one makes Supabase reject it on iOS with
+      // "access token hash does not match value in ID token". We only need the
+      // user's identity, not a Google API token, so we omit it and Supabase
+      // skips the at_hash check. Supabase still verifies the ID token and, when
+      // the email matches an existing confirmed account, links this Google
+      // identity to it (same user, same data).
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
-        accessToken: authorization.accessToken,
       );
     } on GoogleSignInException catch (e) {
       // User-cancelled is a silent no-op, not an error to surface.
