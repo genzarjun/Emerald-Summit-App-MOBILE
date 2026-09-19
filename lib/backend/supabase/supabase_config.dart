@@ -24,6 +24,23 @@ class SupabaseConfig {
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
 
+  /// Google Sign-In client IDs, injected at build time from `env.json`.
+  ///
+  /// The native flow (`signInWithIdToken`) needs the **Web** client ID as the
+  /// `serverClientId` on both platforms — that is the audience Supabase's Google
+  /// provider is configured against — plus the platform's own client ID
+  /// (`clientId`). iOS uses [googleIosClientId]; Android needs no `clientId`
+  /// (Google resolves it from the package name + SHA-1). When [googleWebClientId]
+  /// is empty the sign-in screen hides the Google button and only OTP is shown.
+  static const String googleWebClientId =
+      String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+
+  static const String googleIosClientId =
+      String.fromEnvironment('GOOGLE_IOS_CLIENT_ID', defaultValue: '');
+
+  /// Whether native Google sign-in is wired up (the Web client ID is present).
+  static bool get googleSignInEnabled => googleWebClientId.isNotEmpty;
+
   /// TEST/DEV ONLY. When true, the sign-in screen attempts the `dev-login`
   /// bypass for "code emails" before the normal OTP flow (see
   /// [SUPABASE.md]). Off unless the build passes `--dart-define DEV_LOGIN=true`

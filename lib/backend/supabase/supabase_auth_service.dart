@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 // Hide Supabase's own AuthUser so our backend-neutral AuthUser is unambiguous.
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
 
@@ -76,6 +78,65 @@ class SupabaseAuthService implements AuthService {
       // Function absent/disabled, not a code email, network hiccup → let the
       // caller fall back to the normal emailed-OTP flow.
       return false;
+    }
+  }
+
+  // Whether GoogleSignIn.instance.initialize has run this session (it must be
+  // called exactly once before authenticate).
+  bool _googleInitialized = false;
+
+  @override
+  bool get supportsGoogleSignIn => SupabaseConfig.googleSignInEnabled;
+
+  @override
+  Future<void> signInWithGoogle() async {
+    if (!SupabaseConfig.googleSignInEnabled) {
+      throw const AuthFailure('Google sign-in is not configured.');
+    }
+    try {
+      final google = GoogleSignIn.instance;
+      if (!_googleInitialized) {
+        // The iOS client ID is only valid as `clientId` on iOS. On Android the
+        // app is identified by its package name + signing SHA-1, so `clientId`
+        // must be null there (env.json ships a single iOS ID for both platforms).
+        final isIOS =
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+        await google.initialize(
+          // Web client ID = the audience Supabase's Google provider expects.
+          serverClientId: SupabaseConfig.googleWebClientId,
+          clientId: isIOS && SupabaseConfig.googleIosClientId.isNotEmpty
+              ? SupabaseConfig.googleIosClientId
+              : null,
+        );
+        _googleInitialized = true;
+      }
+
+      // Interactive sign-in. Throws GoogleSignInException(canceled) if the user
+      // dismisses the sheet.
+      final account = await google.authenticate();
+
+      final idToken = account.authentication.idToken;
+      if (idToken == null) {
+        throw const AuthFailure('Google sign-in failed: no identity token.');
+      }
+      // An access token is needed alongside the ID token; authorize the basic
+      // scopes to obtain one.
+      final authorization =
+          await account.authorizationClient.authorizeScopes(['email', 'profile']);
+
+      // Supabase verifies the ID token and, when the email matches an existing
+      // confirmed account, links this Google identity to it (same user).
+      await _client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: authorization.accessToken,
+      );
+    } on GoogleSignInException catch (e) {
+      // User-cancelled is a silent no-op, not an error to surface.
+      if (e.code == GoogleSignInExceptionCode.canceled) return;
+      throw AuthFailure(e.description ?? 'Google sign-in was interrupted.');
+    } on AuthException catch (e) {
+      throw AuthFailure(e.message);
     }
   }
 

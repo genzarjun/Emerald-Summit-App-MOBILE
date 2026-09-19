@@ -6,7 +6,8 @@ Tri-Valley's student-run STEAM summit at Emerald High, Dublin CA
 
 > **Status: role-driven backend live.** All screens and interactions work, and
 > the backend is wired up and verified end-to-end on the dev project (two-device
-> testing). **Auth (passwordless email OTP)** is live. The **catalog
+> testing). **Auth (passwordless email OTP, plus native Google sign-in)** is
+> live. The **catalog
 > (disciplines + sessions), the personal schedule, the News feed, and per-user
 > settings are all Supabase-backed**, with the schema shipped as SQL migrations
 > in [`supabase/`](supabase/) (see [SUPABASE.md](SUPABASE.md) to reproduce on a
@@ -129,6 +130,20 @@ flash.
     `DEV_LOGIN_ENABLED=true` function secret **and** an app built with
     `--dart-define DEV_LOGIN=true`) and must never be enabled in production. See
     [SUPABASE.md](SUPABASE.md) §3b.
+- **Google sign-in (native).** A "Continue with Google" button sits alongside
+  the OTP flow, using `google_sign_in` → `supabase.auth.signInWithIdToken` (no
+  custom URL scheme / deep-link redirect). Because accounts are keyed to a
+  confirmed email, signing in with Google links to an existing OTP account with
+  the same address — **same user, same profile and data** — and vice versa;
+  Supabase's automatic identity-linking handles this (both OTP and Google
+  produce a confirmed email). The button only appears when a Web client ID is
+  configured (`GOOGLE_WEB_CLIENT_ID` in `env.json`), so OTP-only builds are
+  unaffected. Config it needs: Google Cloud OAuth clients (**Web** — the
+  `serverClientId` on both platforms and the value pasted into Supabase's Google
+  provider; **iOS** — its reversed client ID is in `ios/Runner/Info.plist`;
+  **Android** — package `com.emeraldsummit.emerald_summit` + signing SHA-1),
+  and the **Google provider enabled** in Supabase Auth. Client IDs are injected
+  from `env.json` (see `env.example.json`), never committed.
 - **Role-based onboarding.** First run collects name + **role**, then asks
   **role-specific** details. The five roles are **participant**, **expert**,
   **parent / spectator** (open to anyone — the last covers non-participating
@@ -471,13 +486,6 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   when the app is closed (see Roadmap for the planned pipeline).
 
 ## Roadmap (later, from the spec)
-- **Google sign-in** — add the **native** flow (`google_sign_in` →
-  `supabase.auth.signInWithIdToken`) alongside the existing OTP. Native avoids
-  custom URL schemes/deep links; it needs Google Cloud OAuth client IDs (iOS
-  bundle ID, Android package + SHA-1) and the Supabase Google provider enabled.
-  Because accounts are keyed to email, users keep the same profile/data when
-  they switch from OTP to Google — Supabase auto-links identities that share a
-  confirmed email (OTP and Google both produce one), so no extra config needed.
 - **OS push notifications (deferred — designed, not built).** Announcements are
   already "instant" while the app is open (Realtime + in-app banner); this adds
   delivery when the app is **closed/backgrounded**. Planned pipeline:

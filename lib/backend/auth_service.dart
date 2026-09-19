@@ -57,6 +57,20 @@ abstract interface class AuthService {
   /// `DEV_LOGIN_ENABLED=true`. It must never be enabled in production.
   Future<bool> tryDevLogin(String email);
 
+  /// Whether native Google sign-in is available in this build (provider
+  /// configured, client IDs present). The sign-in screen shows the Google
+  /// button only when this is true.
+  bool get supportsGoogleSignIn;
+
+  /// Signs in with Google via the native flow. Because accounts are keyed to a
+  /// confirmed email, a Google identity whose email matches an existing account
+  /// links to it — same user, same profile and data. Returns without error once
+  /// a session is established; the auth-state stream drives navigation.
+  ///
+  /// Throws [AuthFailure] with a user-safe message on failure. A user who
+  /// dismisses the Google sheet is a silent no-op (no session, no error).
+  Future<void> signInWithGoogle();
+
   /// Ends the current session.
   Future<void> signOut();
 }

@@ -113,6 +113,33 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await authService.signInWithGoogle();
+      // Success (or the user cancelled): on a real session the auth gate reacts
+      // and navigates; this widget is disposed. On a silent cancel, drop the
+      // spinner so the screen is usable again.
+      if (!mounted) return;
+      if (!authService.isSignedIn) setState(() => _busy = false);
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not sign in with Google. Please try again.';
+        _busy = false;
+      });
+    }
+  }
+
   void _useDifferentEmail() {
     setState(() {
       _codeSent = false;
@@ -197,6 +224,29 @@ class _SignInScreenState extends State<SignInScreen> {
               ? const _ButtonSpinner()
               : const Text('Email me a code'),
         ),
+        if (authService.supportsGoogleSignIn) ...[
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const Expanded(child: Divider()),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'or',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ),
+              const Expanded(child: Divider()),
+            ],
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _signInWithGoogle,
+            icon: const Icon(Icons.g_mobiledata, size: 28),
+            label: const Text('Continue with Google'),
+          ),
+        ],
       ],
     );
   }
