@@ -33,7 +33,10 @@ spec's core participant features. **Profile is reached from the avatar in the
 Home header** (Uber-style), not a bottom-bar tab.
 
 - **Home** — the launchpad ([lib/screens/dashboard_screen.dart](lib/screens/dashboard_screen.dart)).
-  A greeting + tappable avatar → Profile, a daily-rotating quote card with brand
+  A greeting + tappable avatar → Profile, a **photo slideshow** (a 16:9 band of
+  event photos that auto-advances every 5s with a cross-fade + page dots, in a
+  fresh random order each load; hidden when there are no photos), a
+  daily-rotating quote card with brand
   art, an **Up next** card (the next session in your schedule, or a "plan your
   day" nudge when it's empty), a grid of Uber-style **Jump to** action tiles
   (schedule, browse, news with an unread badge, campus map, resources, profile),
@@ -176,12 +179,12 @@ lib/
   theme.dart                Brand palette & Material 3 theme
   app_state.dart            Catalog, schedule, announcements, profile, roles (talks only to backend/)
   app_navigation.dart       Global selected-tab notifier + tab-index constants (banner/dashboard → tabs)
-  models/models.dart        Discipline, Session, Announcement, ResourceDoc, disciplineIcon()
+  models/models.dart        Discipline, Session, Announcement, GalleryPhoto, ResourceDoc, disciplineIcon()
   models/user_profile.dart  UserProfile + SummitRole + per-role fields + scope helpers
   backend/                  The backend seam — see "Swapping backends" under Backend
     backend.dart              Re-exports the contracts + BackendDescriptor
     auth_service.dart         Abstract AuthService, AuthUser, AuthFailure (neutral)
-    repositories.dart         Abstract Catalog/Content/Schedule/Profile/Announcements/Allowlist repos
+    repositories.dart         Abstract Catalog/Content/Schedule/Profile/Announcements/Allowlist/Gallery repos
     service_locator.dart      get_it wiring + configureBackend() (the single switch point)
     supabase/                 The Supabase implementation — ONLY place supabase_flutter is imported
     sample/                   In-memory implementation (standalone/demo mode)
@@ -191,7 +194,7 @@ lib/
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Resources)
-    dashboard_screen.dart   Home launchpad (greeting, quote, up-next, action grid, links)
+    dashboard_screen.dart   Home launchpad (greeting, photo slideshow, quote, up-next, action grid, links)
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate)
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
     discover_screen.dart    Disciplines grid (+ admin "New discipline")
@@ -302,6 +305,16 @@ test/widget_test.dart       Widget tests
     notice can be cleaned up on unassign), used by assign/unassign notifications.
     [assignment_notifications.sql](supabase/assignment_notifications.sql),
     [unassign_notification.sql](supabase/unassign_notification.sql)
+  - **Photo sets = public Storage buckets** (no table). Each photo set in the
+    app is a public bucket, and **every image in it is shown**; curation is just
+    uploading/deleting files. The app **lists** the bucket
+    (`SupabaseGalleryRepository.fetchPhotos(bucket)`) and builds a public CDN URL
+    per file with `getPublicUrl`. Public read/**list** + **admin** write on the
+    bucket's objects (the list policy is intentional here). Different parts of
+    the app point at different buckets — the **dashboard slideshow** reads
+    `gallery_photos` (`AppState.dashboardGalleryBucket`); a new section just adds
+    a new bucket + a `fetchPhotos` call. This is the **first use of Supabase
+    Storage**. [gallery_setup.sql](supabase/gallery_setup.sql)
   - Seed the six disciplines + sample sessions with
     [seed_catalog.sql](supabase/seed_catalog.sql).
 - **Roles & permissions.** Five roles: `participant`, `expert`, `parent`

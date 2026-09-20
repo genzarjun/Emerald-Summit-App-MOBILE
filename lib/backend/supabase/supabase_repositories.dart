@@ -302,6 +302,39 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
   }
 }
 
+/// Lists every image in a public storage [bucket] and resolves each to a public
+/// CDN URL. The bucket IS the source of truth — no curation table — so photos
+/// are managed purely by uploading/deleting files. Best-effort: any error
+/// (missing bucket, offline) yields an empty list so the caller just shows
+/// nothing. Listing requires a public SELECT policy on storage.objects for the
+/// bucket (see gallery_setup.sql).
+class SupabaseGalleryRepository implements GalleryRepository {
+  SupabaseGalleryRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<List<GalleryPhoto>> fetchPhotos(String bucket) async {
+    try {
+      final store = _client.storage.from(bucket);
+      final objects = await store.list();
+      final photos = <GalleryPhoto>[];
+      for (final o in objects) {
+        // Skip subfolders (null id) and the hidden .emptyFolderPlaceholder /
+        // any dotfile Supabase keeps for empty prefixes.
+        if (o.id == null || o.name.startsWith('.')) continue;
+        photos.add(GalleryPhoto(
+          id: o.name,
+          imageUrl: store.getPublicUrl(o.name),
+        ));
+      }
+      return photos;
+    } catch (_) {
+      return const [];
+    }
+  }
+}
+
 /// Advisory gated-role eligibility check. RLS only ever returns the caller's own
 /// allowlist row; the real guarantee is the server-side enforcement trigger.
 class SupabaseAllowlistRepository implements AllowlistRepository {

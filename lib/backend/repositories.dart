@@ -153,6 +153,18 @@ abstract interface class AnnouncementsRepository {
   Future<void> stopEvents();
 }
 
+/// Photo sets shown in the app, each backed by its own storage bucket: EVERY
+/// image in the given bucket is a photo. Curation is just uploading/deleting
+/// files — no table. Different parts of the app read different buckets (the
+/// dashboard slideshow, a future sponsors wall, etc.).
+abstract interface class GalleryRepository {
+  /// Every image in [bucket], as photos. Never throws to the UI — a missing
+  /// bucket or offline read yields an empty list so the caller simply shows
+  /// nothing. Order is not guaranteed; callers that want a specific order (or a
+  /// shuffle) impose it themselves.
+  Future<List<GalleryPhoto>> fetchPhotos(String bucket);
+}
+
 /// Advisory eligibility check for gated roles (volunteer/admin). The real guard is
 /// server-side; this only drives the "you aren't eligible" onboarding message.
 abstract interface class AllowlistRepository {

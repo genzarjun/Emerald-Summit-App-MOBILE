@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -32,12 +33,14 @@ class DashboardScreen extends StatelessWidget {
         onRefresh: () async {
           await appState.loadCatalog();
           await appState.loadAnnouncements();
+          await appState.loadGallery();
         },
         child: ListView(
           padding: EdgeInsets.zero,
           children: const [
             _Header(),
             SizedBox(height: 16),
+            _PhotoSlideshow(),
             _QuoteCard(),
             SizedBox(height: 20),
             _UpNext(),
@@ -227,6 +230,219 @@ class _AvatarButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Photo slideshow — a rotating band of event photos that auto-advances, to make
+// the dashboard feel alive. Photos come from the backend (every image in the
+// `gallery_photos` Storage bucket; sample URLs in demo mode) via
+// appState.galleryPhotos. Uses a PageView so each photo slides in from the right
+// (and the user can swipe by hand); loops seamlessly. Renders nothing when there
+// are no photos, so the layout is unaffected.
+// ---------------------------------------------------------------------------
+class _PhotoSlideshow extends StatefulWidget {
+  const _PhotoSlideshow();
+
+  @override
+  State<_PhotoSlideshow> createState() => _PhotoSlideshowState();
+}
+
+class _PhotoSlideshowState extends State<_PhotoSlideshow> {
+  static const Duration _interval = Duration(seconds: 5);
+  // A far-from-zero start page so the PageView can loop "infinitely" in both
+  // directions; the real photo shown is always page % photoCount.
+  static const int _startPage = 100000;
+
+  final PageController _controller = PageController(initialPage: _startPage);
+  Timer? _timer;
+  int _page = _startPage;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(_interval, (_) => _advance());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _advance() {
+    if (!mounted || appState.galleryPhotos.length < 2) return;
+    if (!_controller.hasClients) return;
+    _controller.nextPage(
+      duration: const Duration(milliseconds: 550),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final photos = appState.galleryPhotos;
+        if (photos.isEmpty) return const SizedBox.shrink();
+
+        final active = _page % photos.length;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  PageView.builder(
+                    controller: _controller,
+                    onPageChanged: (p) => setState(() => _page = p),
+                    // itemCount null → scrolls endlessly; index maps onto the
+                    // photo list by modulo, so the loop is seamless.
+                    itemBuilder: (context, i) =>
+                        _slide(photos[i % photos.length]),
+                  ),
+                  // Bottom scrim so the dots stay legible over bright photos.
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 48,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [Colors.black38, Colors.transparent],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (photos.length > 1)
+                    Positioned(
+                      bottom: 10,
+                      left: 0,
+                      right: 0,
+                      child: _SlideDots(count: photos.length, active: active),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _slide(GalleryPhoto photo) => _SlideImage(photo.imageUrl);
+}
+
+/// A slideshow image that auto-retries on load failure. A transient network
+/// error (common on flaky venue Wi-Fi) otherwise leaves a permanent broken-image
+/// tile, since Flutter caches the failure; this evicts that cached failure and
+/// re-attempts a few times, backing off, before finally showing the placeholder.
+class _SlideImage extends StatefulWidget {
+  const _SlideImage(this.url);
+  final String url;
+
+  @override
+  State<_SlideImage> createState() => _SlideImageState();
+}
+
+class _SlideImageState extends State<_SlideImage> {
+  static const int _maxAttempts = 4;
+  static const Duration _retryDelay = Duration(seconds: 2);
+
+  int _attempt = 0;
+  Timer? _retry;
+
+  @override
+  void dispose() {
+    _retry?.cancel();
+    super.dispose();
+  }
+
+  // Called from errorBuilder (during build), so it must not setState
+  // synchronously — the timer defers it to a later frame.
+  void _scheduleRetry() {
+    if (_retry != null || _attempt >= _maxAttempts) return;
+    _retry = Timer(_retryDelay, () {
+      _retry = null;
+      if (!mounted) return;
+      // Drop the cached failure so the image genuinely re-fetches.
+      NetworkImage(widget.url).evict();
+      setState(() => _attempt++);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.network(
+      widget.url,
+      // A new key per attempt forces a fresh load after eviction.
+      key: ValueKey(_attempt),
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : const _SlidePlaceholder(),
+      errorBuilder: (context, _, _) {
+        _scheduleRetry();
+        return const _SlidePlaceholder(icon: Icons.broken_image_outlined);
+      },
+    );
+  }
+}
+
+/// Neutral fill shown while a slide image loads or if it fails.
+class _SlidePlaceholder extends StatelessWidget {
+  const _SlidePlaceholder({this.icon});
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: EmeraldTheme.mist,
+      alignment: Alignment.center,
+      child: icon == null
+          ? const SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            )
+          : Icon(icon, color: EmeraldTheme.emerald.withValues(alpha: .5)),
+    );
+  }
+}
+
+/// Page-dot indicator; the active dot is wider and opaque.
+class _SlideDots extends StatelessWidget {
+  const _SlideDots({required this.count, required this.active});
+  final int count;
+  final int active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < count; i++)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: i == active ? 18 : 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: i == active ? .95 : .5),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -865,7 +1081,7 @@ class _LinksCard extends StatelessWidget {
 
   static const _links = [
     (icon: Icons.language, label: 'Summit website', url: 'https://sites.google.com/view/ehs-academic-foundation/programs/emerald-summit'),
-    (icon: Icons.camera_alt, label: 'Instagram', url: 'https://www.instagram.com/emeraldsummit26/'),
+    (icon: Icons.camera_alt, label: 'Instagram', url: 'https://www.instagram.com/emeraldsummit27?stkn=MzRlODBiNWFlZA=='),
     (icon: Icons.mail_outline, label: 'Contact', url: 'mailto:president@ehsacademics.org'),
   ];
 

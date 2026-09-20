@@ -152,6 +152,17 @@ class SampleAnnouncementsRepository implements AnnouncementsRepository {
   Future<void> stopEvents() async {}
 }
 
+class SampleGalleryRepository implements GalleryRepository {
+  SampleGalleryRepository(this._store);
+
+  final SampleStore _store;
+
+  // Demo mode ignores the bucket name and returns the seeded sample photos.
+  @override
+  Future<List<GalleryPhoto>> fetchPhotos(String bucket) async =>
+      _store.galleryPhotos;
+}
+
 class SampleAllowlistRepository implements AllowlistRepository {
   // Gated roles never appear in demo mode (no auth gate), so nobody is eligible.
   @override

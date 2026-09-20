@@ -24,6 +24,7 @@ class SampleBackend {
       ..registerSingleton<AnnouncementsRepository>(
           SampleAnnouncementsRepository(store))
       ..registerSingleton<AllowlistRepository>(SampleAllowlistRepository())
+      ..registerSingleton<GalleryRepository>(SampleGalleryRepository(store))
       ..registerSingleton<RoomsRepository>(SampleRoomsRepository(store))
       ..registerSingleton<AssignmentRepository>(
           SampleAssignmentRepository(store))

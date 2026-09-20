@@ -39,6 +39,8 @@ class SupabaseBackend {
           SupabaseAnnouncementsRepository(client))
       ..registerSingleton<AllowlistRepository>(
           SupabaseAllowlistRepository(client))
+      ..registerSingleton<GalleryRepository>(
+          SupabaseGalleryRepository(client))
       ..registerSingleton<RoomsRepository>(SupabaseRoomsRepository(client))
       ..registerSingleton<AssignmentRepository>(
           SupabaseAssignmentRepository(client))

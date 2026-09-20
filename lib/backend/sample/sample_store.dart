@@ -9,6 +9,7 @@ class SampleStore {
   final List<Discipline> disciplines = List.of(SampleData.disciplines);
   final Set<String> mySessionIds = {};
   final List<Announcement> announcements = List.of(SampleData.announcements);
+  final List<GalleryPhoto> galleryPhotos = List.of(SampleData.galleryPhotos);
 
   /// Per-announcement read state for the (demo) user. In-memory only, so the
   /// unread badge + per-card dots behave like the live backend during a demo.

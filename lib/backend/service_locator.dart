@@ -39,6 +39,7 @@ ProfileRepository get profileRepository => getIt<ProfileRepository>();
 AnnouncementsRepository get announcementsRepository =>
     getIt<AnnouncementsRepository>();
 AllowlistRepository get allowlistRepository => getIt<AllowlistRepository>();
+GalleryRepository get galleryRepository => getIt<GalleryRepository>();
 RoomsRepository get roomsRepository => getIt<RoomsRepository>();
 AssignmentRepository get assignmentRepository => getIt<AssignmentRepository>();
 AttendanceRepository get attendanceRepository => getIt<AttendanceRepository>();

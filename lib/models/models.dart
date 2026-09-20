@@ -193,6 +193,22 @@ class Announcement {
   }
 }
 
+/// A photo shown in the app (e.g. the dashboard slideshow). The bytes live in a
+/// public Supabase Storage bucket; every file in the bucket is a photo. The
+/// repository lists the bucket and resolves each file to a public URL, so photos
+/// are managed by uploading/deleting files — no build or table needed.
+class GalleryPhoto {
+  const GalleryPhoto({required this.id, required this.imageUrl});
+
+  /// Stable identifier — the file name within its bucket.
+  final String id;
+
+  /// Fully-resolved, publicly-readable image URL. The repository turns a storage
+  /// file into this before constructing the model, so app code (and the
+  /// [Image.network] that loads it) stays backend-agnostic.
+  final String imageUrl;
+}
+
 /// A document in the resources hub (spec section 04 — Resources hub).
 class ResourceDoc {
   const ResourceDoc({

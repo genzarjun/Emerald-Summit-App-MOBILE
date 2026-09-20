@@ -77,6 +77,24 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // ---- Gallery (dashboard slideshow) ---------------------------------------
+  // Each photo set is a storage bucket; every image in it is shown. Other app
+  // sections can read their own bucket the same way (add a field + loader here).
+  static const String dashboardGalleryBucket = 'gallery_photos';
+
+  List<GalleryPhoto> galleryPhotos = const [];
+
+  /// Loads the dashboard slideshow photos from [dashboardGalleryBucket] and
+  /// shuffles them, so the order is fresh on each load (startup + pull-to-
+  /// refresh). Best-effort — the repository never throws, so a failure just
+  /// leaves the slideshow hidden.
+  Future<void> loadGallery() async {
+    final photos = [...await galleryRepository.fetchPhotos(dashboardGalleryBucket)]
+      ..shuffle();
+    galleryPhotos = photos;
+    notifyListeners();
+  }
+
   // ---- Schedule ------------------------------------------------------------
   final Set<String> _mySessionIds = {};
 
@@ -517,6 +535,7 @@ class AppState extends ChangeNotifier {
     await loadAnnouncements();
     await loadReadAnnouncements();
     await loadMyAssignments();
+    await loadGallery();
     subscribeAnnouncements();
   }
 
@@ -591,6 +610,7 @@ class AppState extends ChangeNotifier {
     _mySessionIds.clear();
     _disciplines = const [];
     announcements = const [];
+    galleryPhotos = const [];
     _seenAnnouncementIds.clear();
     _openedAnnouncementIds.clear();
     _readStateLoaded = false;

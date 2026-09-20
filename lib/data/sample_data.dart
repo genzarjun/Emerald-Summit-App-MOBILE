@@ -235,4 +235,14 @@ class SampleData {
       icon: Icons.handshake,
     ),
   ];
+
+  /// Sample slideshow photos for demo mode (no live backend). With Supabase
+  /// configured these come from the `gallery_photos` Storage bucket instead.
+  /// Picsum gives stable, hotlink-friendly placeholder photos.
+  static const List<GalleryPhoto> galleryPhotos = [
+    GalleryPhoto(id: 'g1', imageUrl: 'https://picsum.photos/id/180/1200/675'),
+    GalleryPhoto(id: 'g2', imageUrl: 'https://picsum.photos/id/1067/1200/675'),
+    GalleryPhoto(id: 'g3', imageUrl: 'https://picsum.photos/id/1084/1200/675'),
+    GalleryPhoto(id: 'g4', imageUrl: 'https://picsum.photos/id/366/1200/675'),
+  ];
 }
