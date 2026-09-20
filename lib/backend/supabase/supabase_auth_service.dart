@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 // Hide Supabase's own AuthUser so our backend-neutral AuthUser is unambiguous.
@@ -14,9 +18,19 @@ class SupabaseAuthService implements AuthService {
 
   final SupabaseClient _client;
 
-  @override
-  Stream<void> get authStateChanges =>
+  // Cached once so the getter always returns the SAME stream instance. Returning
+  // a fresh `.map(...)` on every read made StreamBuilder think the stream had
+  // changed on every rebuild (e.g. when the iOS keyboard shows/dismisses and the
+  // ancestor MediaQuery rebuilds), so it would cancel and re-subscribe. Since
+  // onAuthStateChange is a broadcast stream with no replay, a sign-in event
+  // emitted during that re-subscribe gap was lost — leaving the app stuck on the
+  // sign-in screen (black over the splash background) until an app resume made
+  // Supabase re-emit. A stable instance keeps one live subscription throughout.
+  late final Stream<void> _authStateChanges =
       _client.auth.onAuthStateChange.map((_) {});
+
+  @override
+  Stream<void> get authStateChanges => _authStateChanges;
 
   @override
   AuthUser? get currentUser {
@@ -81,10 +95,6 @@ class SupabaseAuthService implements AuthService {
     }
   }
 
-  // Whether GoogleSignIn.instance.initialize has run this session (it must be
-  // called exactly once before authenticate).
-  bool _googleInitialized = false;
-
   @override
   bool get supportsGoogleSignIn => SupabaseConfig.googleSignInEnabled;
 
@@ -95,21 +105,30 @@ class SupabaseAuthService implements AuthService {
     }
     try {
       final google = GoogleSignIn.instance;
-      if (!_googleInitialized) {
-        // The iOS client ID is only valid as `clientId` on iOS. On Android the
-        // app is identified by its package name + signing SHA-1, so `clientId`
-        // must be null there (env.json ships a single iOS ID for both platforms).
-        final isIOS =
-            !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-        await google.initialize(
-          // Web client ID = the audience Supabase's Google provider expects.
-          serverClientId: SupabaseConfig.googleWebClientId,
-          clientId: isIOS && SupabaseConfig.googleIosClientId.isNotEmpty
-              ? SupabaseConfig.googleIosClientId
-              : null,
-        );
-        _googleInitialized = true;
-      }
+
+      // Bind the ID token to THIS sign-in with a fresh nonce (replay protection,
+      // so Supabase's Google provider keeps "skip nonce checks" OFF). Google
+      // accepts the nonce only via initialize(), so we generate a new one and
+      // re-initialize on every attempt: the SHA-256 hash goes into the ID token
+      // via Google, the raw value goes to Supabase, and Supabase re-hashes and
+      // compares them. Re-initializing each time is cheap and safe here — the
+      // plugin exposes no auth-event stream, so init only updates stored config
+      // (client IDs + nonce), it does not re-subscribe anything.
+      final rawNonce = _generateNonce();
+      final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+      // The iOS client ID is only valid as `clientId` on iOS. On Android the app
+      // is identified by its package name + signing SHA-1, so `clientId` must be
+      // null there (env.json ships a single iOS ID for both platforms).
+      final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+      await google.initialize(
+        // Web client ID = the audience Supabase's Google provider expects.
+        serverClientId: SupabaseConfig.googleWebClientId,
+        clientId: isIOS && SupabaseConfig.googleIosClientId.isNotEmpty
+            ? SupabaseConfig.googleIosClientId
+            : null,
+        nonce: hashedNonce,
+      );
 
       // Interactive sign-in. Throws GoogleSignInException(canceled) if the user
       // dismisses the sheet.
@@ -120,19 +139,18 @@ class SupabaseAuthService implements AuthService {
         throw const AuthFailure('Google sign-in failed: no identity token.');
       }
 
-      // Pass ONLY the ID token — no access token. In google_sign_in v7,
-      // authentication (the ID token) and authorization (an access token from
-      // authorizeScopes) are separate steps producing tokens that don't match:
-      // the ID token's `at_hash` is bound to a different access token, so
-      // supplying the authorized one makes Supabase reject it on iOS with
-      // "access token hash does not match value in ID token". We only need the
-      // user's identity, not a Google API token, so we omit it and Supabase
-      // skips the at_hash check. Supabase still verifies the ID token and, when
-      // the email matches an existing confirmed account, links this Google
-      // identity to it (same user, same data).
+      // Pass the ID token + the RAW nonce (matching the hashed nonce embedded in
+      // the token above); no access token. In google_sign_in v7, authentication
+      // (the ID token) and authorization (an access token from authorizeScopes)
+      // are separate steps whose tokens don't match, so supplying the authorized
+      // access token makes Supabase reject the ID token on iOS with "access token
+      // hash does not match value in ID token" — identity is all we need. Supabase
+      // verifies the ID token + nonce and, when the email matches an existing
+      // confirmed account, links this Google identity to it (same user, same data).
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
+        nonce: rawNonce,
       );
     } on GoogleSignInException catch (e) {
       // User-cancelled is a silent no-op, not an error to surface.
@@ -141,6 +159,16 @@ class SupabaseAuthService implements AuthService {
     } on AuthException catch (e) {
       throw AuthFailure(e.message);
     }
+  }
+
+  // A cryptographically-random, URL-safe nonce used to bind a Google ID token to
+  // a single sign-in attempt.
+  static String _generateNonce([int length = 32]) {
+    const charset =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    final random = Random.secure();
+    return List.generate(
+        length, (_) => charset[random.nextInt(charset.length)]).join();
   }
 
   @override
