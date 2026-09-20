@@ -144,6 +144,22 @@ class SampleAnnouncementsRepository implements AnnouncementsRepository {
     _store.openedAnnouncementIds.add(id);
   }
 
+  @override
+  Future<Set<String>> fetchDismissed() async =>
+      {..._store.dismissedAnnouncementIds};
+
+  @override
+  Future<void> hideForMe(String id) async =>
+      _store.dismissedAnnouncementIds.add(id);
+
+  @override
+  Future<void> unhideForMe(String id) async =>
+      _store.dismissedAnnouncementIds.remove(id);
+
+  @override
+  Future<void> deleteForEveryone(String id) async =>
+      _store.announcements.removeWhere((a) => a.id == id);
+
   // No realtime in demo mode: a stream that never emits. The feed still works
   // via fetch() + pull-to-refresh.
   @override

@@ -255,6 +255,57 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
   }
 
   @override
+  Future<Set<String>> fetchDismissed() async {
+    if (_client.auth.currentUser == null) return <String>{};
+    try {
+      final rows = await _client
+          .from('announcement_dismissals')
+          .select('announcement_id');
+      return rows.map((r) => r['announcement_id'].toString()).toSet();
+    } catch (_) {
+      // Dismissals table not set up (migration not run) → nothing hidden.
+      return <String>{};
+    }
+  }
+
+  @override
+  Future<void> hideForMe(String id) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    try {
+      await _client.from('announcement_dismissals').upsert(
+        {'user_id': user.id, 'announcement_id': id},
+        onConflict: 'user_id,announcement_id',
+        ignoreDuplicates: true,
+      );
+    } catch (_) {
+      // Best-effort: a missing table / transient error just leaves it visible.
+    }
+  }
+
+  @override
+  Future<void> unhideForMe(String id) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    try {
+      await _client
+          .from('announcement_dismissals')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('announcement_id', id);
+    } catch (_) {
+      // Best-effort: a transient error just leaves it hidden until next sync.
+    }
+  }
+
+  @override
+  Future<void> deleteForEveryone(String id) async {
+    // Admin-only, enforced by the DELETE RLS policy — a non-admin call is
+    // rejected server-side. Let errors surface so the UI can report them.
+    await _client.from('announcements').delete().eq('id', id);
+  }
+
+  @override
   Stream<AnnouncementEvent> get events {
     final existing = _controller;
     if (existing != null) return existing.stream;
@@ -277,6 +328,24 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
                 createdBy: row['created_by']?.toString(),
                 disciplineId: row['discipline_id'] as String?,
                 targetUserId: row['target_user_id'] as String?,
+              ));
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: 'announcements',
+            callback: (payload) {
+              // A delete-for-everyone: drop it from every open feed. Default
+              // replica identity gives us the primary key in oldRecord, which is
+              // all the app needs to remove the row.
+              final id = payload.oldRecord['id'];
+              if (id == null) return;
+              controller.add(AnnouncementEvent(
+                id: id.toString(),
+                title: '',
+                body: '',
+                deleted: true,
               ));
             },
           )

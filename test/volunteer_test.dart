@@ -218,5 +218,29 @@ void main() {
       final all = await repo.fetchAttendeeDirectory('');
       expect(all.firstWhere((a) => a.id == 'a2').present, isTrue);
     });
+
+    test('announcement: hide-from-my-view tracks dismissals; undo clears them',
+        () async {
+      final repo = SampleAnnouncementsRepository(store);
+      final id = (await repo.fetch()).first.id;
+
+      expect(await repo.fetchDismissed(), isEmpty);
+
+      await repo.hideForMe(id);
+      expect(await repo.fetchDismissed(), contains(id));
+      // The row itself is untouched — a hide is per-user only.
+      expect((await repo.fetch()).any((a) => a.id == id), isTrue);
+
+      await repo.unhideForMe(id);
+      expect(await repo.fetchDismissed(), isEmpty);
+    });
+
+    test('announcement: delete-for-everyone removes the row', () async {
+      final repo = SampleAnnouncementsRepository(store);
+      final id = (await repo.fetch()).first.id;
+
+      await repo.deleteForEveryone(id);
+      expect((await repo.fetch()).any((a) => a.id == id), isFalse);
+    });
   });
 }

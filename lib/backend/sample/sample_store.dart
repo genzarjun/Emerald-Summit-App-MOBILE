@@ -17,6 +17,10 @@ class SampleStore {
   final Set<String> seenAnnouncementIds = {};
   final Set<String> openedAnnouncementIds = {};
 
+  /// Announcement ids the (demo) user has hidden from their own feed via the
+  /// swipe-left "delete from my view" action. In-memory only.
+  final Set<String> dismissedAnnouncementIds = {};
+
   /// Null until onboarding saves one; while null the app shows demo values,
   /// matching the pre-seam sample behavior.
   UserProfile? profile;

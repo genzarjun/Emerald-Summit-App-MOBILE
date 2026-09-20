@@ -112,7 +112,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => _AnnouncementCard(item: items[i]),
+      itemBuilder: (context, i) => _SwipeableAnnouncement(item: items[i]),
     );
   }
 
@@ -188,6 +188,127 @@ class _SourceBanner extends StatelessWidget {
                 style: theme.textTheme.labelMedium?.copyWith(color: color)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// What a swipe-to-delete should do.
+enum _DeleteScope { everyone, mine }
+
+/// Wraps an announcement card in a swipe-left ([Dismissible]) gesture.
+///
+/// Everyone can swipe to "delete from my view" (a per-user hide, with Undo).
+/// Admins additionally get to choose "Delete for everyone" (a permanent delete
+/// that propagates to all devices) via a choice sheet.
+///
+/// The list is driven by [appState], so each action mutates app state and the
+/// parent rebuild removes the card — we always return `false` from
+/// `confirmDismiss` and never let [Dismissible] remove the widget itself.
+class _SwipeableAnnouncement extends StatelessWidget {
+  const _SwipeableAnnouncement({required this.item});
+  final Announcement item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dismissible(
+      key: ValueKey('announcement-${item.id}'),
+      direction: DismissDirection.endToStart,
+      background: const SizedBox.shrink(),
+      secondaryBackground: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Icon(Icons.delete_outline,
+            color: theme.colorScheme.onErrorContainer),
+      ),
+      confirmDismiss: (_) => _onSwipe(context),
+      child: _AnnouncementCard(item: item),
+    );
+  }
+
+  /// Handles the swipe. Returns `false` in every path — app state drives removal.
+  Future<bool> _onSwipe(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (appState.isAdmin) {
+      final scope = await _pickDeleteScope(context);
+      if (scope == null) return false; // cancelled
+      if (scope == _DeleteScope.everyone) {
+        try {
+          await appState.deleteAnnouncementForEveryone(item.id);
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Announcement deleted for everyone')),
+          );
+        } catch (_) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text("Couldn't delete — please try again")),
+          );
+        }
+        return false;
+      }
+      // scope == mine → fall through to the per-user hide below.
+    }
+
+    await _hideForMe(messenger);
+    return false;
+  }
+
+  Future<void> _hideForMe(ScaffoldMessengerState messenger) async {
+    await appState.hideAnnouncement(item.id);
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Removed from your feed'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => appState.unhideAnnouncement(item.id),
+        ),
+      ),
+    );
+  }
+
+  /// Admin choice sheet: delete for everyone vs. just hide from my feed.
+  Future<_DeleteScope?> _pickDeleteScope(BuildContext context) {
+    final theme = Theme.of(context);
+    return showModalBottomSheet<_DeleteScope>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+              child: Text(
+                item.title,
+                style: theme.textTheme.titleMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.visibility_off_outlined,
+                  color: theme.colorScheme.primary),
+              title: const Text('Remove from my feed'),
+              subtitle: const Text('Hidden only for you'),
+              onTap: () => Navigator.of(sheetContext).pop(_DeleteScope.mine),
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline,
+                  color: theme.colorScheme.error),
+              title: Text('Delete for everyone',
+                  style: TextStyle(color: theme.colorScheme.error)),
+              subtitle: const Text('Permanently removes it for all users'),
+              onTap: () => Navigator.of(sheetContext).pop(_DeleteScope.everyone),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

@@ -111,8 +111,17 @@ Home header** (Uber-style), not a bottom-bar tab.
   `announcement_reads` table (a row = seen; `opened_at` = opened), RLS-scoped to
   the owner. The app degrades gracefully: no reads table → "all unseen"; reads
   table but no `opened_at` column → seen/badge work, dots don't persist. Falls
-  back to sample data when the backend isn't configured. **OS push** (when the
-  app is closed) is designed but not yet built (see Roadmap).
+  back to sample data when the backend isn't configured. **Swipe-to-delete:**
+  every user can **swipe a card left** to remove it. A plain user's swipe hides
+  it **from their own feed only** (a per-user dismissal in
+  `announcement_dismissals`, RLS-scoped to the owner, with an **Undo** snackbar);
+  the announcement stays in place for everyone else. An **admin's** swipe opens a
+  choice sheet: **"Remove from my feed"** (the same per-user hide) or **"Delete
+  for everyone"**, which **hard-deletes the row** (admin-only DELETE policy) and
+  **propagates live over Realtime** so it disappears on every open device.
+  Without the dismissals table, swipe-to-hide simply doesn't persist across
+  restarts. **OS push** (when the app is closed) is designed but not yet built
+  (see Roadmap).
 - **Resources** — searchable document hub.
 - **Profile** (reached from the Home-header avatar) — contact card with role
   badge (volunteers also show their **subtype** and the discipline(s) they

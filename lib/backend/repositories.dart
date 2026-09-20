@@ -55,6 +55,7 @@ class AnnouncementEvent {
     this.createdBy,
     this.disciplineId,
     this.targetUserId,
+    this.deleted = false,
   });
 
   final String id;
@@ -70,6 +71,11 @@ class AnnouncementEvent {
   /// When set, a personal announcement for that single user (e.g. an assignment
   /// notification) — only they should see/banner it.
   final String? targetUserId;
+
+  /// True for a "removed" event: the announcement [id] was deleted for everyone.
+  /// The app just drops it from the feed (never banners it). Only [id] is
+  /// meaningful on a deletion event.
+  final bool deleted;
 }
 
 /// The session catalog: disciplines with their sessions nested underneath.
@@ -145,6 +151,23 @@ abstract interface class AnnouncementsRepository {
   /// Marks one announcement opened (sets `opened_at`). Best-effort — never
   /// throws. No-op when nobody is signed in.
   Future<void> markOpened(String id);
+
+  /// The current user's set of announcement ids hidden from their OWN feed (the
+  /// swipe-left "delete from my view" action). Empty when signed out, or for a
+  /// backend without dismissal tracking. Best-effort — never throws to the UI.
+  Future<Set<String>> fetchDismissed();
+
+  /// Hides [id] from just the current user's feed (does not affect anyone else).
+  /// Idempotent and best-effort — never throws. No-op when nobody is signed in.
+  Future<void> hideForMe(String id);
+
+  /// Un-hides [id] for the current user (undo of [hideForMe]). Idempotent and
+  /// best-effort — never throws. No-op when nobody is signed in.
+  Future<void> unhideForMe(String id);
+
+  /// Permanently deletes [id] for EVERYONE (admin-only; enforced by the
+  /// backend). Throws on a rejected delete so the UI can surface it.
+  Future<void> deleteForEveryone(String id);
 
   /// Live stream of newly-inserted announcements. A backend without realtime
   /// returns a stream that never emits; the feed still works via [fetch] +

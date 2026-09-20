@@ -112,6 +112,14 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     bucket (one folder per session id) whose writes are gated to admins and the
     session's discipline editors. **Run this to activate hero photos, galleries,
     and content blocks — without it the session editor's photo/section edits fail.**
+22. `supabase/announcement_dismissals_setup.sql` — the `announcement_dismissals`
+    table backing the News feed's swipe-left **"delete from my view"** (a
+    per-user hide, RLS-scoped to the owner, that leaves the announcement in place
+    for everyone else). Admins additionally get **"delete for everyone"**, which
+    hard-deletes the row via the DELETE policy already in
+    `announcements_write_setup.sql` (step 8) and propagates live over Realtime —
+    no extra migration needed for that path. Without this migration the app
+    degrades gracefully: swipe-to-hide just won't persist across restarts.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

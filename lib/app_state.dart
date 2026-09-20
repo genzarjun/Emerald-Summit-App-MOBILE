@@ -270,11 +270,14 @@ class AppState extends ChangeNotifier {
     return announcementReaches(disciplineId);
   }
 
-  /// The announcements this user should actually see (audience-filtered, and
-  /// personal announcements only for their recipient).
+  /// The announcements this user should actually see: audience-filtered,
+  /// personal announcements only for their recipient, and anything they've
+  /// hidden from their own feed ("delete from my view") removed.
   List<Announcement> get visibleAnnouncements => announcements
       .where((a) =>
-          reachesMe(disciplineId: a.disciplineId, targetUserId: a.targetUserId))
+          reachesMe(
+              disciplineId: a.disciplineId, targetUserId: a.targetUserId) &&
+          !_dismissedAnnouncementIds.contains(a.id))
       .toList();
 
   // ---- Read state (per-user, two-tier) -------------------------------------
@@ -283,6 +286,10 @@ class AppState extends ChangeNotifier {
   // Both are loaded from the backend on sign-in and are private per user.
   final Set<String> _seenAnnouncementIds = {};
   final Set<String> _openedAnnouncementIds = {};
+
+  // Announcement ids the user has hidden from their own feed (swipe-left
+  // "delete from my view"). Private per user; loaded alongside read-state.
+  final Set<String> _dismissedAnnouncementIds = {};
 
   /// False until read-state has been fetched at least once. The announcements
   /// list loads a beat before read-state, so without this gate the badge would
@@ -315,6 +322,10 @@ class AppState extends ChangeNotifier {
       _openedAnnouncementIds
         ..clear()
         ..addAll(state.opened);
+      final dismissed = await announcementsRepository.fetchDismissed();
+      _dismissedAnnouncementIds
+        ..clear()
+        ..addAll(dismissed);
     } catch (_) {
       // Leave read-state empty on failure; nothing is worse than a stale badge.
     } finally {
@@ -360,6 +371,54 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Hides an announcement from just this user's feed ("delete from my view").
+  /// Optimistic: removes it locally and rebuilds, then persists. Available to
+  /// every user. Safe to call for an already-hidden id.
+  Future<void> hideAnnouncement(String id) async {
+    if (!_dismissedAnnouncementIds.add(id)) return;
+    notifyListeners();
+    try {
+      await announcementsRepository.hideForMe(id);
+    } catch (_) {
+      // Local state already reflects "hidden"; a failed persist just means it
+      // may reappear on next launch until it succeeds.
+    }
+  }
+
+  /// Undo of [hideAnnouncement] — brings a hidden announcement back into this
+  /// user's feed. No-op if it wasn't hidden.
+  Future<void> unhideAnnouncement(String id) async {
+    if (!_dismissedAnnouncementIds.remove(id)) return;
+    notifyListeners();
+    try {
+      await announcementsRepository.unhideForMe(id);
+    } catch (_) {
+      // Local state already reflects "visible"; a failed persist just means it
+      // may vanish again on next launch until it succeeds.
+    }
+  }
+
+  /// Permanently deletes an announcement for EVERYONE (admin-only; the backend
+  /// rejects a non-admin call). Optimistic: drops it locally, then deletes on
+  /// the backend. Realtime propagates the removal to other open apps. Rethrows
+  /// on failure after restoring the local copy so the UI can report it.
+  Future<void> deleteAnnouncementForEveryone(String id) async {
+    final index = announcements.indexWhere((a) => a.id == id);
+    if (index < 0) return;
+    final removed = announcements[index];
+    announcements = List.of(announcements)..removeAt(index);
+    notifyListeners();
+    try {
+      await announcementsRepository.deleteForEveryone(id);
+    } catch (e) {
+      // Restore on failure (e.g. a rejected delete) so the feed stays truthful.
+      final restored = List.of(announcements)..insert(index, removed);
+      announcements = restored;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<void> loadAnnouncements() async {
     announcementsLoading = true;
     announcementsError = null;
@@ -383,6 +442,15 @@ class AppState extends ChangeNotifier {
   }
 
   void _onAnnouncementInserted(AnnouncementEvent event) {
+    // A delete-for-everyone: drop it from the local feed immediately, no banner.
+    if (event.deleted) {
+      final next = announcements.where((a) => a.id != event.id).toList();
+      if (next.length != announcements.length) {
+        announcements = next;
+        notifyListeners();
+      }
+      return;
+    }
     // Refresh the feed for everyone (keeps ordering/pinned correct).
     loadAnnouncements();
     // A personal notice aimed at me is usually an assign/unassign change — pull
@@ -613,6 +681,7 @@ class AppState extends ChangeNotifier {
     galleryPhotos = const [];
     _seenAnnouncementIds.clear();
     _openedAnnouncementIds.clear();
+    _dismissedAnnouncementIds.clear();
     _readStateLoaded = false;
     myAssignedSessionIds = const {};
     rooms = const [];
