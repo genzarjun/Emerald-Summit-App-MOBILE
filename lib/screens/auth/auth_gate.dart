@@ -15,13 +15,28 @@ import 'sign_in_screen.dart';
 /// Rebuilds automatically whenever the backend's auth state changes (sign-in,
 /// sign-out, token refresh). Only used with a live backend; in sample mode
 /// `main` shows [RootNav] directly.
-class AuthGate extends StatelessWidget {
+///
+/// Stateful so the auth-state subscription is captured ONCE in [initState] and
+/// held for the gate's whole lifetime. If the stream were re-read on every
+/// build, an ancestor rebuild (e.g. the iOS keyboard opening/closing) could make
+/// [StreamBuilder] tear down and re-create its subscription — and a sign-in
+/// event landing in that gap on a broadcast, no-replay stream would be lost,
+/// stranding the user on the sign-in screen until an app resume. One stable
+/// subscription, established before sign-in even happens, closes that race.
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  late final Stream<void> _authStateChanges = authService.authStateChanges;
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<void>(
-      stream: authService.authStateChanges,
+      stream: _authStateChanges,
       builder: (context, _) {
         if (!authService.isSignedIn) return const SignInScreen();
         return const _ProfileLoader();
