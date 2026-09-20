@@ -335,6 +335,66 @@ class SupabaseGalleryRepository implements GalleryRepository {
   }
 }
 
+/// Session photos, stored one folder per session in the `session_photos`
+/// bucket. Public read/list; writes are gated server-side (Storage RLS) to
+/// admins and the session's discipline editors.
+class SupabaseSessionMediaRepository implements SessionMediaRepository {
+  SupabaseSessionMediaRepository(this._client);
+
+  final SupabaseClient _client;
+
+  static const String _bucket = 'session_photos';
+
+  @override
+  Future<List<GalleryPhoto>> fetchPhotos(String sessionId) async {
+    try {
+      final store = _client.storage.from(_bucket);
+      final objects = await store.list(path: sessionId);
+      final photos = <GalleryPhoto>[];
+      for (final o in objects) {
+        // Skip subfolders (null id) and Supabase's empty-folder placeholder.
+        if (o.id == null || o.name.startsWith('.')) continue;
+        photos.add(GalleryPhoto(
+          id: o.name,
+          imageUrl: store.getPublicUrl('$sessionId/${o.name}'),
+        ));
+      }
+      return photos;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<GalleryPhoto> uploadPhoto(
+      String sessionId, Uint8List bytes, String fileName) async {
+    final store = _client.storage.from(_bucket);
+    final path = '$sessionId/$fileName';
+    await store.uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(
+        upsert: true,
+        contentType: _contentTypeFor(fileName),
+      ),
+    );
+    return GalleryPhoto(id: fileName, imageUrl: store.getPublicUrl(path));
+  }
+
+  @override
+  Future<void> deletePhoto(String sessionId, String fileName) async {
+    await _client.storage.from(_bucket).remove(['$sessionId/$fileName']);
+  }
+
+  static String _contentTypeFor(String fileName) {
+    final f = fileName.toLowerCase();
+    if (f.endsWith('.png')) return 'image/png';
+    if (f.endsWith('.webp')) return 'image/webp';
+    if (f.endsWith('.heic')) return 'image/heic';
+    return 'image/jpeg';
+  }
+}
+
 /// Advisory gated-role eligibility check. RLS only ever returns the caller's own
 /// allowlist row; the real guarantee is the server-side enforcement trigger.
 class SupabaseAllowlistRepository implements AllowlistRepository {

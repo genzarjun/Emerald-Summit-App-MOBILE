@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 /// Maps a discipline's stored `icon` string (from the `disciplines` table) to a
@@ -51,10 +53,52 @@ class Discipline {
       );
 }
 
+/// One editor-authored content section on a session's "vibrant" page — a titled
+/// block of body text. Sessions carry an ordered list of these in the
+/// `page_blocks` jsonb column; anyone who can edit the session authors them.
+class SessionPageBlock {
+  const SessionPageBlock({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  factory SessionPageBlock.fromMap(Map<String, dynamic> map) => SessionPageBlock(
+        title: (map['title'] ?? '') as String,
+        body: (map['body'] ?? '') as String,
+      );
+
+  Map<String, dynamic> toMap() => {'title': title, 'body': body};
+
+  /// Parses the raw `page_blocks` value (a jsonb list, which some backends hand
+  /// back as a decoded [List] and others as a JSON [String]). Anything malformed
+  /// yields an empty list so a bad row never crashes the catalog.
+  static List<SessionPageBlock> parse(dynamic raw) {
+    if (raw == null) return const [];
+    List<dynamic> list;
+    if (raw is String) {
+      if (raw.trim().isEmpty) return const [];
+      try {
+        list = jsonDecode(raw) as List<dynamic>;
+      } catch (_) {
+        return const [];
+      }
+    } else if (raw is List) {
+      list = raw;
+    } else {
+      return const [];
+    }
+    return [
+      for (final e in list)
+        if (e is Map) SessionPageBlock.fromMap(e.cast<String, dynamic>()),
+    ];
+  }
+}
+
 /// A single session/activity a participant can add to their day plan.
 class Session {
   const Session({
     required this.id,
+    required this.disciplineId,
     required this.title,
     required this.disciplineName,
     required this.track,
@@ -67,6 +111,8 @@ class Session {
     required this.enrolled,
     required this.description,
     this.sponsor,
+    this.heroImageUrl,
+    this.pageBlocks = const [],
   });
 
   /// Builds a [Session] from a `sessions_with_counts` view row. The view carries
@@ -74,6 +120,7 @@ class Session {
   /// rules and the display name work without a second query.
   factory Session.fromMap(Map<String, dynamic> row) => Session(
         id: row['id'].toString(),
+        disciplineId: (row['discipline_id'] ?? '').toString(),
         title: (row['title'] ?? '') as String,
         disciplineName: (row['discipline_name'] ?? '') as String,
         track: (row['track'] ?? '') as String,
@@ -86,9 +133,17 @@ class Session {
         enrolled: (row['enrolled'] as num?)?.toInt() ?? 0,
         description: (row['description'] ?? '') as String,
         sponsor: row['sponsor'] as String?,
+        heroImageUrl: (row['hero_image_url'] as String?)?.isEmpty ?? true
+            ? null
+            : row['hero_image_url'] as String?,
+        pageBlocks: SessionPageBlock.parse(row['page_blocks']),
       );
 
   final String id;
+
+  /// The parent discipline's id (from `sessions.discipline_id`). Drives edit
+  /// permission on the detail page via [AppState.canManageDiscipline].
+  final String disciplineId;
   final String title;
   final String disciplineName;
   final String track;
@@ -104,6 +159,12 @@ class Session {
   final int enrolled;
   final String description;
   final String? sponsor;
+
+  /// The session page's hero banner image (a public URL), or null when unset.
+  final String? heroImageUrl;
+
+  /// Ordered editor-authored content sections shown on the session page.
+  final List<SessionPageBlock> pageBlocks;
 
   bool get isFull => enrolled >= capacity;
   int get seatsLeft => capacity - enrolled;

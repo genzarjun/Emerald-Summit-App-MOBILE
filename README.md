@@ -59,23 +59,35 @@ Home header** (Uber-style), not a bottom-bar tab.
   to the managing list + attendance is labeled **"Sessions I'm managing"**.
   Empty-state → browse flow.
 - **Discover** — catalog of the disciplines → each discipline's sessions → a
-  rich session "marketing page." Reads live from Supabase (`disciplines` +
-  `sessions_with_counts` view). **Add to my day** enforces the real rules via a
-  server-side RPC (`register_for_session`): no double-booking (time-conflict
-  dialog) and capacity caps (full/waitlist), so they can't be bypassed from the
-  client. Admins and EAF ambassadors who can edit sessions get **New session /
-  Edit** controls (scoped to their disciplines); the editor ties a session to a
-  **room** picked from the admin catalog — and if the needed room isn't listed,
-  an **"Add a room…"** option in that dropdown creates it inline (admins and
-  session-editing ambassadors; INSERT-only, backend-enforced) without leaving the
-  page. Admins get **New discipline** and, on
-  each session, **Manage volunteers** — assigning a volunteer to a session is
-  overlap-guarded server-side (an admin sees *"This person has a schedule
-  conflict…"* if it clashes with their other assignments or registrations). If
-  the volunteer is already **registered** for that very session, the admin gets
-  an *"…is registered for this session. Assign them to manage it?"* confirm
-  first. On assignment the volunteer receives an automatic personal
-  announcement + banner.
+  **vibrant, tabbed session page.** Reads live from Supabase (`disciplines` +
+  `sessions_with_counts` view). The page has a **horizontal, permission-gated tab
+  bar** at the top:
+  - **Session** (everyone) — the rich page: a **hero photo**, a **photo
+    gallery**, the time/room/expert/seats info, the description, and any
+    **editor-authored content sections** (ordered `{title, body}` blocks). **Add
+    to my day** enforces the real rules via a server-side RPC
+    (`register_for_session`): no double-booking (time-conflict dialog) and
+    capacity caps (full/waitlist), so they can't be bypassed from the client.
+  - **Participants** (admins + volunteers *assigned* to the session) — the roster
+    with attendance toggles (same server gate as before).
+  - **Volunteers** (admins) — assign/unassign volunteers.
+  A plain participant sees only the Session tab. Admins and EAF ambassadors who
+  can edit the session's discipline get **Edit** controls (an AppBar pencil + an
+  inline button) that open the editor for the whole page — base fields plus the
+  hero photo, gallery, and content sections. Photos are **uploaded in-app**
+  (`image_picker`) into a per-session folder in the public `session_photos`
+  Storage bucket; hero/gallery editing needs the session id, so on a brand-new
+  session you save first, then reopen to add photos. The editor still ties a
+  session to a **room** picked from the admin catalog — and if the needed room
+  isn't listed, an **"Add a room…"** option in that dropdown creates it inline
+  (admins and session-editing ambassadors; INSERT-only, backend-enforced)
+  without leaving the page. Admins also get **New discipline** and **New
+  session**. Assigning a volunteer to a session is overlap-guarded server-side
+  (an admin sees *"This person has a schedule conflict…"* if it clashes with
+  their other assignments or registrations). If the volunteer is already
+  **registered** for that very session, the admin gets an *"…is registered for
+  this session. Assign them to manage it?"* confirm first. On assignment the
+  volunteer receives an automatic personal announcement + banner.
 - **News** — the announcements feed (pinned items, audience tags). Reads live
   from Supabase and stays **live via Realtime** — a new announcement appears the
   instant an admin posts it, alongside an **Instagram-style in-app banner** when
@@ -199,10 +211,10 @@ lib/
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
     discover_screen.dart    Disciplines grid (+ admin "New discipline")
     discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)
-    session_detail_screen.dart   Marketing page + add/remove (+ admin "Manage volunteers")
-    session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown)
-    session_volunteers_screen.dart  Assign/unassign volunteers to a session (admin)
-    session_roster_screen.dart   A session's roster + mark attendance (assigned volunteer)
+    session_detail_screen.dart   Tabbed session page: Session/Participants/Volunteers (permission-gated)
+    session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown, hero/gallery, content blocks)
+    session_volunteers_screen.dart  SessionVolunteersView — assign/unassign (Volunteers tab, admin)
+    session_roster_screen.dart   SessionRosterView + wrapper — roster + attendance (Participants tab / My Assignments)
     my_assignments_screen.dart   A volunteer's assigned sessions
     front_desk_screen.dart       Summit-wide check-in (front-desk capability)
     rooms_manager_screen.dart    Admin rooms catalog CRUD
@@ -262,7 +274,10 @@ test/widget_test.dart       Widget tests
     volunteer who can edit sessions and is scoped to the discipline**, write).
     `enrolled` is never stored — the `sessions_with_counts` **view** derives it
     live from `registrations` and adds the discipline name. Gains a `room_id`
-    (→ `rooms`) in the volunteers upgrade. [sessions_setup.sql](supabase/sessions_setup.sql)
+    (→ `rooms`) in the volunteers upgrade, and `hero_image_url` + `page_blocks`
+    (jsonb `[{title, body}]`) for the vibrant session page — both flow through
+    the view automatically. [sessions_setup.sql](supabase/sessions_setup.sql),
+    [session_pages_setup.sql](supabase/session_pages_setup.sql)
   - `registrations` — the personal schedule (RLS: each user only their own).
     Adds/removes go through the **`register_for_session` RPC**, the single
     server-side enforcer of capacity + no-time-overlap. Gains `attended` /
@@ -315,6 +330,14 @@ test/widget_test.dart       Widget tests
     `gallery_photos` (`AppState.dashboardGalleryBucket`); a new section just adds
     a new bucket + a `fetchPhotos` call. This is the **first use of Supabase
     Storage**. [gallery_setup.sql](supabase/gallery_setup.sql)
+  - **Session photos = the `session_photos` bucket**, one folder per session id
+    (`<session_id>/…`). Unlike the admin-only galleries above, writes are
+    allowed for **admins and the session's discipline editors** — the Storage
+    RLS derives the owning session from the folder name and checks
+    `can_manage_discipline`. The app uploads in-app (`image_picker` →
+    `SessionMediaRepository.uploadPhoto`) and lists a session's folder for its
+    gallery; the hero image is a `hero_image_url` column pointing at one of these
+    files. [session_pages_setup.sql](supabase/session_pages_setup.sql)
   - Seed the six disciplines + sample sessions with
     [seed_catalog.sql](supabase/seed_catalog.sql).
 - **Roles & permissions.** Five roles: `participant`, `expert`, `parent`

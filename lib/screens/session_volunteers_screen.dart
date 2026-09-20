@@ -4,21 +4,22 @@ import '../backend/repositories.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
 
-/// Admin-only screen to assign/unassign volunteers to a session. Being assigned
-/// is what lets a volunteer see the session's roster and mark its attendance.
-/// The assign path is server-guarded: an overlap with the volunteer's other
-/// commitments is refused and surfaced here.
-class SessionVolunteersScreen extends StatefulWidget {
-  const SessionVolunteersScreen({super.key, required this.session});
+/// Admin-only view to assign/unassign volunteers to a session, embedded as the
+/// "Volunteers" tab of the session page. Being assigned is what lets a volunteer
+/// see the session's roster and mark its attendance. The assign path is
+/// server-guarded: an overlap with the volunteer's other commitments is refused
+/// and surfaced here. Renders its own (AppBar-less) Scaffold so it keeps its
+/// "Assign volunteer" FAB while living inside a TabBarView.
+class SessionVolunteersView extends StatefulWidget {
+  const SessionVolunteersView({super.key, required this.session});
 
   final Session session;
 
   @override
-  State<SessionVolunteersScreen> createState() =>
-      _SessionVolunteersScreenState();
+  State<SessionVolunteersView> createState() => _SessionVolunteersViewState();
 }
 
-class _SessionVolunteersScreenState extends State<SessionVolunteersScreen> {
+class _SessionVolunteersViewState extends State<SessionVolunteersView> {
   bool _loading = true;
   List<VolunteerRef> _assigned = const [];
 
@@ -148,7 +149,6 @@ class _SessionVolunteersScreenState extends State<SessionVolunteersScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Session volunteers')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'fab-assign-volunteer',
         onPressed: _pickAndAssign,

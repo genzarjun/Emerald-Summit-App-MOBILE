@@ -3,19 +3,39 @@ import 'package:flutter/material.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
 
-/// The roster for one session — the registered participants and their
-/// attendance state. Shown to a volunteer assigned to the session (or an admin);
-/// marking is enforced server-side by the same assignment gate.
-class SessionRosterScreen extends StatefulWidget {
+/// Standalone attendance screen — a thin wrapper around [SessionRosterView] used
+/// when a volunteer opens a managed session from "Sessions I'm managing"
+/// (my_assignments_screen). On the session page itself the same view is embedded
+/// as the "Participants" tab.
+class SessionRosterScreen extends StatelessWidget {
   const SessionRosterScreen({super.key, required this.session});
 
   final Session session;
 
   @override
-  State<SessionRosterScreen> createState() => _SessionRosterScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Attendance')),
+      body: SafeArea(child: SessionRosterView(session: session)),
+    );
+  }
 }
 
-class _SessionRosterScreenState extends State<SessionRosterScreen> {
+/// The roster for one session — the registered participants and their
+/// attendance state. Shown to a volunteer assigned to the session (or an admin);
+/// marking is enforced server-side by the same assignment gate. Renders just the
+/// body (no Scaffold/AppBar) so it can be embedded as a tab or wrapped by
+/// [SessionRosterScreen].
+class SessionRosterView extends StatefulWidget {
+  const SessionRosterView({super.key, required this.session});
+
+  final Session session;
+
+  @override
+  State<SessionRosterView> createState() => _SessionRosterViewState();
+}
+
+class _SessionRosterViewState extends State<SessionRosterView> {
   bool _loading = true;
   String? _error;
   List<RosterEntry> _roster = const [];
@@ -68,86 +88,75 @@ class _SessionRosterScreenState extends State<SessionRosterScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final present = _roster.where((e) => e.attended).length;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Attendance')),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Text(_error!,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium),
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(_error!,
+              textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 2),
+          child: Text(widget.session.title, style: theme.textTheme.titleMedium),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Text(
+            '${widget.session.timeLabel} · '
+            '${widget.session.room.isEmpty ? "Unassigned room" : widget.session.room}'
+            '  ·  $present / ${_roster.length} present',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: _roster.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(
+                      'No one has registered for this session yet.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 2),
-                        child: Text(widget.session.title,
-                            style: theme.textTheme.titleMedium),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                        child: Text(
-                          '${widget.session.timeLabel} · '
-                          '${widget.session.room.isEmpty ? "Unassigned room" : widget.session.room}'
-                          '  ·  $present / ${_roster.length} present',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: _roster.length,
+                  itemBuilder: (context, i) {
+                    final e = _roster[i];
+                    return SwitchListTile(
+                      value: e.attended,
+                      onChanged: (v) => _toggle(e, v),
+                      title: Text(e.name.isEmpty ? e.email : e.name),
+                      subtitle: Text(e.attended ? 'Present' : 'Not marked'),
+                      secondary: CircleAvatar(
+                        backgroundColor: e.attended
+                            ? theme.colorScheme.primaryContainer
+                            : theme.colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          e.attended ? Icons.check : Icons.person_outline,
+                          color: e.attended
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: _roster.isEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(32),
-                                  child: Text(
-                                    'No one has registered for this session yet.',
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant),
-                                  ),
-                                ),
-                              )
-                            : ListView.separated(
-                                itemCount: _roster.length,
-                                itemBuilder: (context, i) {
-                                  final e = _roster[i];
-                                  return SwitchListTile(
-                                    value: e.attended,
-                                    onChanged: (v) => _toggle(e, v),
-                                    title: Text(e.name.isEmpty ? e.email : e.name),
-                                    subtitle: Text(e.attended
-                                        ? 'Present'
-                                        : 'Not marked'),
-                                    secondary: CircleAvatar(
-                                      backgroundColor: e.attended
-                                          ? theme.colorScheme.primaryContainer
-                                          : theme.colorScheme.surfaceContainerHighest,
-                                      child: Icon(
-                                        e.attended
-                                            ? Icons.check
-                                            : Icons.person_outline,
-                                        color: e.attended
-                                            ? theme.colorScheme.onPrimaryContainer
-                                            : theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                separatorBuilder: (_, _) =>
-                                    const Divider(height: 1),
-                              ),
-                      ),
-                    ],
-                  ),
-      ),
+                    );
+                  },
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                ),
+        ),
+      ],
     );
   }
 }

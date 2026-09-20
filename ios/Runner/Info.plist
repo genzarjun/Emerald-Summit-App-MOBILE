@@ -81,5 +81,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Emerald Summit needs access to your photos so you can add photos to a session page.</string>
 </dict>
 </plist>

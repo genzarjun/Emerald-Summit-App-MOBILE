@@ -1,41 +1,196 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../backend/service_locator.dart';
 import '../models/models.dart';
 import '../theme.dart';
+import 'session_editor_screen.dart';
+import 'session_roster_screen.dart';
 import 'session_volunteers_screen.dart';
 
-/// The rich "marketing page" for a single session, with the primary
-/// action to add/remove it from the day plan. Enforces the schedule
-/// rules (spec section 04): no double-booking, capacity caps.
-class SessionDetailScreen extends StatelessWidget {
+/// The session page — a vibrant, tabbed view of a single session.
+///
+/// A horizontal (scrollable) tab bar surfaces tabs based on the viewer's
+/// permission:
+///   * **Session** (everyone) — the rich "marketing page": hero photo, gallery,
+///     description, editor-authored content blocks, and the add/remove-to-my-day
+///     action.
+///   * **Participants** (admins + volunteers assigned to the session) — roster +
+///     attendance.
+///   * **Volunteers** (admins) — assign/unassign volunteers.
+/// Anyone who can edit the session's discipline also gets an Edit action that
+/// opens the editor for the main page.
+class SessionDetailScreen extends StatefulWidget {
   const SessionDetailScreen({super.key, required this.session});
   final Session session;
 
-  Future<void> _onToggle(BuildContext context) async {
+  @override
+  State<SessionDetailScreen> createState() => _SessionDetailScreenState();
+}
+
+class _SessionDetailScreenState extends State<SessionDetailScreen> {
+  // Bumped after returning from the editor to force the About tab to reload its
+  // photos (they live in Storage, separate from the catalog row).
+  int _refreshToken = 0;
+
+  Future<void> _openEditor(Session current) async {
+    final discipline = appState.disciplines.firstWhere(
+      (d) => d.id == current.disciplineId,
+      orElse: () => Discipline(
+        id: current.disciplineId,
+        name: current.disciplineName,
+        tagline: '',
+        icon: Icons.category,
+        sessions: const [],
+      ),
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            SessionEditorScreen(discipline: discipline, session: current),
+      ),
+    );
+    if (mounted) setState(() => _refreshToken++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        // Show the latest version from the live catalog so seats/enrolled and
+        // page edits stay accurate; fall back to the one we were handed.
+        final current = appState.allSessions.firstWhere(
+          (s) => s.id == widget.session.id,
+          orElse: () => widget.session,
+        );
+
+        final canEdit = appState.canManageDiscipline(current.disciplineId);
+        final canSeeParticipants =
+            appState.isAdmin || appState.isManaging(current.id);
+        final canSeeVolunteers = appState.isAdmin;
+
+        // Build the tab set in a fixed order, tracking labels for the TabBar.
+        final tabs = <Tab>[const Tab(text: 'Session')];
+        final views = <Widget>[
+          _SessionAboutTab(
+            key: ValueKey('about-${current.id}-$_refreshToken'),
+            session: current,
+            canEdit: canEdit,
+            onEdit: () => _openEditor(current),
+          ),
+        ];
+        if (canSeeParticipants) {
+          tabs.add(const Tab(text: 'Participants'));
+          views.add(SessionRosterView(session: current));
+        }
+        if (canSeeVolunteers) {
+          tabs.add(const Tab(text: 'Volunteers'));
+          views.add(SessionVolunteersView(session: current));
+        }
+
+        final actions = <Widget>[
+          if (canEdit)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit session page',
+              onPressed: () => _openEditor(current),
+            ),
+        ];
+
+        // A single-tab (plain participant) view needs no tab bar.
+        if (tabs.length == 1) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(current.disciplineName),
+              actions: actions,
+            ),
+            body: views.first,
+          );
+        }
+
+        return DefaultTabController(
+          length: tabs.length,
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(current.disciplineName),
+              actions: actions,
+              bottom: TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                labelColor: Theme.of(context).colorScheme.onPrimary,
+                unselectedLabelColor:
+                    Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
+                indicatorColor: Theme.of(context).colorScheme.onPrimary,
+                tabs: tabs,
+              ),
+            ),
+            body: TabBarView(children: views),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The main "Session" tab — the rich page. Loads the session's gallery photos
+/// (Storage) once, and renders the hero, info, description, content blocks,
+/// gallery, sponsor, and the day-plan action.
+class _SessionAboutTab extends StatefulWidget {
+  const _SessionAboutTab({
+    super.key,
+    required this.session,
+    required this.canEdit,
+    required this.onEdit,
+  });
+
+  final Session session;
+  final bool canEdit;
+  final VoidCallback onEdit;
+
+  @override
+  State<_SessionAboutTab> createState() => _SessionAboutTabState();
+}
+
+class _SessionAboutTabState extends State<_SessionAboutTab> {
+  List<GalleryPhoto> _photos = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhotos();
+  }
+
+  Future<void> _loadPhotos() async {
+    final photos = await sessionMediaRepository.fetchPhotos(widget.session.id);
+    if (!mounted) return;
+    setState(() => _photos = photos);
+  }
+
+  Future<void> _onToggle() async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await appState.toggle(session);
-    if (!context.mounted) return;
+    final result = await appState.toggle(widget.session);
+    if (!mounted) return;
     messenger.hideCurrentSnackBar();
     switch (result.outcome) {
       case AddOutcome.added:
         messenger.showSnackBar(
-          SnackBar(content: Text('Added "${session.title}" to your day')),
+          SnackBar(content: Text('Added "${widget.session.title}" to your day')),
         );
       case AddOutcome.removed:
         messenger.showSnackBar(
-          SnackBar(content: Text('Removed "${session.title}" from your day')),
+          SnackBar(
+              content:
+                  Text('Removed "${widget.session.title}" from your day')),
         );
       case AddOutcome.full:
         _showBlockedDialog(
-          context,
           'Session full',
-          'This session has reached its capacity of ${session.capacity}. '
+          'This session has reached its capacity of ${widget.session.capacity}. '
               'You can still join the waitlist on the day.',
         );
       case AddOutcome.conflict:
         _showBlockedDialog(
-          context,
           'Time conflict',
           'This overlaps with "${result.conflictingTitle}", which is '
               'already on your schedule. Remove that one first to add this.',
@@ -43,7 +198,7 @@ class SessionDetailScreen extends StatelessWidget {
     }
   }
 
-  void _showBlockedDialog(BuildContext context, String title, String body) {
+  void _showBlockedDialog(String title, String body) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -62,23 +217,26 @@ class SessionDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(session.disciplineName)),
-      body: ListenableBuilder(
-        listenable: appState,
-        builder: (context, _) {
-          // Show the latest version from the live catalog so seats/enrolled
-          // stay accurate; fall back to the one we were handed.
-          final current = appState.allSessions.firstWhere(
-            (s) => s.id == session.id,
-            orElse: () => session,
-          );
-          final registered = appState.isRegistered(current.id);
-          // A volunteer assigned (by an admin) to manage this session can't
-          // add/remove it themselves — it's already on their schedule.
-          final managing = appState.isManaging(current.id);
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+    final current = widget.session;
+    final registered = appState.isRegistered(current.id);
+    // A volunteer assigned (by an admin) to manage this session can't add/remove
+    // it themselves — it's already on their schedule.
+    final managing = appState.isManaging(current.id);
+    // The hero is stored as one of the folder's files; keep it out of the strip.
+    final gallery = [
+      for (final p in _photos)
+        if (p.imageUrl != current.heroImageUrl) p,
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 32),
+      children: [
+        if (current.heroImageUrl != null)
+          _HeroImage(url: current.heroImageUrl!),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(current.track.toUpperCase(),
                   style: theme.textTheme.labelSmall?.copyWith(
@@ -102,6 +260,31 @@ class SessionDetailScreen extends StatelessWidget {
               Text('About this session', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(current.description, style: theme.textTheme.bodyLarge),
+              // Editor-authored content sections.
+              for (final block in current.pageBlocks)
+                if (block.title.trim().isNotEmpty ||
+                    block.body.trim().isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  if (block.title.trim().isNotEmpty)
+                    Text(block.title, style: theme.textTheme.titleMedium),
+                  if (block.title.trim().isNotEmpty) const SizedBox(height: 8),
+                  if (block.body.trim().isNotEmpty)
+                    Text(block.body, style: theme.textTheme.bodyLarge),
+                ],
+              if (gallery.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text('Gallery', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 12),
+              ],
+            ],
+          ),
+        ),
+        if (gallery.isNotEmpty) _Gallery(photos: gallery),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               if (current.sponsor != null) ...[
                 const SizedBox(height: 20),
                 Container(
@@ -150,9 +333,7 @@ class SessionDetailScreen extends StatelessWidget {
                 )
               else
                 FilledButton.icon(
-                  onPressed: () {
-                    _onToggle(context);
-                  },
+                  onPressed: _onToggle,
                   style: registered
                       ? FilledButton.styleFrom(
                           backgroundColor: theme.colorScheme.errorContainer,
@@ -163,22 +344,80 @@ class SessionDetailScreen extends StatelessWidget {
                   label: Text(
                       registered ? 'Remove from my day' : 'Add to my day'),
                 ),
-              if (appState.isAdmin) ...[
+              if (widget.canEdit) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          SessionVolunteersScreen(session: current),
-                    ),
-                  ),
-                  icon: const Icon(Icons.groups_2_outlined),
-                  label: const Text('Manage volunteers'),
+                  onPressed: widget.onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit session page'),
                 ),
               ],
             ],
-          );
-        },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Full-width hero banner for the session page.
+class _HeroImage extends StatelessWidget {
+  const _HeroImage({required this.url});
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => Container(
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Icon(Icons.image_not_supported_outlined,
+              color: theme.colorScheme.onSurfaceVariant),
+        ),
+        loadingBuilder: (context, child, progress) => progress == null
+            ? child
+            : Container(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+      ),
+    );
+  }
+}
+
+/// A horizontal gallery strip of the session's photos.
+class _Gallery extends StatelessWidget {
+  const _Gallery({required this.photos});
+  final List<GalleryPhoto> photos;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: 160,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: photos.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (context, i) => ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            photos[i].imageUrl,
+            width: 220,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => Container(
+              width: 220,
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Icon(Icons.broken_image_outlined,
+                  color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ),
       ),
     );
   }

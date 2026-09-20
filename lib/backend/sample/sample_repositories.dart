@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import '../../models/models.dart';
 import '../../models/user_profile.dart';
@@ -161,6 +162,32 @@ class SampleGalleryRepository implements GalleryRepository {
   @override
   Future<List<GalleryPhoto>> fetchPhotos(String bucket) async =>
       _store.galleryPhotos;
+}
+
+class SampleSessionMediaRepository implements SessionMediaRepository {
+  // In-memory per-session photos, so the editor's add/remove works in demo mode
+  // (bytes are discarded; a data-free placeholder URL stands in for the upload).
+  final Map<String, List<GalleryPhoto>> _bySession = {};
+
+  @override
+  Future<List<GalleryPhoto>> fetchPhotos(String sessionId) async =>
+      [...?_bySession[sessionId]];
+
+  @override
+  Future<GalleryPhoto> uploadPhoto(
+      String sessionId, Uint8List bytes, String fileName) async {
+    final photo = GalleryPhoto(
+      id: fileName,
+      imageUrl: 'https://picsum.photos/seed/$sessionId-$fileName/1200/675',
+    );
+    (_bySession[sessionId] ??= []).add(photo);
+    return photo;
+  }
+
+  @override
+  Future<void> deletePhoto(String sessionId, String fileName) async {
+    _bySession[sessionId]?.removeWhere((p) => p.id == fileName);
+  }
 }
 
 class SampleAllowlistRepository implements AllowlistRepository {

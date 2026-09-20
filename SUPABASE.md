@@ -106,6 +106,12 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     `unassign_volunteer_from_session` RPC: removing a volunteer deletes the
     assignment, deletes that stale "managing" notice from their feed, and posts a
     "you're no longer managing X" notice (feed item + in-app banner).
+21. `supabase/session_pages_setup.sql` — the vibrant session page: adds
+    `sessions.hero_image_url` + `sessions.page_blocks` (both flow through
+    `sessions_with_counts` automatically) and the public `session_photos` Storage
+    bucket (one folder per session id) whose writes are gated to admins and the
+    session's discipline editors. **Run this to activate hero photos, galleries,
+    and content blocks — without it the session editor's photo/section edits fail.**
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

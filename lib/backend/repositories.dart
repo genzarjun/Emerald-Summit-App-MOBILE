@@ -13,6 +13,8 @@
 /// backend-agnostic.
 library;
 
+import 'dart:typed_data';
+
 import '../models/models.dart';
 import '../models/user_profile.dart';
 
@@ -163,6 +165,24 @@ abstract interface class GalleryRepository {
   /// nothing. Order is not guaranteed; callers that want a specific order (or a
   /// shuffle) impose it themselves.
   Future<List<GalleryPhoto>> fetchPhotos(String bucket);
+}
+
+/// A session's own photos (hero + gallery), each backed by a per-session folder
+/// (`<session_id>/…`) in the `session_photos` Storage bucket. Reads are public;
+/// writes are gated server-side to admins and the session's discipline editors,
+/// so an unauthorized upload/delete is rejected even if the UI is bypassed.
+abstract interface class SessionMediaRepository {
+  /// Every photo uploaded for [sessionId]. Never throws to the UI — a missing
+  /// folder or offline read yields an empty list.
+  Future<List<GalleryPhoto>> fetchPhotos(String sessionId);
+
+  /// Uploads [bytes] (a JPEG/PNG) under [sessionId]'s folder as [fileName] and
+  /// returns the stored photo (with its public URL). Throws on a rejected write.
+  Future<GalleryPhoto> uploadPhoto(
+      String sessionId, Uint8List bytes, String fileName);
+
+  /// Deletes [fileName] from [sessionId]'s folder. Throws on a rejected delete.
+  Future<void> deletePhoto(String sessionId, String fileName);
 }
 
 /// Advisory eligibility check for gated roles (volunteer/admin). The real guard is

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../app_state.dart';
+import '../backend/service_locator.dart';
 import '../models/models.dart';
 
 /// Create / edit a session within a discipline. Shown to admins and to mentors
@@ -37,7 +39,18 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   List<Room> _rooms = const [];
   String? _roomId;
 
+  // ---- Session page media + content -----------------------------------------
+  final ImagePicker _picker = ImagePicker();
+  String? _heroImageUrl;
+  List<GalleryPhoto> _photos = const [];
+  bool _mediaBusy = false;
+  final List<_BlockControllers> _blocks = [];
+
   bool get _isEditing => widget.session != null;
+
+  /// Photo/hero editing needs the session id, which only exists after the row is
+  /// created. On a brand-new session, save first, then reopen to add photos.
+  String? get _sessionId => widget.session?.id;
 
   @override
   void initState() {
@@ -52,7 +65,18 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     _capacity = TextEditingController(text: s != null ? '${s.capacity}' : '');
     _description = TextEditingController(text: s?.description ?? '');
     _sponsor = TextEditingController(text: s?.sponsor ?? '');
+    _heroImageUrl = s?.heroImageUrl;
+    for (final block in s?.pageBlocks ?? const <SessionPageBlock>[]) {
+      _blocks.add(_BlockControllers(title: block.title, body: block.body));
+    }
     _loadRooms();
+    if (_sessionId != null) _loadPhotos();
+  }
+
+  Future<void> _loadPhotos() async {
+    final photos = await sessionMediaRepository.fetchPhotos(_sessionId!);
+    if (!mounted) return;
+    setState(() => _photos = photos);
   }
 
   Future<void> _loadRooms() async {
@@ -75,7 +99,93 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     ]) {
       c.dispose();
     }
+    for (final b in _blocks) {
+      b.dispose();
+    }
     super.dispose();
+  }
+
+  // ---- Photos ---------------------------------------------------------------
+  /// A short, unique file name for an upload (Storage keys must be unique within
+  /// the session's folder).
+  String _photoFileName() =>
+      'p_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+  Future<XFile?> _pick() => _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2000,
+        imageQuality: 85,
+      );
+
+  Future<void> _pickHero() async {
+    final id = _sessionId;
+    if (id == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final file = await _pick();
+    if (file == null || !mounted) return;
+    setState(() => _mediaBusy = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final photo =
+          await sessionMediaRepository.uploadPhoto(id, bytes, _photoFileName());
+      if (!mounted) return;
+      setState(() {
+        _heroImageUrl = photo.imageUrl;
+        _photos = [..._photos, photo];
+        _mediaBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _mediaBusy = false);
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Could not upload. You may not manage this session.')));
+    }
+  }
+
+  Future<void> _addGalleryPhoto() async {
+    final id = _sessionId;
+    if (id == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final file = await _pick();
+    if (file == null || !mounted) return;
+    setState(() => _mediaBusy = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final photo =
+          await sessionMediaRepository.uploadPhoto(id, bytes, _photoFileName());
+      if (!mounted) return;
+      setState(() {
+        _photos = [..._photos, photo];
+        _mediaBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _mediaBusy = false);
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Could not upload. You may not manage this session.')));
+    }
+  }
+
+  Future<void> _deletePhoto(GalleryPhoto photo) async {
+    final id = _sessionId;
+    if (id == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _mediaBusy = true);
+    try {
+      await sessionMediaRepository.deletePhoto(id, photo.id);
+      if (!mounted) return;
+      setState(() {
+        _photos = _photos.where((p) => p.id != photo.id).toList();
+        // If we removed the hero, clear the pointer too.
+        if (_heroImageUrl == photo.imageUrl) _heroImageUrl = null;
+        _mediaBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _mediaBusy = false);
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Could not delete the photo.')));
+    }
   }
 
   static final _timeRe = RegExp(r'^([01]?\d|2[0-3]):[0-5]\d$');
@@ -123,6 +233,12 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       'capacity': capacity,
       'description': _description.text.trim(),
       'sponsor': sponsor.isEmpty ? null : sponsor,
+      'hero_image_url': _heroImageUrl,
+      'page_blocks': [
+        for (final b in _blocks)
+          if (b.title.text.trim().isNotEmpty || b.body.text.trim().isNotEmpty)
+            {'title': b.title.text.trim(), 'body': b.body.text.trim()},
+      ],
     };
     try {
       await appState.saveSession(id: widget.session?.id, data: data);
@@ -222,6 +338,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                     keyboardType: TextInputType.number),
                 _field(_description, 'Description', maxLines: 4),
                 _field(_sponsor, 'Sponsor (optional)'),
+                const SizedBox(height: 8),
+                const Divider(),
+                const SizedBox(height: 8),
+                _pageContentSection(theme),
                 if (_error != null) ...[
                   const SizedBox(height: 4),
                   Text(_error!,
@@ -253,10 +373,16 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   static const String _addRoomSentinel = '__add_room__';
 
   Widget _roomDropdown() {
+    // Only seed the dropdown with a room the loaded catalog actually contains —
+    // on the first build (before rooms load) or for a since-deleted room, fall
+    // back to "Unassigned" so DropdownButtonFormField's value==item assertion
+    // never trips. The key re-seeds the field once the rooms arrive.
+    final selectedRoomId = _rooms.any((r) => r.id == _roomId) ? _roomId : null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<String?>(
-        initialValue: _roomId,
+        key: ValueKey('room-${_rooms.length}-$selectedRoomId'),
+        initialValue: selectedRoomId,
         isExpanded: true,
         decoration: const InputDecoration(
           labelText: 'Room',
@@ -343,6 +469,200 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     }
   }
 
+  // ---- Page content UI ------------------------------------------------------
+  Widget _pageContentSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Session page', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          'The hero photo, gallery, and sections below are what participants see '
+          'on this session.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        if (_sessionId == null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 18, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Save the session first, then reopen it to add photos.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          _heroPicker(theme),
+          const SizedBox(height: 16),
+          _galleryEditor(theme),
+        ],
+        const SizedBox(height: 20),
+        _blocksEditor(theme),
+      ],
+    );
+  }
+
+  Widget _heroPicker(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Hero photo', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        if (_heroImageUrl != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Image.network(_heroImageUrl!, fit: BoxFit.cover),
+            ),
+          ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: _mediaBusy ? null : _pickHero,
+              icon: const Icon(Icons.photo_outlined),
+              label: Text(_heroImageUrl == null ? 'Set hero photo' : 'Replace'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _galleryEditor(ThemeData theme) {
+    // The hero file also lives in the folder; don't list it twice.
+    final gallery = [
+      for (final p in _photos)
+        if (p.imageUrl != _heroImageUrl) p,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Gallery', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final p in gallery)
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(p.imageUrl,
+                        width: 96, height: 96, fit: BoxFit.cover),
+                  ),
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: IconButton(
+                      icon: const Icon(Icons.cancel),
+                      color: theme.colorScheme.error,
+                      tooltip: 'Remove',
+                      onPressed: _mediaBusy ? null : () => _deletePhoto(p),
+                    ),
+                  ),
+                ],
+              ),
+            InkWell(
+              onTap: _mediaBusy ? null : _addGalleryPhoto,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
+                ),
+                child: Icon(Icons.add_a_photo_outlined,
+                    color: theme.colorScheme.primary),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _blocksEditor(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Content sections', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        for (var i = 0; i < _blocks.length; i++)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Section ${i + 1}',
+                          style: theme.textTheme.labelLarge),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Remove section',
+                      onPressed: _busy
+                          ? null
+                          : () => setState(() => _blocks.removeAt(i).dispose()),
+                    ),
+                  ],
+                ),
+                TextField(
+                  controller: _blocks[i].title,
+                  enabled: !_busy,
+                  decoration: const InputDecoration(
+                    labelText: 'Heading',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _blocks[i].body,
+                  enabled: !_busy,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Text',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed:
+                _busy ? null : () => setState(() => _blocks.add(_BlockControllers())),
+            icon: const Icon(Icons.add),
+            label: const Text('Add section'),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _field(
     TextEditingController controller,
     String label, {
@@ -364,5 +684,20 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Title + body controllers for one editable content section.
+class _BlockControllers {
+  _BlockControllers({String title = '', String body = ''})
+      : title = TextEditingController(text: title),
+        body = TextEditingController(text: body);
+
+  final TextEditingController title;
+  final TextEditingController body;
+
+  void dispose() {
+    title.dispose();
+    body.dispose();
   }
 }

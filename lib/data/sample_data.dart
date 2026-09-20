@@ -19,6 +19,7 @@ class SampleData {
       sessions: [
         Session(
           id: 's1',
+          disciplineId: 'techverse',
           title: 'Intro to App Development',
           disciplineName: 'TechVerse',
           track: 'Mobile Track',
@@ -35,6 +36,7 @@ class SampleData {
         ),
         Session(
           id: 's2',
+          disciplineId: 'techverse',
           title: 'Competitive Programming Sprint',
           disciplineName: 'TechVerse',
           track: 'Algorithms Track',
@@ -58,6 +60,7 @@ class SampleData {
       sessions: [
         Session(
           id: 's3',
+          disciplineId: 'robosphere',
           title: 'Autonomous Robot Showcase',
           disciplineName: 'RoboSphere',
           track: 'Autonomy Track',
@@ -81,6 +84,7 @@ class SampleData {
       sessions: [
         Session(
           id: 's4',
+          disciplineId: 'biosphere',
           title: 'CRISPR & the Future of Medicine',
           disciplineName: 'BioSphere',
           track: 'Genomics Track',
@@ -104,6 +108,7 @@ class SampleData {
       sessions: [
         Session(
           id: 's5',
+          disciplineId: 'novasphere',
           title: 'Model Rocketry Challenge',
           disciplineName: 'NovaSphere',
           track: 'Aerospace Track',
@@ -127,6 +132,7 @@ class SampleData {
       sessions: [
         Session(
           id: 's6',
+          disciplineId: 'artverse',
           title: 'Digital Illustration Workshop',
           disciplineName: 'ArtVerse',
           track: 'Design Track',
@@ -150,6 +156,7 @@ class SampleData {
       sessions: [
         Session(
           id: 's7',
+          disciplineId: 'mathverse',
           title: 'Math Olympiad Relay',
           disciplineName: 'MathVerse',
           track: 'Problem Solving Track',
