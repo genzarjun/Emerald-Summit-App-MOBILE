@@ -62,12 +62,18 @@ Home header** (Uber-style), not a bottom-bar tab.
   **vibrant, tabbed session page.** Reads live from Supabase (`disciplines` +
   `sessions_with_counts` view). The page has a **horizontal, permission-gated tab
   bar** at the top:
-  - **Session** (everyone) — the rich page: a **hero photo**, a **photo
+  - **Session** (everyone) — the rich page: a big **hero photo** on top (the
+    explicit hero, or the first gallery photo when none is set), a **photo
     gallery**, the time/room/expert/seats info, the description, and any
     **editor-authored content sections** (ordered `{title, body}` blocks). **Add
     to my day** enforces the real rules via a server-side RPC
     (`register_for_session`): no double-booking (time-conflict dialog) and
-    capacity caps (full/waitlist), so they can't be bypassed from the client.
+    capacity caps (full/waitlist), so they can't be bypassed from the client. At
+    the bottom, a **"Sessions similar to this"** horizontal rail suggests other
+    sessions in the same discipline the user could still add — only ones with
+    seats left that **fit an open slot** on their schedule (no time overlap with
+    what they've already got), each a photo card with a one-tap **Add**
+    (`AppState.suggestedSessions`). The whole rail is hidden when nothing fits.
   - **Participants** (admins + volunteers *assigned* to the session) — the roster
     with attendance toggles (same server gate as before).
   - **Volunteers** (admins) — assign/unassign volunteers.

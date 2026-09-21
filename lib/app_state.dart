@@ -128,6 +128,26 @@ class AppState extends ChangeNotifier {
     return list;
   }
 
+  /// Sessions "similar to" [session] to suggest on its page: others in the SAME
+  /// discipline that the user could still add — not [session] itself, not already
+  /// on their schedule (registered or managing), still has seats, and **fits an
+  /// open slot** (doesn't time-overlap anything already on their schedule).
+  /// Sorted by start time. Empty when nothing fits.
+  List<Session> suggestedSessions(Session session) {
+    final busy = [for (final e in scheduleEntries) e.session];
+    final result = <Session>[
+      for (final s in allSessions)
+        if (s.id != session.id &&
+            s.disciplineId == session.disciplineId &&
+            !isRegistered(s.id) &&
+            !isManaging(s.id) &&
+            !s.isFull &&
+            !busy.any((b) => b.overlaps(s)))
+          s,
+    ]..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
+    return result;
+  }
+
   /// Loads the user's registrations into the local cache the UI reads.
   Future<void> loadSchedule() async {
     try {

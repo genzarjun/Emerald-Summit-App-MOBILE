@@ -119,8 +119,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
                 labelColor: Theme.of(context).colorScheme.onPrimary,
-                unselectedLabelColor:
-                    Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
+                unselectedLabelColor: Theme.of(context).colorScheme.onPrimary
+                    .withValues(alpha: 0.7),
                 indicatorColor: Theme.of(context).colorScheme.onPrimary,
                 tabs: tabs,
               ),
@@ -167,26 +167,24 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     setState(() => _photos = photos);
   }
 
-  Future<void> _onToggle() async {
+  Future<void> _toggleSession(Session s) async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await appState.toggle(widget.session);
+    final result = await appState.toggle(s);
     if (!mounted) return;
     messenger.hideCurrentSnackBar();
     switch (result.outcome) {
       case AddOutcome.added:
         messenger.showSnackBar(
-          SnackBar(content: Text('Added "${widget.session.title}" to your day')),
+          SnackBar(content: Text('Added "${s.title}" to your day')),
         );
       case AddOutcome.removed:
         messenger.showSnackBar(
-          SnackBar(
-              content:
-                  Text('Removed "${widget.session.title}" from your day')),
+          SnackBar(content: Text('Removed "${s.title}" from your day')),
         );
       case AddOutcome.full:
         _showBlockedDialog(
           'Session full',
-          'This session has reached its capacity of ${widget.session.capacity}. '
+          'This session has reached its capacity of ${s.capacity}. '
               'You can still join the waitlist on the day.',
         );
       case AddOutcome.conflict:
@@ -222,34 +220,43 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     // A volunteer assigned (by an admin) to manage this session can't add/remove
     // it themselves — it's already on their schedule.
     final managing = appState.isManaging(current.id);
-    // The hero is stored as one of the folder's files; keep it out of the strip.
+    // The big top photo: the explicit hero, or the first gallery photo when no
+    // hero was set, so a session with any photo always has a banner.
+    final heroUrl = current.heroImageUrl ??
+        (_photos.isNotEmpty ? _photos.first.imageUrl : null);
+    // The hero is one of the folder's files; keep it out of the strip.
     final gallery = [
       for (final p in _photos)
-        if (p.imageUrl != current.heroImageUrl) p,
+        if (p.imageUrl != heroUrl) p,
     ];
+    // More sessions in this discipline that fit an open slot on their schedule.
+    final suggested = appState.suggestedSessions(current);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
       children: [
-        if (current.heroImageUrl != null)
-          _HeroImage(url: current.heroImageUrl!),
+        if (heroUrl != null) _HeroImage(url: heroUrl),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(current.track.toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    letterSpacing: 1,
-                  )),
+              Text(
+                current.track.toUpperCase(),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  letterSpacing: 1,
+                ),
+              ),
               const SizedBox(height: 6),
               Text(current.title, style: theme.textTheme.headlineSmall),
               const SizedBox(height: 16),
               _InfoRow(icon: Icons.schedule, text: current.timeLabel),
               _InfoRow(icon: Icons.place, text: current.room),
               _InfoRow(
-                  icon: Icons.person, text: 'Expert: ${current.expertName}'),
+                icon: Icons.person,
+                text: 'Expert: ${current.expertName}',
+              ),
               _InfoRow(
                 icon: Icons.groups,
                 text: current.isFull
@@ -295,12 +302,17 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.handshake,
-                          size: 18, color: theme.colorScheme.primary),
+                      Icon(
+                        Icons.handshake,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(current.sponsor!,
-                            style: theme.textTheme.bodyMedium),
+                        child: Text(
+                          current.sponsor!,
+                          style: theme.textTheme.bodyMedium,
+                        ),
                       ),
                     ],
                   ),
@@ -316,16 +328,19 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.assignment_ind,
-                          size: 20,
-                          color: theme.colorScheme.onPrimaryContainer),
+                      Icon(
+                        Icons.assignment_ind,
+                        size: 20,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           "You're managing this session. It was added to your "
                           'schedule by an admin.',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer),
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
                         ),
                       ),
                     ],
@@ -333,7 +348,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                 )
               else
                 FilledButton.icon(
-                  onPressed: _onToggle,
+                  onPressed: () => _toggleSession(current),
                   style: registered
                       ? FilledButton.styleFrom(
                           backgroundColor: theme.colorScheme.errorContainer,
@@ -342,7 +357,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                       : null,
                   icon: Icon(registered ? Icons.remove_circle : Icons.add),
                   label: Text(
-                      registered ? 'Remove from my day' : 'Add to my day'),
+                    registered ? 'Remove from my day' : 'Add to my day',
+                  ),
                 ),
               if (widget.canEdit) ...[
                 const SizedBox(height: 12),
@@ -352,10 +368,162 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                   label: const Text('Edit session page'),
                 ),
               ],
+              if (suggested.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                const Divider(),
+                const SizedBox(height: 12),
+                Text(
+                  'Sessions similar to this',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'More in ${current.disciplineName} that fit an open slot on '
+                  'your schedule.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 272,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.zero,
+                    clipBehavior: Clip.none,
+                    itemCount: suggested.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) {
+                      final s = suggested[i];
+                      return _SuggestedSessionCard(
+                        session: s,
+                        onOpen: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => SessionDetailScreen(session: s),
+                          ),
+                        ),
+                        onAdd: () => _toggleSession(s),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A fixed-width card for a suggested session in the horizontal rail: a hero
+/// photo on top, then title, time/seats, and a one-tap Add. Shown only for
+/// sessions that fit an open slot (see [AppState.suggestedSessions]).
+class _SuggestedSessionCard extends StatefulWidget {
+  const _SuggestedSessionCard({
+    required this.session,
+    required this.onOpen,
+    required this.onAdd,
+  });
+
+  final Session session;
+  final VoidCallback onOpen;
+  final VoidCallback onAdd;
+
+  @override
+  State<_SuggestedSessionCard> createState() => _SuggestedSessionCardState();
+}
+
+class _SuggestedSessionCardState extends State<_SuggestedSessionCard> {
+  // The card's banner: the session's explicit hero, or its first gallery photo.
+  String? _imageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageUrl = widget.session.heroImageUrl;
+    if (_imageUrl == null) _resolveFromGallery();
+  }
+
+  Future<void> _resolveFromGallery() async {
+    final photos =
+        await sessionMediaRepository.fetchPhotos(widget.session.id);
+    if (!mounted || photos.isEmpty) return;
+    setState(() => _imageUrl = photos.first.imageUrl);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final s = widget.session;
+    return SizedBox(
+      width: 230,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        margin: EdgeInsets.zero,
+        child: InkWell(
+          onTap: widget.onOpen,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: _imageUrl == null
+                    ? Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.photo_outlined,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      )
+                    : Image.network(
+                        _imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      s.title,
+                      style: theme.textTheme.titleSmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${s.timeLabel} · ${s.seatsLeft} '
+                      'seat${s.seatsLeft == 1 ? '' : 's'} left',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    FilledButton.tonalIcon(
+                      onPressed: widget.onAdd,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -375,8 +543,10 @@ class _HeroImage extends StatelessWidget {
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => Container(
           color: theme.colorScheme.surfaceContainerHighest,
-          child: Icon(Icons.image_not_supported_outlined,
-              color: theme.colorScheme.onSurfaceVariant),
+          child: Icon(
+            Icons.image_not_supported_outlined,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         loadingBuilder: (context, child, progress) => progress == null
             ? child
@@ -413,8 +583,10 @@ class _Gallery extends StatelessWidget {
             errorBuilder: (_, _, _) => Container(
               width: 220,
               color: theme.colorScheme.surfaceContainerHighest,
-              child: Icon(Icons.broken_image_outlined,
-                  color: theme.colorScheme.onSurfaceVariant),
+              child: Icon(
+                Icons.broken_image_outlined,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ),
