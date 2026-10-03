@@ -548,6 +548,12 @@ test/widget_test.dart       Widget tests
 - Note the dev project has "auto-expose new tables" **off**, so every table's
   SQL must `grant` privileges to the right role explicitly (`anon` for public
   reads, `authenticated` for per-user tables).
+- **Sorting gotcha:** in the Dart client (`postgrest-dart`), `.order(col)`
+  sorts **descending** unless you pass `ascending: true` — the opposite of
+  the JavaScript client (used in the Edge Functions). Always pass `ascending`
+  explicitly. (This reversed reopened Archie chats until it was fixed; the
+  older `disciplines` / `sessions_with_counts` / `rooms` queries in
+  `supabase_repositories.dart` still use the bare form.)
 - **Keys:** use the **publishable** key (`sb_publishable_…`), not the deprecated
   anon key; never the secret / `service_role` key in the app.
 - Separate Supabase projects for **dev/testing** and **production** (prod added

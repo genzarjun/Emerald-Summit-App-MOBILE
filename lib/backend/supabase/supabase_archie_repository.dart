@@ -133,7 +133,7 @@ class SupabaseArchieRepository implements ArchieRepository {
         .from('archie_messages')
         .select('role, content, sources, steps')
         .eq('chat_id', chatId)
-        .order('id');
+        .order('id', ascending: true); // oldest first (Dart's default is descending)
     return [
       for (final r in rows)
         ArchieSavedMessage(
