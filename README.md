@@ -24,10 +24,11 @@ Tri-Valley's student-run STEAM summit at Emerald High, Dublin CA
 > features are code-complete; run the SQL in [SUPABASE.md](SUPABASE.md) to
 > activate them.)* Without `env.json` the app still runs standalone on
 > **sample data**.
-> **Archie**, an AI assistant tab (Claude via a Supabase Edge Function, grounded
-> in the live catalog + web search), replaces the old Resources tab; it's
-> code-complete but needs the `archie-chat` function + an Anthropic key deployed
-> (see [SUPABASE.md](SUPABASE.md) §3c).
+> **Archie**, an AI assistant tab (Claude Sonnet 5.5 via a Supabase Edge
+> Function, grounded in the live catalog + web search), replaces the old
+> Resources tab and is **live on the dev project**. Saved chat history is
+> code-complete; run `archie_history_setup.sql` to activate it (see
+> [SUPABASE.md](SUPABASE.md) §3c).
 > **OS push notifications** (banner when the app is closed) and server-side PDF
 > generation are the main things still to come (see Roadmap).
 
@@ -190,9 +191,19 @@ Home header** (Uber-style), not a bottom-bar tab.
     question/answer pairs across all users with **no identity attached**
     (`archie_recent_exchanges` RPC), to spot content gaps and check answers.
   - **Backend:** the [`archie-chat`](supabase/functions/archie-chat/index.ts)
-    Edge Function calls **Claude** (`claude-opus-5-5` by default, adaptive
-    thinking, server-side refusal fallback) and streams **SSE** events
-    (`status` / `delta` / `sources` / `done` / `error`). Grounding, in priority
+    Edge Function calls **Claude Sonnet 5.5** (`claude-sonnet-5-5`; override
+    with the `ARCHIE_MODEL` secret — adaptive thinking at `ARCHIE_EFFORT`
+    `medium`, server-side refusal fallback) and streams **SSE** events
+    (`status` / `delta` / `sources` / `done` / `error`). Every request sends
+    the full persona + data + conversation (the API is stateless). **Web
+    search/fetch are Anthropic *server tools*:** the function only declares
+    them; Anthropic runs the searches/fetches and feeds results back to the
+    model inside the same API call (capped at 5 searches / 4 fetches per
+    answer, billed on the Anthropic account). The function just watches the
+    stream — turning tool calls into `status` steps and citations into
+    `sources` — and resumes a long turn if the API returns `pause_turn`.
+    (Unlike Sparky, whose Spring AI tools run on its own server.) Grounding,
+    in priority
     order: the **live app data** (disciplines, sessions + seats left, rooms,
     recent announcements, and the caller's own profile + schedule — read with
     the **caller's JWT** so RLS applies), then the **official sites** (summit /
@@ -644,10 +655,11 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   in [SUPABASE.md](SUPABASE.md) + deploy the Edge Functions to activate on a
   fresh project.)*
 - ✅ **Archie AI assistant** — a Claude-backed chat tab (live-data grounding +
-  web search, streamed with a typing reveal) replacing Resources. *(code done;
-  needs `archie-chat` deployed with an `ANTHROPIC_API_KEY` — SUPABASE.md §3c.
-  UI verified in the simulator in sample mode and against the live backend's
-  not-deployed path; a live model answer hasn't been tested end-to-end yet.)*
+  web search, streamed with a typing reveal + haptics) replacing Resources.
+  *(`archie-chat` deployed and **working end-to-end on the dev project**.
+  Saved chats + Archie insights are code-complete and unit-tested but need
+  `archie_history_setup.sql` run and the function redeployed — SUPABASE.md
+  §3c.)*
 - ⏳ **Next: OS push notifications** — deliver announcements as real push even
   when the app is closed (see Roadmap for the planned pipeline).
 

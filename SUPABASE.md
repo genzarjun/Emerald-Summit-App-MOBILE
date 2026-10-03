@@ -286,7 +286,7 @@ set up on this server yet."*
    ```bash
    supabase functions deploy archie-chat --no-verify-jwt   # the function checks the session itself
    supabase secrets set ANTHROPIC_API_KEY="sk-ant-..."
-   # optional: ARCHIE_MODEL (default claude-opus-5-5), ARCHIE_EFFORT (default medium),
+   # optional: ARCHIE_MODEL (default claude-sonnet-5-5), ARCHIE_EFFORT (default medium),
    #           ARCHIE_DAILY_LIMIT (default 50)
    ```
    Or via the dashboard editor (paste `index.ts`, turn **Verify JWT OFF**, add

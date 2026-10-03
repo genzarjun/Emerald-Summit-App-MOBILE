@@ -23,7 +23,7 @@
 //   { type: "error",   message }
 //
 // Secrets: ANTHROPIC_API_KEY (required). Optional: ARCHIE_MODEL (default
-// claude-opus-5-5), ARCHIE_EFFORT (default "medium"), ARCHIE_DAILY_LIMIT
+// claude-sonnet-5-5), ARCHIE_EFFORT (default "medium"), ARCHIE_DAILY_LIMIT
 // (default 50 questions per user per day; needs archie_setup.sql).
 // SUPABASE_URL / SUPABASE_ANON_KEY are injected automatically.
 // Auth: the function verifies the caller's session itself (auth.getUser → 401)
@@ -40,7 +40,11 @@ const CORS = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const MODEL = Deno.env.get("ARCHIE_MODEL") ?? "claude-opus-5-5";
+// Claude Sonnet 5.5: strong at chat + multi-step web research at a lower price
+// than Opus ($2/$10 vs $4/$20 per million tokens). Effort: "medium" suits
+// search-then-answer turns; "low" thinks less (faster, cheaper) — measure
+// quality with the usage logs before lowering it.
+const MODEL = Deno.env.get("ARCHIE_MODEL") ?? "claude-sonnet-5-5";
 const EFFORT = Deno.env.get("ARCHIE_EFFORT") ?? "medium";
 const DAILY_LIMIT = Number(Deno.env.get("ARCHIE_DAILY_LIMIT") ?? "50");
 
@@ -76,6 +80,7 @@ WHERE YOUR ANSWERS COME FROM (in priority order)
 GROUNDING RULES
 - Never invent sessions, times, rooms, names, prices, or policies. If neither the app data nor a source you found answers it, say you don't know and point the user to contact.ehsaf@gmail.com or the News tab.
 - When you use app data, say so naturally ("According to the summit schedule…", "In your schedule…").
+- For facts about the summit or Emerald High that the app data doesn't cover — dates, schedules, policies, what's allowed, required, or charged — check the official sites or search rather than answering from memory, even when you feel confident; these details change.
 - When you use the web, rely on what the pages actually say; your citations are shown to the user as source links automatically, so you don't need to paste URLs.
 - Session times in the app data are 24-hour "HH:mm" on summit day; present them as 12-hour times (e.g. 2:30 PM).
 - You can't change anything in the app (register, cancel, post). Tell the user where to do it: Discover tab → a discipline → a session → "Add to my day"; the Schedule tab shows their day; News has announcements; the avatar on Home opens Profile.
@@ -88,7 +93,8 @@ STYLE
 - You're talking on a phone screen. Lead with the answer. Keep it short — usually 2–5 sentences or a few bullets. Expand only when asked.
 - Warm, upbeat, and clear; a light touch of dragon personality is welcome, but never at the expense of the answer.
 - Markdown: **bold** for key facts like times and rooms, short bullet lists when listing sessions. No tables, no headings bigger than ###, no code blocks unless asked.
-- This is a latency-sensitive chat: begin your visible answer promptly.`;
+- This is a latency-sensitive chat: begin your visible answer promptly.
+- Once you've answered something, treat that answer as done. On later turns, focus on what the person is asking now, and don't go back over an earlier answer unless they ask about it or point out a problem with it.`;
 
 // ---------------------------------------------------------------------------
 // HTTP entry point
@@ -157,8 +163,10 @@ async function streamAnswer(
 
   for (let turn = 0; turn <= MAX_CONTINUATIONS; turn++) {
     // `fallbacks: "default"` re-runs a safety-declined request on Anthropic's
-    // recommended fallback model server-side. Built as a loose object because
-    // SDK typings can lag the newest beta fields.
+    // recommended fallback model server-side (on Sonnet 5.5 that covers the
+    // "cyber" and "frontier_llm" categories; other declines end as a refusal,
+    // handled below). Built as a loose object because SDK typings can lag the
+    // newest beta fields.
     const params: Record<string, unknown> = {
       model: MODEL,
       max_tokens: 16000,
