@@ -301,7 +301,7 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
                   ),
                 ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 28),
             if (_error != null) ...[
               Text(
                 _error!,
@@ -497,8 +497,10 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
         ),
         const SizedBox(width: 10),
         Padding(
-          padding: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.only(top: 2),
           child: FilledButton.tonal(
+            // The theme's full-width minimum size can't lay out inside a Row.
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
             onPressed: _lookingUp ? null : _findTeam,
             child: _lookingUp
                 ? const SizedBox(

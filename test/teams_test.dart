@@ -5,6 +5,7 @@ import 'package:emerald_summit/app_state.dart';
 import 'package:emerald_summit/backend/repositories.dart';
 import 'package:emerald_summit/backend/service_locator.dart';
 import 'package:emerald_summit/screens/session_registration_screen.dart';
+import 'package:emerald_summit/theme.dart';
 import 'package:emerald_summit/backend/sample/sample_repositories.dart';
 import 'package:emerald_summit/backend/sample/sample_store.dart';
 import 'package:emerald_summit/models/models.dart';
@@ -159,6 +160,7 @@ void main() {
       addTearDown(tester.view.reset);
       final results = <RegistrationFormResult?>[];
       await tester.pumpWidget(MaterialApp(
+        theme: EmeraldTheme.light(),
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () async => results.add(
