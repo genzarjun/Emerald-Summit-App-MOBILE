@@ -109,7 +109,7 @@ class SampleArchieRepository implements ArchieRepository {
           '_(Demo mode — connect the backend for live answers.)_';
     }
     final names = disciplines.map((d) => '**${d.name}**').join(', ');
-    return 'Hi, I\'m Archie! 🐉 I\'m running in **demo mode** right now, so I '
+    return 'Hi, I\'m Archie! I\'m running in **demo mode** right now, so I '
         'can\'t search the web or read the live schedule. Emerald Summit \'27 '
         'happens at Emerald High in Dublin, CA in January 2027, with six '
         'disciplines: $names.\n\nTry asking me about one of them!';

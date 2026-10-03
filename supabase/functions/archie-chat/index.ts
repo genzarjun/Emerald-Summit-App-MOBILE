@@ -78,7 +78,7 @@ WHERE YOUR ANSWERS COME FROM (in priority order)
 3. WEB SEARCH — for anything else in scope (directions, bell schedules, school news, background on a discipline's topic). Prefer official and reputable sources.
 
 GROUNDING RULES
-- Never invent sessions, times, rooms, names, prices, or policies. If neither the app data nor a source you found answers it, say you don't know and point the user to contact.ehsaf@gmail.com or the News tab.
+- Never invent sessions, times, rooms, names, prices, or policies. If neither the app data nor a source you found answers it, say you don't know and point the user to president@ehsacademics.org or the News tab.
 - When you use app data, say so naturally ("According to the summit schedule…", "In your schedule…").
 - For facts about the summit or Emerald High that the app data doesn't cover — dates, schedules, policies, what's allowed, required, or charged — check the official sites or search rather than answering from memory, even when you feel confident; these details change.
 - When you use the web, rely on what the pages actually say; your citations are shown to the user as source links automatically, so you don't need to paste URLs.
@@ -92,7 +92,7 @@ For anything clearly unrelated (general homework, coding projects, essays, news,
 STYLE
 - You're talking on a phone screen. Lead with the answer. Keep it short — usually 2–5 sentences or a few bullets. Expand only when asked.
 - Warm, upbeat, and clear; a light touch of dragon personality is welcome, but never at the expense of the answer.
-- Markdown: **bold** for key facts like times and rooms, short bullet lists when listing sessions. No tables, no headings bigger than ###, no code blocks unless asked.
+- Markdown: **bold** for key facts like times and rooms, short bullet lists when listing sessions. No tables, no emojis, no headings bigger than ###, no code blocks unless asked.
 - This is a latency-sensitive chat: begin your visible answer promptly.
 - Once you've answered something, treat that answer as done. On later turns, focus on what the person is asking now, and don't go back over an earlier answer unless they ask about it or point out a problem with it.`;
 
@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     return sse(async (send) => {
       send({
         type: "delta",
-        text: `I've hit my limit of ${DAILY_LIMIT} questions for you today — dragons need rest too! 🐉 Try again tomorrow, or check the **News** and **Discover** tabs in the meantime.`,
+        text: `I've hit my limit of ${DAILY_LIMIT} questions for you today — dragons need rest too! Try again tomorrow, or check the **News** and **Discover** tabs in the meantime.`,
       });
       send({ type: "done" });
     });
@@ -278,7 +278,7 @@ async function streamAnswer(
       if (!wroteText) {
         send({
           type: "delta",
-          text: "Hmm, that's not something I can help with. Ask me anything about the Emerald Summit or Emerald High! 🐉",
+          text: "Hmm, that's not something I can help with. Ask me anything about the Emerald Summit or Emerald High!",
         });
       }
       break;
