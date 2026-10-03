@@ -36,6 +36,15 @@ class SampleContentRepository implements ContentRepository {
 
   @override
   Future<void> deleteSession(String id) async {}
+
+  // No live registrations to clash with in demo mode.
+  @override
+  Future<int> previewTimeConflicts(
+          String sessionId, String start, String end) async =>
+      0;
+
+  @override
+  Future<void> notifyTimeConflicts(String sessionId) async {}
 }
 
 class SampleScheduleRepository implements ScheduleRepository {
@@ -44,30 +53,51 @@ class SampleScheduleRepository implements ScheduleRepository {
   final SampleStore _store;
 
   @override
-  Future<Set<String>> fetchMySessionIds() async => {..._store.mySessionIds};
+  Future<Map<String, ParticipationType>> fetchMyRegistrations() async =>
+      {..._store.myRegistrations};
 
   @override
-  Future<RegistrationResult> toggle(String sessionId) async {
+  Future<RegistrationResult> toggle(
+    String sessionId, {
+    ParticipationType type = ParticipationType.participant,
+    Map<String, String> answers = const {},
+  }) async {
     final session = _store.sessionById(sessionId);
     if (session == null) {
       return const RegistrationResult(RegistrationOutcome.added);
     }
-    if (_store.mySessionIds.contains(sessionId)) {
-      _store.mySessionIds.remove(sessionId);
+    if (_store.myRegistrations.containsKey(sessionId)) {
+      _store.myRegistrations.remove(sessionId);
+      _store.rosters[sessionId]
+          ?.removeWhere((e) => e.userId == _demoUserId);
       return const RegistrationResult(RegistrationOutcome.removed);
     }
     if (session.isFull) {
       return const RegistrationResult(RegistrationOutcome.full);
     }
-    for (final id in _store.mySessionIds) {
+    for (final id in _store.myRegistrations.keys) {
       final other = _store.sessionById(id);
       if (other != null && other.overlaps(session)) {
         return RegistrationResult(RegistrationOutcome.conflict, other.title);
       }
     }
-    _store.mySessionIds.add(sessionId);
+    _store.myRegistrations[sessionId] = type;
+    // Reflect the join on the demo roster so the Participants tab shows it.
+    (_store.rosters[sessionId] ??= []).add(RosterEntry(
+      userId: _demoUserId,
+      name: _store.profile?.fullName.isNotEmpty == true
+          ? _store.profile!.fullName
+          : 'You',
+      email: _store.profile?.email ?? '',
+      attended: false,
+      participationType: type,
+      answers: answers,
+    ));
     return const RegistrationResult(RegistrationOutcome.added);
   }
+
+  /// Stable id for the demo user's own roster entry in sample mode.
+  static const String _demoUserId = 'demo-user';
 }
 
 class SampleProfileRepository implements ProfileRepository {
@@ -312,6 +342,33 @@ class SampleAssignmentRepository implements AssignmentRepository {
   Future<void> unassign(String sessionId, String userId) async {
     _store.assignmentsByUser[userId]?.remove(sessionId);
     _store.sessionVolunteers[sessionId]?.removeWhere((v) => v.id == userId);
+  }
+
+  @override
+  Future<AssignmentResult> setManage(String sessionId, bool manage) async {
+    if (!manage) {
+      _store.myAssignedSessionIds.remove(sessionId);
+      return const AssignmentResult(AssignmentOutcome.assigned);
+    }
+    final target = _store.sessionById(sessionId);
+    if (target == null) {
+      return const AssignmentResult(AssignmentOutcome.assigned);
+    }
+    // Overlap against everything already on the demo user's schedule
+    // (registrations + other managed sessions), excluding this session.
+    final commitments = {
+      ..._store.myRegistrations.keys,
+      ..._store.myAssignedSessionIds,
+    };
+    for (final id in commitments) {
+      if (id == sessionId) continue;
+      final other = _store.sessionById(id);
+      if (other != null && other.overlaps(target)) {
+        return AssignmentResult(AssignmentOutcome.conflict, other.title);
+      }
+    }
+    _store.myAssignedSessionIds.add(sessionId);
+    return const AssignmentResult(AssignmentOutcome.assigned);
   }
 }
 

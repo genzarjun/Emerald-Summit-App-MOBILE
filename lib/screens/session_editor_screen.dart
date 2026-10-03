@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -24,13 +25,11 @@ class SessionEditorScreen extends StatefulWidget {
 
 class _SessionEditorScreenState extends State<SessionEditorScreen> {
   late final TextEditingController _title;
-  late final TextEditingController _track;
   late final TextEditingController _expert;
   late final TextEditingController _start;
   late final TextEditingController _end;
   late final TextEditingController _capacity;
   late final TextEditingController _description;
-  late final TextEditingController _sponsor;
 
   bool _busy = false;
   String? _error;
@@ -46,6 +45,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   bool _mediaBusy = false;
   final List<_BlockControllers> _blocks = [];
 
+  /// Participant questions (each carries a stable id preserved across edits, so
+  /// existing answers keyed by id are never orphaned).
+  final List<_QuestionControllers> _questions = [];
+
   bool get _isEditing => widget.session != null;
 
   /// Photo/hero editing needs the session id, which only exists after the row is
@@ -57,17 +60,18 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     super.initState();
     final s = widget.session;
     _title = TextEditingController(text: s?.title ?? '');
-    _track = TextEditingController(text: s?.track ?? '');
     _roomId = s?.roomId;
     _expert = TextEditingController(text: s?.expertName ?? '');
     _start = TextEditingController(text: s?.start ?? '');
     _end = TextEditingController(text: s?.end ?? '');
     _capacity = TextEditingController(text: s != null ? '${s.capacity}' : '');
     _description = TextEditingController(text: s?.description ?? '');
-    _sponsor = TextEditingController(text: s?.sponsor ?? '');
     _heroImageUrl = s?.heroImageUrl;
     for (final block in s?.pageBlocks ?? const <SessionPageBlock>[]) {
       _blocks.add(_BlockControllers(title: block.title, body: block.body));
+    }
+    for (final q in s?.participantQuestions ?? const <SessionQuestion>[]) {
+      _questions.add(_QuestionControllers(id: q.id, prompt: q.prompt));
     }
     _loadRooms();
     if (_sessionId != null) _loadPhotos();
@@ -93,14 +97,14 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
 
   @override
   void dispose() {
-    for (final c in [
-      _title, _track, _expert, _start, _end, _capacity,
-      _description, _sponsor,
-    ]) {
+    for (final c in [_title, _expert, _start, _end, _capacity, _description]) {
       c.dispose();
     }
     for (final b in _blocks) {
       b.dispose();
+    }
+    for (final q in _questions) {
+      q.dispose();
     }
     super.dispose();
   }
@@ -108,14 +112,13 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   // ---- Photos ---------------------------------------------------------------
   /// A short, unique file name for an upload (Storage keys must be unique within
   /// the session's folder).
-  String _photoFileName() =>
-      'p_${DateTime.now().millisecondsSinceEpoch}.jpg';
+  String _photoFileName() => 'p_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
   Future<XFile?> _pick() => _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 2000,
-        imageQuality: 85,
-      );
+    source: ImageSource.gallery,
+    maxWidth: 2000,
+    imageQuality: 85,
+  );
 
   Future<void> _pickHero() async {
     final id = _sessionId;
@@ -126,8 +129,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     setState(() => _mediaBusy = true);
     try {
       final bytes = await file.readAsBytes();
-      final photo =
-          await sessionMediaRepository.uploadPhoto(id, bytes, _photoFileName());
+      final photo = await sessionMediaRepository.uploadPhoto(
+        id,
+        bytes,
+        _photoFileName(),
+      );
       if (!mounted) return;
       setState(() {
         _heroImageUrl = photo.imageUrl;
@@ -137,8 +143,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _mediaBusy = false);
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Could not upload. You may not manage this session.')));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not upload. You may not manage this session.'),
+        ),
+      );
     }
   }
 
@@ -151,8 +160,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     setState(() => _mediaBusy = true);
     try {
       final bytes = await file.readAsBytes();
-      final photo =
-          await sessionMediaRepository.uploadPhoto(id, bytes, _photoFileName());
+      final photo = await sessionMediaRepository.uploadPhoto(
+        id,
+        bytes,
+        _photoFileName(),
+      );
       if (!mounted) return;
       setState(() {
         _photos = [..._photos, photo];
@@ -161,8 +173,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _mediaBusy = false);
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Could not upload. You may not manage this session.')));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not upload. You may not manage this session.'),
+        ),
+      );
     }
   }
 
@@ -184,7 +199,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       if (!mounted) return;
       setState(() => _mediaBusy = false);
       messenger.showSnackBar(
-          const SnackBar(content: Text('Could not delete the photo.')));
+        const SnackBar(content: Text('Could not delete the photo.')),
+      );
     }
   }
 
@@ -215,16 +231,16 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     });
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    final sponsor = _sponsor.text.trim();
     // Keep the free-text `room` in sync with the catalog name so displays that
     // read `room` (and older rows) still show something sensible.
     final roomName = _roomId == null
         ? ''
         : _rooms.firstWhere((r) => r.id == _roomId).name;
+    // `track` and `sponsor` are no longer editable (a "track" IS a session), so
+    // they're omitted here — on an edit that leaves any existing values intact.
     final data = <String, dynamic>{
       'discipline_id': widget.discipline.id,
       'title': title,
-      'track': _track.text.trim(),
       'room_id': _roomId,
       'room': roomName,
       'expert_name': _expert.text.trim(),
@@ -232,22 +248,59 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       'end_time': end,
       'capacity': capacity,
       'description': _description.text.trim(),
-      'sponsor': sponsor.isEmpty ? null : sponsor,
       'hero_image_url': _heroImageUrl,
       'page_blocks': [
         for (final b in _blocks)
           if (b.title.text.trim().isNotEmpty || b.body.text.trim().isNotEmpty)
             {'title': b.title.text.trim(), 'body': b.body.text.trim()},
       ],
+      'participant_questions': [
+        for (final q in _questions)
+          if (q.prompt.text.trim().isNotEmpty)
+            {'id': q.id, 'prompt': q.prompt.text.trim()},
+      ],
     };
+    // If an existing session's time is changing, warn the admin when it would
+    // now clash with people already registered for it — and, after saving,
+    // notify those people so they can adjust their schedule.
+    final id = widget.session?.id;
+    final timeChanged =
+        _isEditing &&
+        (start != widget.session!.start || end != widget.session!.end);
+    if (timeChanged && id != null) {
+      final affected = await appState.previewSessionTimeConflicts(
+        id,
+        start,
+        end,
+      );
+      if (!mounted) return;
+      if (affected > 0) {
+        final proceed = await _confirmTimeConflict(affected);
+        if (proceed != true) {
+          setState(() => _busy = false);
+          return;
+        }
+      }
+    }
+
     try {
       await appState.saveSession(id: widget.session?.id, data: data);
+      // Best-effort: tell affected registrants their session moved. A failure
+      // here must not undo the (already successful) save.
+      if (timeChanged && id != null) {
+        try {
+          await appState.notifySessionTimeConflicts(id);
+        } catch (_) {}
+      }
       if (!mounted) return;
       navigator.pop();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-            content: Text(_isEditing ? 'Session updated' : 'Session created')));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(_isEditing ? 'Session updated' : 'Session created'),
+          ),
+        );
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -257,12 +310,40 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     }
   }
 
+  /// Confirms a time change that will clash with [affected] people's schedules.
+  Future<bool?> _confirmTimeConflict(int affected) {
+    final who = affected == 1 ? '1 person' : '$affected people';
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Schedule clash'),
+        content: Text(
+          'This new time overlaps another session that $who registered for it '
+          'already have. If you save, they\'ll be notified to adjust their '
+          'schedule. Save anyway?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Save anyway'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete session?'),
-        content: Text('“${widget.session!.title}” will be removed for everyone.'),
+        content: Text(
+          '“${widget.session!.title}” will be removed for everyone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -318,35 +399,43 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('In ${widget.discipline.name}',
-                    style: theme.textTheme.labelLarge
-                        ?.copyWith(color: theme.colorScheme.primary)),
+                Text(
+                  'In ${widget.discipline.name}',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _field(_title, 'Title'),
-                _field(_track, 'Track', hint: 'e.g. Mobile Track'),
                 _roomDropdown(),
                 _field(_expert, 'Expert / speaker'),
                 Row(
                   children: [
                     Expanded(
-                        child: _field(_start, 'Start (HH:mm)', hint: '10:00')),
+                      child: _field(_start, 'Start (HH:mm)', hint: '10:00'),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(child: _field(_end, 'End (HH:mm)', hint: '10:45')),
                   ],
                 ),
-                _field(_capacity, 'Capacity',
-                    keyboardType: TextInputType.number),
+                _field(
+                  _capacity,
+                  'Capacity',
+                  keyboardType: TextInputType.number,
+                ),
                 _field(_description, 'Description', maxLines: 4),
-                _field(_sponsor, 'Sponsor (optional)'),
                 const SizedBox(height: 8),
                 const Divider(),
                 const SizedBox(height: 8),
                 _pageContentSection(theme),
                 if (_error != null) ...[
                   const SizedBox(height: 4),
-                  Text(_error!,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.error)),
+                  Text(
+                    _error!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 16),
                 FilledButton.icon(
@@ -356,7 +445,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                           height: 18,
                           width: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.save),
                   label: Text(_isEditing ? 'Save changes' : 'Create session'),
@@ -400,10 +491,18 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             value: _addRoomSentinel,
             child: Row(
               children: [
-                Icon(Icons.add, size: 18, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.add,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
-                Text('Add a room…',
-                    style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                Text(
+                  'Add a room…',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -443,7 +542,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: const Text('Add'),
@@ -463,9 +564,14 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         if (match.isNotEmpty) _roomId = match.first.id;
       });
     } catch (e) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Could not add the room. It may already exist, or '
-              'you may not have permission.')));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not add the room. It may already exist, or '
+            'you may not have permission.',
+          ),
+        ),
+      );
     }
   }
 
@@ -479,8 +585,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         Text(
           'The hero photo, gallery, and sections below are what participants see '
           'on this session.',
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 12),
         if (_sessionId == null)
@@ -492,8 +599,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline,
-                    size: 18, color: theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -511,6 +621,63 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         ],
         const SizedBox(height: 20),
         _blocksEditor(theme),
+        const SizedBox(height: 20),
+        _questionsEditor(theme),
+      ],
+    );
+  }
+
+  Widget _questionsEditor(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Participant questions', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 4),
+        Text(
+          'Asked when someone adds this session as a participant (e.g. "What is '
+          'your project name?"). Answers show on the Participants tab. Leave '
+          'empty to let participants join without questions.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (var i = 0; i < _questions.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _questions[i].prompt,
+                    enabled: !_busy,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      labelText: 'Question ${i + 1}',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Remove question',
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _questions.removeAt(i).dispose()),
+                ),
+              ],
+            ),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _busy
+                ? null
+                : () => setState(() => _questions.add(_QuestionControllers())),
+            icon: const Icon(Icons.add),
+            label: const Text('Add question'),
+          ),
+        ),
       ],
     );
   }
@@ -526,7 +693,13 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             borderRadius: BorderRadius.circular(12),
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: Image.network(_heroImageUrl!, fit: BoxFit.cover),
+              child: CachedNetworkImage(
+                imageUrl: _heroImageUrl!,
+                fit: BoxFit.cover,
+                memCacheWidth: 1200,
+                errorWidget: (_, _, _) =>
+                    const Icon(Icons.broken_image_outlined),
+              ),
             ),
           ),
         const SizedBox(height: 8),
@@ -563,8 +736,13 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.network(p.imageUrl,
-                        width: 96, height: 96, fit: BoxFit.cover),
+                    child: CachedNetworkImage(
+                      imageUrl: p.imageUrl,
+                      width: 96,
+                      height: 96,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 288,
+                    ),
                   ),
                   Positioned(
                     top: -6,
@@ -588,8 +766,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: theme.colorScheme.outlineVariant),
                 ),
-                child: Icon(Icons.add_a_photo_outlined,
-                    color: theme.colorScheme.primary),
+                child: Icon(
+                  Icons.add_a_photo_outlined,
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ),
           ],
@@ -617,8 +797,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text('Section ${i + 1}',
-                          style: theme.textTheme.labelLarge),
+                      child: Text(
+                        'Section ${i + 1}',
+                        style: theme.textTheme.labelLarge,
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
@@ -653,8 +835,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         Align(
           alignment: Alignment.centerLeft,
           child: OutlinedButton.icon(
-            onPressed:
-                _busy ? null : () => setState(() => _blocks.add(_BlockControllers())),
+            onPressed: _busy
+                ? null
+                : () => setState(() => _blocks.add(_BlockControllers())),
             icon: const Icon(Icons.add),
             label: const Text('Add section'),
           ),
@@ -687,11 +870,25 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   }
 }
 
+/// The prompt controller + stable id for one editable participant question. A
+/// new question gets a timestamp-based id (like uploaded photo file names); an
+/// existing one keeps the id it was loaded with so answers stay linked.
+class _QuestionControllers {
+  _QuestionControllers({String? id, String prompt = ''})
+    : id = id ?? 'q_${DateTime.now().microsecondsSinceEpoch}',
+      prompt = TextEditingController(text: prompt);
+
+  final String id;
+  final TextEditingController prompt;
+
+  void dispose() => prompt.dispose();
+}
+
 /// Title + body controllers for one editable content section.
 class _BlockControllers {
   _BlockControllers({String title = '', String body = ''})
-      : title = TextEditingController(text: title),
-        body = TextEditingController(text: body);
+    : title = TextEditingController(text: title),
+      body = TextEditingController(text: body);
 
   final TextEditingController title;
   final TextEditingController body;

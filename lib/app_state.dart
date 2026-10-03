@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import 'app_navigation.dart';
 import 'backend/backend.dart';
@@ -11,6 +11,45 @@ import 'widgets/in_app_banner.dart';
 
 /// Result of trying to add a session to the day plan (app/UI-facing).
 enum AddOutcome { added, removed, conflict, full }
+
+/// A way a user can add a session to their day, offered in the "Add to my day"
+/// chooser. Which of these appear depends on the user's role (see
+/// [AppState.addModesForRole]). [participate], [spectate] and [expert] map to a
+/// [ParticipationType] registration; [manage] is an admin self-assignment.
+enum AddMode { participate, spectate, expert, manage }
+
+extension AddModeX on AddMode {
+  String get title => switch (this) {
+        AddMode.participate => 'Participate',
+        AddMode.spectate => 'Spectate',
+        AddMode.expert => 'Serve as an expert',
+        AddMode.manage => 'Manage this session',
+      };
+
+  String get blurb => switch (this) {
+        AddMode.participate =>
+          'Join in and take part. You may be asked a few questions first.',
+        AddMode.spectate => 'Watch and follow along, without taking part.',
+        AddMode.expert => 'Lead or advise as the session expert.',
+        AddMode.manage => "Run this session — it's added to your schedule.",
+      };
+
+  IconData get icon => switch (this) {
+        AddMode.participate => Icons.emoji_people,
+        AddMode.spectate => Icons.visibility_outlined,
+        AddMode.expert => Icons.workspace_premium_outlined,
+        AddMode.manage => Icons.assignment_ind_outlined,
+      };
+
+  /// The participation type this mode registers as, or null for [manage] (which
+  /// is a session_volunteers assignment, not a registration).
+  ParticipationType? get participationType => switch (this) {
+        AddMode.participate => ParticipationType.participant,
+        AddMode.spectate => ParticipationType.spectator,
+        AddMode.expert => ParticipationType.expert,
+        AddMode.manage => null,
+      };
+}
 
 class AddResult {
   const AddResult(this.outcome, [this.conflictingTitle]);
@@ -96,17 +135,21 @@ class AppState extends ChangeNotifier {
   }
 
   // ---- Schedule ------------------------------------------------------------
-  final Set<String> _mySessionIds = {};
+  // Session id → how the user joined it (participant / spectator / expert).
+  final Map<String, ParticipationType> _myRegistrations = {};
 
   List<Session> get mySessions {
     final list = allSessions
-        .where((s) => _mySessionIds.contains(s.id))
+        .where((s) => _myRegistrations.containsKey(s.id))
         .toList()
       ..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
     return list;
   }
 
-  bool isRegistered(String id) => _mySessionIds.contains(id);
+  bool isRegistered(String id) => _myRegistrations.containsKey(id);
+
+  /// How the user joined [id], or null if they haven't registered for it.
+  ParticipationType? participationOf(String id) => _myRegistrations[id];
 
   /// True if the signed-in volunteer is assigned to manage this session (an
   /// admin action — the user can't add/remove it themselves).
@@ -121,7 +164,14 @@ class AppState extends ChangeNotifier {
       byId[s.id] = ScheduleEntry(session: s, managing: true);
     }
     for (final s in mySessions) {
-      byId.putIfAbsent(s.id, () => ScheduleEntry(session: s, managing: false));
+      byId.putIfAbsent(
+        s.id,
+        () => ScheduleEntry(
+          session: s,
+          managing: false,
+          participationType: _myRegistrations[s.id],
+        ),
+      );
     }
     final list = byId.values.toList()
       ..sort((a, b) => a.session.startMinutes.compareTo(b.session.startMinutes));
@@ -151,28 +201,38 @@ class AppState extends ChangeNotifier {
   /// Loads the user's registrations into the local cache the UI reads.
   Future<void> loadSchedule() async {
     try {
-      final ids = await scheduleRepository.fetchMySessionIds();
-      _mySessionIds
+      final regs = await scheduleRepository.fetchMyRegistrations();
+      _myRegistrations
         ..clear()
-        ..addAll(ids);
+        ..addAll(regs);
       notifyListeners();
     } catch (_) {
       // Leave the schedule empty on failure; the user can retry by reopening.
     }
   }
 
-  /// Toggles a session in the plan. The repository is the trusted enforcer of
-  /// capacity + no-overlap (server-side for a live backend, in-memory for the
-  /// sample one); this just mirrors the outcome into the UI cache.
-  Future<AddResult> toggle(Session session) async {
-    final res = await scheduleRepository.toggle(session.id);
+  /// Toggles a session in the plan. On the ADD branch [type] records how the
+  /// user is joining and [answers] carries participant question answers. The
+  /// repository is the trusted enforcer of capacity + no-overlap (server-side for
+  /// a live backend, in-memory for the sample one); this just mirrors the outcome
+  /// into the UI cache.
+  Future<AddResult> toggle(
+    Session session, {
+    ParticipationType type = ParticipationType.participant,
+    Map<String, String> answers = const {},
+  }) async {
+    final res = await scheduleRepository.toggle(
+      session.id,
+      type: type,
+      answers: answers,
+    );
     switch (res.outcome) {
       case RegistrationOutcome.added:
-        _mySessionIds.add(session.id);
+        _myRegistrations[session.id] = type;
         await _refreshCatalogSilently();
         notifyListeners();
       case RegistrationOutcome.removed:
-        _mySessionIds.remove(session.id);
+        _myRegistrations.remove(session.id);
         await _refreshCatalogSilently();
         notifyListeners();
       case RegistrationOutcome.full:
@@ -180,6 +240,26 @@ class AppState extends ChangeNotifier {
         break; // nothing changed
     }
     return AddResult(_toAddOutcome(res.outcome), res.conflictingTitle);
+  }
+
+  /// Admin self-manage: adds or removes the current admin as a manager of
+  /// [session]. Mirrors the server outcome into the local assignments cache.
+  /// Returns [AddResult] so callers can surface a time-conflict the same way as
+  /// [toggle] (conflict → nothing changed).
+  Future<AddResult> setManage(Session session, bool manage) async {
+    final res = await assignmentRepository.setManage(session.id, manage);
+    if (res.outcome == AssignmentOutcome.conflict) {
+      return AddResult(AddOutcome.conflict, res.conflictingTitle);
+    }
+    final next = {...myAssignedSessionIds};
+    if (manage) {
+      next.add(session.id);
+    } else {
+      next.remove(session.id);
+    }
+    myAssignedSessionIds = next;
+    notifyListeners();
+    return AddResult(manage ? AddOutcome.added : AddOutcome.removed);
   }
 
   static AddOutcome _toAddOutcome(RegistrationOutcome o) => switch (o) {
@@ -205,6 +285,15 @@ class AppState extends ChangeNotifier {
     await contentRepository.deleteSession(id);
     await loadCatalog();
   }
+
+  /// How many registrants of [sessionId] would clash if it ran at [start]–[end].
+  Future<int> previewSessionTimeConflicts(
+          String sessionId, String start, String end) =>
+      contentRepository.previewTimeConflicts(sessionId, start, end);
+
+  /// Notifies everyone a just-saved time change now clashes for. Best-effort.
+  Future<void> notifySessionTimeConflicts(String sessionId) =>
+      contentRepository.notifyTimeConflicts(sessionId);
 
   /// Creates a discipline (admin only), then refreshes the catalog.
   Future<void> createDiscipline(Map<String, dynamic> data) async {
@@ -242,9 +331,10 @@ class AppState extends ChangeNotifier {
   List<Session> get myAssignedSessions =>
       [for (final s in allSessions) if (myAssignedSessionIds.contains(s.id)) s];
 
-  /// Loads the signed-in volunteer's session assignments. No-op for other roles.
+  /// Loads the signed-in user's session assignments (volunteer assignments, or
+  /// an admin's own self-managed sessions). No-op for other roles.
   Future<void> loadMyAssignments() async {
-    if (!isVolunteer) {
+    if (!isVolunteer && !isAdmin) {
       myAssignedSessionIds = const {};
       return;
     }
@@ -267,7 +357,7 @@ class AppState extends ChangeNotifier {
   /// discipline). Drives which discipline-targeted announcements reach them.
   Set<String> get myDisciplineIds => {
         for (final d in _disciplines)
-          if (d.sessions.any((s) => _mySessionIds.contains(s.id))) d.id,
+          if (d.sessions.any((s) => _myRegistrations.containsKey(s.id))) d.id,
       };
 
   /// Whether an announcement targeting [disciplineId] reaches this user:
@@ -527,6 +617,30 @@ class AppState extends ChangeNotifier {
   bool get isAdmin => profile?.role == SummitRole.admin;
   bool get isVolunteer => profile?.role == SummitRole.volunteer;
 
+  /// Whether the current role auto-spectates on "Add to my day" — i.e. adds
+  /// straight as a spectator with no chooser (the Parent / Spectator role).
+  bool get autoSpectates => profile?.role == SummitRole.parentSpectator;
+
+  /// The ordered "Add to my day" options for [role]:
+  ///   * participant / volunteer → participate, spectate
+  ///   * expert                  → serve as expert, spectate
+  ///   * admin                   → participate, spectate, manage
+  ///   * parent/spectator        → spectate only (auto-added; no chooser shown)
+  /// Defaults to participate + spectate for an unknown/absent role.
+  List<AddMode> addModesForRole(SummitRole? role) => switch (role) {
+        SummitRole.expert => const [AddMode.expert, AddMode.spectate],
+        SummitRole.admin => const [
+            AddMode.participate,
+            AddMode.spectate,
+            AddMode.manage,
+          ],
+        SummitRole.parentSpectator => const [AddMode.spectate],
+        _ => const [AddMode.participate, AddMode.spectate],
+      };
+
+  /// The "Add to my day" options for the signed-in user.
+  List<AddMode> get myAddModes => addModesForRole(profile?.role);
+
   /// Capability flags (server-owned; admins implicitly have them all).
   bool get canEditSessions =>
       isAdmin || (profile?.canEditSessions ?? false);
@@ -672,7 +786,7 @@ class AppState extends ChangeNotifier {
     final local = email.split('@').first.toLowerCase();
     if (local.contains('expert')) return SummitRole.expert;
     if (local.contains('spectator') || local.contains('parent')) {
-      return SummitRole.parent;
+      return SummitRole.parentSpectator;
     }
     return SummitRole.participant;
   }
@@ -695,7 +809,7 @@ class AppState extends ChangeNotifier {
     await _unsubscribeAnnouncements();
     await authService.signOut();
     profile = null;
-    _mySessionIds.clear();
+    _myRegistrations.clear();
     _disciplines = const [];
     announcements = const [];
     galleryPhotos = const [];

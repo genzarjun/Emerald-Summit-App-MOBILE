@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -82,8 +83,8 @@ class _HeaderState extends State<_Header> {
     final timeGreeting = h < 12
         ? 'Good morning'
         : h < 17
-            ? 'Good afternoon'
-            : 'Good evening';
+        ? 'Good afternoon'
+        : 'Good evening';
     // The standard time-based greeting stays in the mix alongside the playful
     // ones — a random one shows each time Home mounts.
     final pool = <String>[
@@ -163,8 +164,11 @@ class _HeaderState extends State<_Header> {
           const SizedBox(height: 18),
           Row(
             children: [
-              Icon(Icons.calendar_today,
-                  size: 15, color: Colors.white.withValues(alpha: .9)),
+              Icon(
+                Icons.calendar_today,
+                size: 15,
+                color: Colors.white.withValues(alpha: .9),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -200,17 +204,17 @@ class _AvatarButton extends StatelessWidget {
     final initials = name.isEmpty
         ? '?'
         : name
-            .split(RegExp(r'\s+'))
-            .take(2)
-            .map((p) => p[0].toUpperCase())
-            .join();
+              .split(RegExp(r'\s+'))
+              .take(2)
+              .map((p) => p[0].toUpperCase())
+              .join();
     return Tooltip(
       message: 'Profile',
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        ),
+        onTap: () =>
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
         child: Container(
           width: 48,
           height: 48,
@@ -376,22 +380,26 @@ class _SlideImageState extends State<_SlideImage> {
       _retry = null;
       if (!mounted) return;
       // Drop the cached failure so the image genuinely re-fetches.
-      NetworkImage(widget.url).evict();
+      CachedNetworkImage.evictFromCache(widget.url);
       setState(() => _attempt++);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Image.network(
-      widget.url,
+    // Disk-cached so each photo downloads once per device, not on every
+    // launch (re-downloads blew through Supabase's cached-egress quota).
+    // memCacheWidth decodes at display size so the in-memory cache doesn't
+    // thrash and force re-reads while the slideshow loops.
+    return CachedNetworkImage(
+      imageUrl: widget.url,
       // A new key per attempt forces a fresh load after eviction.
       key: ValueKey(_attempt),
       fit: BoxFit.cover,
-      gaplessPlayback: true,
-      loadingBuilder: (context, child, progress) =>
-          progress == null ? child : const _SlidePlaceholder(),
-      errorBuilder: (context, _, _) {
+      memCacheWidth: 1200,
+      fadeInDuration: Duration.zero,
+      placeholder: (context, _) => const _SlidePlaceholder(),
+      errorWidget: (context, _, _) {
         _scheduleRetry();
         return const _SlidePlaceholder(icon: Icons.broken_image_outlined);
       },
@@ -474,31 +482,31 @@ class _QuoteCardState extends State<_QuoteCard>
   static const List<({String quote, String author})> _quotes = [
     (
       quote: 'The science of today is the technology of tomorrow.',
-      author: 'Edward Teller'
+      author: 'Edward Teller',
     ),
     (
       quote: 'Creativity is intelligence having fun.',
-      author: 'Albert Einstein'
+      author: 'Albert Einstein',
     ),
     (
       quote: 'Somewhere, something incredible is waiting to be known.',
-      author: 'Carl Sagan'
+      author: 'Carl Sagan',
     ),
     (
       quote: 'The best way to predict the future is to invent it.',
-      author: 'Alan Kay'
+      author: 'Alan Kay',
     ),
     (
       quote: 'Design is not just what it looks like. Design is how it works.',
-      author: 'Steve Jobs'
+      author: 'Steve Jobs',
     ),
     (
       quote: 'Pure mathematics is, in its way, the poetry of logical ideas.',
-      author: 'Albert Einstein'
+      author: 'Albert Einstein',
     ),
     (
       quote: 'What we know is a drop, what we don\'t know is an ocean.',
-      author: 'Isaac Newton'
+      author: 'Isaac Newton',
     ),
   ];
 
@@ -506,8 +514,7 @@ class _QuoteCardState extends State<_QuoteCard>
   Widget build(BuildContext context) {
     // Rotate by day so it feels fresh but is stable within a session.
     final today = DateTime.now();
-    final dayOfYear =
-        today.difference(DateTime(today.year, 1, 1)).inDays;
+    final dayOfYear = today.difference(DateTime(today.year, 1, 1)).inDays;
     final q = _quotes[dayOfYear % _quotes.length];
 
     return Padding(
@@ -531,44 +538,47 @@ class _QuoteCardState extends State<_QuoteCard>
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              EmeraldTheme.emerald.withValues(alpha: .10),
-              EmeraldTheme.emerald.withValues(alpha: .03),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                EmeraldTheme.emerald.withValues(alpha: .10),
+                EmeraldTheme.emerald.withValues(alpha: .03),
+              ],
+            ),
+            border: Border.all(
+              color: EmeraldTheme.emerald.withValues(alpha: .18),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.format_quote,
+                color: EmeraldTheme.emerald.withValues(alpha: .7),
+                size: 28,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                q.quote,
+                style: const TextStyle(
+                  fontSize: 16.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                  color: EmeraldTheme.ink,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '— ${q.author}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: EmeraldTheme.ink.withValues(alpha: .6),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
             ],
           ),
-          border: Border.all(
-            color: EmeraldTheme.emerald.withValues(alpha: .18),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.format_quote,
-                color: EmeraldTheme.emerald.withValues(alpha: .7), size: 28),
-            const SizedBox(height: 6),
-            Text(
-              q.quote,
-              style: const TextStyle(
-                fontSize: 16.5,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-                color: EmeraldTheme.ink,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '— ${q.author}',
-              style: TextStyle(
-                fontSize: 13,
-                color: EmeraldTheme.ink.withValues(alpha: .6),
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
         ),
       ),
     );
@@ -625,7 +635,9 @@ class _NextSessionCard extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: EmeraldTheme.emerald.withValues(alpha: .12),
                       borderRadius: BorderRadius.circular(12),
@@ -647,13 +659,17 @@ class _NextSessionCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(session.title,
-                            style: theme.textTheme.titleMedium,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          session.title,
+                          style: theme.textTheme.titleMedium,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 4),
-                        Text('${session.disciplineName} · ${session.room}',
-                            style: theme.textTheme.bodySmall),
+                        Text(
+                          '${session.disciplineName} · ${session.room}',
+                          style: theme.textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
@@ -679,7 +695,8 @@ class _PlanNudge extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .5),
+          color: Theme.of(context).colorScheme.outlineVariant
+              .withValues(alpha: .5),
         ),
       ),
       child: Row(
@@ -691,20 +708,25 @@ class _PlanNudge extends StatelessWidget {
               color: EmeraldTheme.emerald.withValues(alpha: .12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.event_available,
-                color: EmeraldTheme.emerald),
+            child: const Icon(
+              Icons.event_available,
+              color: EmeraldTheme.emerald,
+            ),
           ),
           const SizedBox(width: 14),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Your day is a blank slate',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 15)),
+                Text(
+                  'Your day is a blank slate',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
                 SizedBox(height: 2),
-                Text('Browse sessions and build your schedule.',
-                    style: TextStyle(fontSize: 13)),
+                Text(
+                  'Browse sessions and build your schedule.',
+                  style: TextStyle(fontSize: 13),
+                ),
               ],
             ),
           ),
@@ -769,9 +791,9 @@ class _QuickActions extends StatelessWidget {
       _Action(
         icon: Icons.person,
         label: 'My profile',
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        ),
+        onTap: () =>
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
       ),
     ];
 
@@ -851,8 +873,11 @@ class _ActionTile extends StatelessWidget {
                       color: EmeraldTheme.emerald.withValues(alpha: .12),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(action.icon,
-                        color: EmeraldTheme.emerald, size: 24),
+                    child: Icon(
+                      action.icon,
+                      color: EmeraldTheme.emerald,
+                      size: 24,
+                    ),
                   ),
                   if (action.badge != null)
                     Positioned(
@@ -860,7 +885,9 @@ class _ActionTile extends StatelessWidget {
                       top: -6,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.error,
                           borderRadius: BorderRadius.circular(10),
@@ -926,7 +953,9 @@ class _DisciplineStrip extends StatelessWidget {
             children: [
               const Expanded(
                 child: _SectionTitle(
-                    title: 'Explore disciplines', icon: Icons.category),
+                  title: 'Explore disciplines',
+                  icon: Icons.category,
+                ),
               ),
               TextButton(
                 onPressed: () => rootTab.value = kDiscoverTabIndex,
@@ -979,8 +1008,11 @@ class _DisciplineChip extends StatelessWidget {
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: EmeraldTheme.mist,
-                  child: Icon(discipline.icon,
-                      color: theme.colorScheme.primary, size: 20),
+                  child: Icon(
+                    discipline.icon,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -992,8 +1024,9 @@ class _DisciplineChip extends StatelessWidget {
                 Text(
                   '${discipline.sessions.length} '
                   'session${discipline.sessions.length == 1 ? '' : 's'}',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.colorScheme.primary),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ],
             ),
@@ -1044,24 +1077,31 @@ class _LatestNews extends StatelessWidget {
                     Row(
                       children: [
                         if (a.pinned) ...[
-                          const Icon(Icons.push_pin,
-                              size: 14, color: EmeraldTheme.emerald),
+                          const Icon(
+                            Icons.push_pin,
+                            size: 14,
+                            color: EmeraldTheme.emerald,
+                          ),
                           const SizedBox(width: 6),
                         ],
                         Expanded(
-                          child: Text(a.title,
-                              style: theme.textTheme.titleMedium,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            a.title,
+                            style: theme.textTheme.titleMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         Text(a.timeAgo, style: theme.textTheme.labelSmall),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(a.body,
-                        style: theme.textTheme.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      a.body,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
@@ -1080,9 +1120,21 @@ class _LinksCard extends StatelessWidget {
   const _LinksCard();
 
   static const _links = [
-    (icon: Icons.language, label: 'Summit website', url: 'https://sites.google.com/view/ehs-academic-foundation/programs/emerald-summit'),
-    (icon: Icons.camera_alt, label: 'Instagram', url: 'https://www.instagram.com/emeraldsummit27?stkn=MzRlODBiNWFlZA=='),
-    (icon: Icons.mail_outline, label: 'Contact', url: 'mailto:president@ehsacademics.org'),
+    (
+      icon: Icons.language,
+      label: 'Summit website',
+      url: 'https://sites.google.com/view/ehs-academic-foundation/programs/emerald-summit',
+    ),
+    (
+      icon: Icons.camera_alt,
+      label: 'Instagram',
+      url: 'https://www.instagram.com/emeraldsummit27?stkn=MzRlODBiNWFlZA==',
+    ),
+    (
+      icon: Icons.mail_outline,
+      label: 'Contact',
+      url: 'mailto:president@ehsacademics.org',
+    ),
   ];
 
   Future<void> _open(BuildContext context, String url) async {
@@ -1114,8 +1166,7 @@ class _LinksCard extends StatelessWidget {
                 for (var i = 0; i < _links.length; i++) ...[
                   if (i > 0) const Divider(height: 1),
                   ListTile(
-                    leading: Icon(_links[i].icon,
-                        color: EmeraldTheme.emerald),
+                    leading: Icon(_links[i].icon, color: EmeraldTheme.emerald),
                     title: Text(_links[i].label),
                     trailing: const Icon(Icons.open_in_new, size: 18),
                     onTap: () => _open(context, _links[i].url),

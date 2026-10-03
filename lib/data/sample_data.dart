@@ -33,6 +33,11 @@ class SampleData {
               'Build your first cross-platform app and pitch it to a '
               'panel of industry mentors. Laptops provided.',
           sponsor: 'Sponsored by NorCal DevWorks',
+          participantQuestions: [
+            SessionQuestion(id: 'q_project', prompt: 'What is your project name?'),
+            SessionQuestion(
+                id: 'q_teammates', prompt: 'Who are your teammates? (optional)'),
+          ],
         ),
         Session(
           id: 's2',

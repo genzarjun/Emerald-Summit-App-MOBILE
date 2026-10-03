@@ -49,14 +49,17 @@ Home header** (Uber-style), not a bottom-bar tab.
   down on first view.
 - **Schedule** — the user's full personal schedule (formerly the "My Day" first
   tab; the in-app header still reads "My Day"). Shows **everything they're
-  committed to**, each tagged with the role: sessions they're **Attending**
-  (from `registrations`) and sessions they're **Managing** (volunteer
-  assignments from `session_volunteers`), merged and sorted by time (managing
-  wins if both). RLS-scoped, so it follows the account across devices. A session
-  a volunteer is **assigned to manage shows no "Add/Remove to my day"** — it's
-  on their schedule by admin action and only an admin can unassign it; the detail
-  page shows a "You're managing this session" status instead. The profile entry
-  to the managing list + attendance is labeled **"Sessions I'm managing"**.
+  committed to**, each tagged with **how they joined**: sessions they registered
+  for (from `registrations`) show **Participating**, **Spectating**, or
+  **Expert** (the `participation_type`), and sessions they're **Managing**
+  (assignments from `session_volunteers`) show a Managing chip — merged and
+  sorted by time (managing wins if both). Each role gets its own chip color.
+  RLS-scoped, so it follows the account across devices. A volunteer **assigned to
+  manage shows no "Add/Remove to my day"** — it's on their schedule by admin
+  action and only an admin can unassign it; the detail page shows a "You're
+  managing this session" status instead. An **admin who self-managed** a session
+  (see Discover) gets a **"Stop managing"** action there instead. The profile
+  entry to the managing list + attendance is labeled **"Sessions I'm managing"**.
   Empty-state → browse flow.
 - **Discover** — catalog of the disciplines → each discipline's sessions → a
   **vibrant, tabbed session page.** Reads live from Supabase (`disciplines` +
@@ -66,21 +69,39 @@ Home header** (Uber-style), not a bottom-bar tab.
     explicit hero, or the first gallery photo when none is set), a **photo
     gallery**, the time/room/expert/seats info, the description, and any
     **editor-authored content sections** (ordered `{title, body}` blocks). **Add
-    to my day** enforces the real rules via a server-side RPC
-    (`register_for_session`): no double-booking (time-conflict dialog) and
-    capacity caps (full/waitlist), so they can't be bypassed from the client. At
+    to my day** is **role-aware**: it opens a chooser whose options depend on the
+    signed-in role — participants & volunteers pick **Participate** or
+    **Spectate**; experts pick **Serve as expert** or **Spectate**; admins also
+    get **Manage** (a self-assignment into `session_volunteers`, with a "Stop
+    managing" toggle); and the **Parent / Spectator** role skips the chooser and
+    auto-joins as **Spectating**. Volunteers see a note that an admin will assign
+    them if they're to *manage* a session. Choosing **Participate** first collects
+    the session's **participant questions** (e.g. "What is your project name?")
+    when it has any; answers are stored on the registration (keyed by question id)
+    and shown on the Participants tab. All of it goes through the server-side
+    `register_for_session` RPC, which records the participation type + answers and
+    still enforces no double-booking (time-conflict dialog) and capacity caps
+    (every registration type counts toward capacity), so they can't be bypassed
+    from the client. Admin self-manage uses the `set_session_manage` RPC. At
     the bottom, a **"Sessions similar to this"** horizontal rail suggests other
     sessions in the same discipline the user could still add — only ones with
     seats left that **fit an open slot** on their schedule (no time overlap with
     what they've already got), each a photo card with a one-tap **Add**
     (`AppState.suggestedSessions`). The whole rail is hidden when nothing fits.
   - **Participants** (admins + volunteers *assigned* to the session) — the roster
-    with attendance toggles (same server gate as before).
+    of people attending (participants + spectators) with attendance toggles (same
+    server gate as before). Each row also shows the person's **participation
+    type** and, for participants, their **answers** to the session's questions
+    (their project name, teammates, etc.).
+  - **Experts** (same gate as Participants — admins + assigned volunteers) — the
+    people who joined this session as **experts** ("serving as an expert"), with
+    the same attendance toggles.
   - **Volunteers** (admins) — assign/unassign volunteers.
   A plain participant sees only the Session tab. Admins and EAF ambassadors who
   can edit the session's discipline get **Edit** controls (an AppBar pencil + an
   inline button) that open the editor for the whole page — base fields plus the
-  hero photo, gallery, and content sections. Photos are **uploaded in-app**
+  hero photo, gallery, content sections, and the **participant questions** asked
+  of anyone who joins as a participant. Photos are **uploaded in-app**
   (`image_picker`) into a per-session folder in the public `session_photos`
   Storage bucket; hero/gallery editing needs the session id, so on a brand-new
   session you save first, then reopen to add photos. The editor still ties a
@@ -93,7 +114,14 @@ Home header** (Uber-style), not a bottom-bar tab.
   their other assignments or registrations). If the volunteer is already
   **registered** for that very session, the admin gets an *"…is registered for
   this session. Assign them to manage it?"* confirm first. On assignment the
-  volunteer receives an automatic personal announcement + banner.
+  volunteer receives an automatic personal announcement + banner. **Editing a
+  session's time** is conflict-aware: if the new time would clash with sessions
+  people registered for it already have, the editor warns *"…N people will have a
+  schedule clash — save anyway?"* (via the `session_time_conflicts` RPC), and on
+  save each affected person gets a personal announcement + banner telling them
+  the session moved and now overlaps another of theirs
+  (`notify_session_time_conflicts`). *(Track and sponsor are no longer editable
+  fields — a "track" is just a session — but existing values are preserved.)*
 - **News** — the announcements feed (pinned items, audience tags). Reads live
   from Supabase and stays **live via Realtime** — a new announcement appears the
   instant an admin posts it, alongside an **Instagram-style in-app banner** when
@@ -290,14 +318,20 @@ test/widget_test.dart       Widget tests
     `enrolled` is never stored — the `sessions_with_counts` **view** derives it
     live from `registrations` and adds the discipline name. Gains a `room_id`
     (→ `rooms`) in the volunteers upgrade, and `hero_image_url` + `page_blocks`
-    (jsonb `[{title, body}]`) for the vibrant session page — both flow through
-    the view automatically. [sessions_setup.sql](supabase/sessions_setup.sql),
-    [session_pages_setup.sql](supabase/session_pages_setup.sql)
+    (jsonb `[{title, body}]`) for the vibrant session page, plus
+    `participant_questions` (jsonb `[{id, prompt}]`) for the questions asked of
+    participants — all flow through the view automatically.
+    [sessions_setup.sql](supabase/sessions_setup.sql),
+    [session_pages_setup.sql](supabase/session_pages_setup.sql),
+    [session_participation_setup.sql](supabase/session_participation_setup.sql)
   - `registrations` — the personal schedule (RLS: each user only their own).
     Adds/removes go through the **`register_for_session` RPC**, the single
-    server-side enforcer of capacity + no-time-overlap. Gains `attended` /
+    server-side enforcer of capacity + no-time-overlap; it also records the
+    `participation_type` (`participant`/`spectator`/`expert`) and the
+    participant's `answers` (jsonb, keyed by question id). Gains `attended` /
     `attended_at` / `marked_by` for session attendance.
-    [registrations_setup.sql](supabase/registrations_setup.sql)
+    [registrations_setup.sql](supabase/registrations_setup.sql),
+    [session_participation_setup.sql](supabase/session_participation_setup.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /
@@ -319,12 +353,17 @@ test/widget_test.dart       Widget tests
     removes the row, deletes the stale "you're managing X" notice, and posts a
     "you're no longer managing X" notice — both assign and unassign reach the
     volunteer as a feed item + live in-app banner, and their Schedule/managing
-    list update live.
+    list update live. An **admin can self-manage** a session via the
+    **`set_session_manage` RPC** (overlap-guarded, admin-only), which is the
+    "Manage" option in the Add-to-my-day chooser and its "Stop managing" toggle.
     [session_volunteers_setup.sql](supabase/session_volunteers_setup.sql),
     [assignment_notifications.sql](supabase/assignment_notifications.sql),
-    [unassign_notification.sql](supabase/unassign_notification.sql)
+    [unassign_notification.sql](supabase/unassign_notification.sql),
+    [session_participation_setup.sql](supabase/session_participation_setup.sql)
   - `summit_checkins` + attendance RPCs — session rosters
-    (`fetch_session_roster` / `mark_session_attendance`, gated by assignment) and
+    (`fetch_session_roster`, which now also returns each registrant's
+    participation type + answers, / `mark_session_attendance`, gated by
+    assignment) and
     the summit-wide front-desk directory (`fetch_attendee_directory` /
     `mark_summit_checkin`, gated by the front-desk capability).
     [attendance_setup.sql](supabase/attendance_setup.sql)
@@ -353,10 +392,22 @@ test/widget_test.dart       Widget tests
     `SessionMediaRepository.uploadPhoto`) and lists a session's folder for its
     gallery; the hero image is a `hero_image_url` column pointing at one of these
     files. [session_pages_setup.sql](supabase/session_pages_setup.sql)
+  - **Always load Storage images with `CachedNetworkImage`, never
+    `Image.network`.** Storage downloads count against the free plan's
+    **Cached Egress** quota (5 GB/month). `Image.network` only caches in memory,
+    so photos re-downloaded on every launch and the Aug 29 – Sep 29 2026 cycle
+    hit 9.16 GB. That started a grace period that ends **Oct 26 2026**, after
+    which overage gets 402s. `cached_network_image` keeps a disk copy, so each
+    photo downloads once per device; set `memCacheWidth` to roughly the display
+    size so the in-memory cache doesn't thrash while the slideshow loops.
   - Seed the six disciplines + sample sessions with
     [seed_catalog.sql](supabase/seed_catalog.sql).
-- **Roles & permissions.** Five roles: `participant`, `expert`, `parent`
-  (open), `volunteer`, `admin` (gated). Base enforcement is in
+- **Roles & permissions.** Five roles: `participant`, `expert`,
+  `parentSpectator` (open — the "Parent / Spectator" role, which auto-spectates
+  any session it adds), `volunteer`, `admin` (gated). *(The `parentSpectator`
+  stored value was renamed from `parent` — see
+  [rename_parent_to_parent_spectator.sql](supabase/rename_parent_to_parent_spectator.sql).)*
+  Base enforcement is in
   [role_allowlist_setup.sql](supabase/role_allowlist_setup.sql); the volunteer
   upgrade is in [role_allowlist_v2.sql](supabase/role_allowlist_v2.sql):
   - `role_allowlist(email, role, disciplines[], subtype, can_edit_sessions,

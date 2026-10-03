@@ -69,6 +69,29 @@ class SupabaseContentRepository implements ContentRepository {
   Future<void> deleteSession(String id) async {
     await _client.from('sessions').delete().eq('id', id);
   }
+
+  @override
+  Future<int> previewTimeConflicts(
+      String sessionId, String start, String end) async {
+    try {
+      final res = await _client.rpc('session_time_conflicts', params: {
+        'p_session_id': sessionId,
+        'p_start': start,
+        'p_end': end,
+      });
+      return (res as List).length;
+    } catch (_) {
+      // RPC not deployed yet / transient — don't block the save over a warning.
+      return 0;
+    }
+  }
+
+  @override
+  Future<void> notifyTimeConflicts(String sessionId) async {
+    await _client.rpc('notify_session_time_conflicts', params: {
+      'p_session_id': sessionId,
+    });
+  }
 }
 
 /// The signed-in user's schedule (`registrations`). Reads are RLS-scoped to the
@@ -80,16 +103,30 @@ class SupabaseScheduleRepository implements ScheduleRepository {
   final SupabaseClient _client;
 
   @override
-  Future<Set<String>> fetchMySessionIds() async {
-    final rows = await _client.from('registrations').select('session_id');
-    return rows.map((r) => r['session_id'].toString()).toSet();
+  Future<Map<String, ParticipationType>> fetchMyRegistrations() async {
+    final rows = await _client
+        .from('registrations')
+        .select('session_id, participation_type');
+    return {
+      for (final r in rows)
+        r['session_id'].toString():
+            ParticipationTypeX.fromId(r['participation_type'] as String?),
+    };
   }
 
   @override
-  Future<RegistrationResult> toggle(String sessionId) async {
+  Future<RegistrationResult> toggle(
+    String sessionId, {
+    ParticipationType type = ParticipationType.participant,
+    Map<String, String> answers = const {},
+  }) async {
     final res = await _client.rpc(
       'register_for_session',
-      params: {'p_session_id': sessionId},
+      params: {
+        'p_session_id': sessionId,
+        'p_participation_type': type.id,
+        'p_answers': answers,
+      },
     );
     final map = (res as Map).cast<String, dynamic>();
     final outcome = switch ((map['outcome'] ?? 'added') as String) {
@@ -583,6 +620,21 @@ class SupabaseAssignmentRepository implements AssignmentRepository {
       'p_session_id': sessionId,
       'p_user_id': userId,
     });
+  }
+
+  @override
+  Future<AssignmentResult> setManage(String sessionId, bool manage) async {
+    // Admin self-manage: overlap-guarded self add/remove into session_volunteers.
+    final res = await _client.rpc('set_session_manage', params: {
+      'p_session_id': sessionId,
+      'p_manage': manage,
+    });
+    final map = (res as Map).cast<String, dynamic>();
+    final outcome = switch ((map['outcome'] ?? 'managing') as String) {
+      'conflict' => AssignmentOutcome.conflict,
+      _ => AssignmentOutcome.assigned,
+    };
+    return AssignmentResult(outcome, map['conflicting_title'] as String?);
   }
 }
 

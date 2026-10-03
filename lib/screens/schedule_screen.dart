@@ -171,7 +171,7 @@ class _ScheduleCard extends StatelessWidget {
                               style: theme.textTheme.titleMedium),
                         ),
                         const SizedBox(width: 8),
-                        _RoleChip(managing: entry.managing),
+                        _RoleChip(entry: entry),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -189,20 +189,35 @@ class _ScheduleCard extends StatelessWidget {
   }
 }
 
-/// A small pill showing the user's role in a scheduled session.
+/// A small pill showing the user's role in a scheduled session: Managing,
+/// Participating, Spectating, or Expert — each with its own color.
 class _RoleChip extends StatelessWidget {
-  const _RoleChip({required this.managing});
-  final bool managing;
+  const _RoleChip({required this.entry});
+  final ScheduleEntry entry;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = managing
-        ? theme.colorScheme.primary
-        : theme.colorScheme.surfaceContainerHighest;
-    final fg = managing
-        ? theme.colorScheme.onPrimary
-        : theme.colorScheme.onSurfaceVariant;
+    final scheme = theme.colorScheme;
+
+    // Managing keeps the strong primary fill; the participation types get
+    // distinct, softer treatments.
+    final (Color bg, Color fg) = entry.managing
+        ? (scheme.primary, scheme.onPrimary)
+        : switch (entry.participationType ?? ParticipationType.participant) {
+            ParticipationType.participant => (
+                scheme.primaryContainer,
+                scheme.onPrimaryContainer
+              ),
+            ParticipationType.spectator => (
+                scheme.surfaceContainerHighest,
+                scheme.onSurfaceVariant
+              ),
+            ParticipationType.expert => (
+                scheme.tertiaryContainer,
+                scheme.onTertiaryContainer
+              ),
+          };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -210,9 +225,9 @@ class _RoleChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        managing ? 'Managing' : 'Attending',
-        style: theme.textTheme.labelSmall?.copyWith(
-            color: fg, fontWeight: FontWeight.w600),
+        entry.roleLabel,
+        style: theme.textTheme.labelSmall
+            ?.copyWith(color: fg, fontWeight: FontWeight.w600),
       ),
     );
   }

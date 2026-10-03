@@ -178,7 +178,7 @@ void main() {
       final repo = SampleAssignmentRepository(store);
       final s = store.allSessions.first;
       // The volunteer is registered for this very session.
-      store.mySessionIds.add(s.id);
+      store.myRegistrations[s.id] = ParticipationType.participant;
 
       final first = await repo.assign(s.id, 'vol-9');
       expect(first.outcome, AssignmentOutcome.registeredConfirm);

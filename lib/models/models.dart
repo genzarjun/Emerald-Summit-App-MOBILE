@@ -94,6 +94,51 @@ class SessionPageBlock {
   }
 }
 
+/// One admin/manager-authored question a participant must answer when they add a
+/// session as a **participant** (e.g. "What is your project name?"). Sessions
+/// carry an ordered list in the `participant_questions` jsonb column; answers are
+/// stored on the registration keyed by [id], so editing a prompt's text never
+/// orphans existing answers.
+class SessionQuestion {
+  const SessionQuestion({required this.id, required this.prompt});
+
+  final String id;
+  final String prompt;
+
+  factory SessionQuestion.fromMap(Map<String, dynamic> map) => SessionQuestion(
+        id: (map['id'] ?? '').toString(),
+        prompt: (map['prompt'] ?? '') as String,
+      );
+
+  Map<String, dynamic> toMap() => {'id': id, 'prompt': prompt};
+
+  /// Parses the raw `participant_questions` value (a jsonb list some backends
+  /// hand back as a decoded [List] and others as a JSON [String]). Anything
+  /// malformed, or an entry with a blank id/prompt, is dropped so a bad row never
+  /// crashes the catalog.
+  static List<SessionQuestion> parse(dynamic raw) {
+    if (raw == null) return const [];
+    List<dynamic> list;
+    if (raw is String) {
+      if (raw.trim().isEmpty) return const [];
+      try {
+        list = jsonDecode(raw) as List<dynamic>;
+      } catch (_) {
+        return const [];
+      }
+    } else if (raw is List) {
+      list = raw;
+    } else {
+      return const [];
+    }
+    return [
+      for (final e in list)
+        if (e is Map)
+          SessionQuestion.fromMap(e.cast<String, dynamic>())
+    ].where((q) => q.id.isNotEmpty && q.prompt.trim().isNotEmpty).toList();
+  }
+}
+
 /// A single session/activity a participant can add to their day plan.
 class Session {
   const Session({
@@ -113,6 +158,7 @@ class Session {
     this.sponsor,
     this.heroImageUrl,
     this.pageBlocks = const [],
+    this.participantQuestions = const [],
   });
 
   /// Builds a [Session] from a `sessions_with_counts` view row. The view carries
@@ -137,6 +183,8 @@ class Session {
             ? null
             : row['hero_image_url'] as String?,
         pageBlocks: SessionPageBlock.parse(row['page_blocks']),
+        participantQuestions:
+            SessionQuestion.parse(row['participant_questions']),
       );
 
   final String id;
@@ -165,6 +213,10 @@ class Session {
 
   /// Ordered editor-authored content sections shown on the session page.
   final List<SessionPageBlock> pageBlocks;
+
+  /// Ordered questions a participant must answer when adding this session as a
+  /// participant (empty = no questions; participating registers directly).
+  final List<SessionQuestion> participantQuestions;
 
   bool get isFull => enrolled >= capacity;
   int get seatsLeft => capacity - enrolled;
@@ -285,16 +337,64 @@ class ResourceDoc {
   final IconData icon;
 }
 
+/// How a person joined a session (stored on `registrations.participation_type`).
+/// "Managing" is NOT one of these — it lives in `session_volunteers` — so a
+/// schedule entry is either managing OR carries one of these.
+enum ParticipationType { participant, spectator, expert }
+
+extension ParticipationTypeX on ParticipationType {
+  /// Value stored in the database.
+  String get id => switch (this) {
+        ParticipationType.participant => 'participant',
+        ParticipationType.spectator => 'spectator',
+        ParticipationType.expert => 'expert',
+      };
+
+  /// The short label for a schedule/roster chip.
+  String get chipLabel => switch (this) {
+        ParticipationType.participant => 'Participating',
+        ParticipationType.spectator => 'Spectating',
+        ParticipationType.expert => 'Expert',
+      };
+
+  /// First-person status line for the session page.
+  String get statusLabel => switch (this) {
+        ParticipationType.participant => "You're participating in this session.",
+        ParticipationType.spectator => "You're spectating this session.",
+        ParticipationType.expert => "You're serving as an expert here.",
+      };
+
+  /// Parses the stored id, defaulting to [ParticipationType.participant] for an
+  /// unknown/absent value (matches the DB column default).
+  static ParticipationType fromId(String? id) {
+    for (final t in ParticipationType.values) {
+      if (t.id == id) return t;
+    }
+    return ParticipationType.participant;
+  }
+}
+
 /// One entry on a user's personal schedule: a [session] plus the role they play
-/// in it — [managing] (assigned by an admin to run it) or attending (registered
-/// as a participant). Managing takes precedence when both are true.
+/// in it — [managing] (assigned by an admin, or self-assigned by an admin, to
+/// run it) or the [participationType] they registered under. Managing takes
+/// precedence when both are true.
 class ScheduleEntry {
-  const ScheduleEntry({required this.session, required this.managing});
+  const ScheduleEntry({
+    required this.session,
+    required this.managing,
+    this.participationType,
+  });
 
   final Session session;
   final bool managing;
 
-  String get roleLabel => managing ? 'Managing' : 'Attending';
+  /// How the user registered, when not [managing]. Null for a pure managing
+  /// entry (they haven't also registered).
+  final ParticipationType? participationType;
+
+  String get roleLabel => managing
+      ? 'Managing'
+      : (participationType ?? ParticipationType.participant).chipLabel;
 }
 
 /// A room in the admin-managed catalog. Sessions are tied to one of these; the
@@ -347,6 +447,8 @@ class RosterEntry {
     required this.name,
     required this.email,
     required this.attended,
+    this.participationType = ParticipationType.participant,
+    this.answers = const {},
   });
 
   final String userId;
@@ -354,18 +456,52 @@ class RosterEntry {
   final String email;
   final bool attended;
 
+  /// How this person joined the session (participant / spectator / expert).
+  final ParticipationType participationType;
+
+  /// The participant's answers to the session's questions, keyed by question id.
+  /// Empty for spectators/experts and for sessions with no questions.
+  final Map<String, String> answers;
+
   factory RosterEntry.fromMap(Map<String, dynamic> row) => RosterEntry(
         userId: row['user_id'].toString(),
         name: (row['full_name'] ?? '') as String,
         email: (row['email'] ?? '') as String,
         attended: (row['attended'] ?? false) as bool,
+        participationType:
+            ParticipationTypeX.fromId(row['participation_type'] as String?),
+        answers: _parseAnswers(row['answers']),
       );
+
+  /// Decodes the `answers` jsonb (a decoded [Map] from some backends, a JSON
+  /// [String] from others) into a `{questionId: answer}` string map.
+  static Map<String, String> _parseAnswers(dynamic raw) {
+    if (raw == null) return const {};
+    Map<dynamic, dynamic> map;
+    if (raw is String) {
+      if (raw.trim().isEmpty) return const {};
+      try {
+        map = jsonDecode(raw) as Map<dynamic, dynamic>;
+      } catch (_) {
+        return const {};
+      }
+    } else if (raw is Map) {
+      map = raw;
+    } else {
+      return const {};
+    }
+    return {
+      for (final e in map.entries) e.key.toString(): '${e.value ?? ''}',
+    };
+  }
 
   RosterEntry copyWith({bool? attended}) => RosterEntry(
         userId: userId,
         name: name,
         email: email,
         attended: attended ?? this.attended,
+        participationType: participationType,
+        answers: answers,
       );
 }
 

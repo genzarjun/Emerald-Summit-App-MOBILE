@@ -97,15 +97,32 @@ abstract interface class ContentRepository {
   Future<void> updateSession(String id, Map<String, dynamic> data);
 
   Future<void> deleteSession(String id);
+
+  /// How many people registered for [sessionId] would have a schedule clash if
+  /// the session ran at [start]–[end] (`HH:mm`) — i.e. they're also registered
+  /// for another session overlapping that window. Used to warn an admin before
+  /// they save a time change. Best-effort: returns 0 if the check is unavailable.
+  Future<int> previewTimeConflicts(String sessionId, String start, String end);
+
+  /// Posts a personal "the session moved and now clashes" announcement (+ banner)
+  /// to everyone whose schedule the just-saved time change conflicts with.
+  /// Best-effort — called after a successful save; a failure never blocks it.
+  Future<void> notifyTimeConflicts(String sessionId);
 }
 
 /// The signed-in user's personal schedule.
 abstract interface class ScheduleRepository {
-  /// Session ids the current user has added to their day.
-  Future<Set<String>> fetchMySessionIds();
+  /// The current user's registrations: session id → how they joined.
+  Future<Map<String, ParticipationType>> fetchMyRegistrations();
 
-  /// Toggles a session in the schedule, enforcing capacity + no-overlap.
-  Future<RegistrationResult> toggle(String sessionId);
+  /// Toggles a session in the schedule, enforcing capacity + no-overlap. On the
+  /// ADD branch, records [type] and (for participants) [answers] to the session's
+  /// questions; both are ignored when the call toggles a registration OFF.
+  Future<RegistrationResult> toggle(
+    String sessionId, {
+    ParticipationType type = ParticipationType.participant,
+    Map<String, String> answers = const {},
+  });
 }
 
 /// The signed-in user's own profile row.
@@ -251,6 +268,13 @@ abstract interface class AssignmentRepository {
       {bool confirmRegistered = false});
 
   Future<void> unassign(String sessionId, String userId);
+
+  /// Admin self-manage: adds ([manage] true) or removes ([manage] false) the
+  /// calling admin as a manager of [sessionId]. Overlap-guarded like [assign];
+  /// returns [AssignmentOutcome.conflict] (with the clashing title) if managing
+  /// would overlap something already on the admin's schedule. Admin-only,
+  /// enforced server-side.
+  Future<AssignmentResult> setManage(String sessionId, bool manage);
 }
 
 /// Attendance: per-session rosters (for session-assigned volunteers) and the

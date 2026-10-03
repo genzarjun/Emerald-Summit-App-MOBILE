@@ -21,15 +21,27 @@ class SessionRosterScreen extends StatelessWidget {
   }
 }
 
-/// The roster for one session — the registered participants and their
-/// attendance state. Shown to a volunteer assigned to the session (or an admin);
-/// marking is enforced server-side by the same assignment gate. Renders just the
-/// body (no Scaffold/AppBar) so it can be embedded as a tab or wrapped by
+/// The roster for one session — the registered people and their attendance
+/// state. Shown to a volunteer assigned to the session (or an admin); marking is
+/// enforced server-side by the same assignment gate. Renders just the body (no
+/// Scaffold/AppBar) so it can be embedded as a tab or wrapped by
 /// [SessionRosterScreen].
+///
+/// [types] optionally restricts the list to certain participation types — the
+/// session page uses it to split the full roster into a **Participants** tab
+/// (participant + spectator) and an **Experts** tab (expert). Null shows
+/// everyone (the standalone attendance screen).
 class SessionRosterView extends StatefulWidget {
-  const SessionRosterView({super.key, required this.session});
+  const SessionRosterView({
+    super.key,
+    required this.session,
+    this.types,
+    this.emptyMessage,
+  });
 
   final Session session;
+  final Set<ParticipationType>? types;
+  final String? emptyMessage;
 
   @override
   State<SessionRosterView> createState() => _SessionRosterViewState();
@@ -55,8 +67,11 @@ class _SessionRosterViewState extends State<SessionRosterView> {
       final roster =
           await attendanceRepository.fetchSessionRoster(widget.session.id);
       if (!mounted) return;
+      final types = widget.types;
       setState(() {
-        _roster = roster;
+        _roster = types == null
+            ? roster
+            : roster.where((e) => types.contains(e.participationType)).toList();
         _loading = false;
       });
     } catch (e) {
@@ -82,6 +97,33 @@ class _SessionRosterViewState extends State<SessionRosterView> {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not save attendance.')));
     }
+  }
+
+  /// The roster row subtitle: attendance state, the participation type, and any
+  /// participant answers rendered as "Prompt: answer" (prompts resolved from the
+  /// session's questions by id).
+  Widget _rosterSubtitle(ThemeData theme, RosterEntry e) {
+    final questions = {
+      for (final q in widget.session.participantQuestions) q.id: q.prompt,
+    };
+    final lines = <String>[
+      for (final entry in e.answers.entries)
+        '${questions[entry.key] ?? 'Answer'}: ${entry.value}',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${e.attended ? 'Present' : 'Not marked'} · ${e.participationType.chipLabel}',
+        ),
+        for (final line in lines)
+          Text(
+            line,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+      ],
+    );
   }
 
   @override
@@ -124,7 +166,8 @@ class _SessionRosterViewState extends State<SessionRosterView> {
                   child: Padding(
                     padding: const EdgeInsets.all(32),
                     child: Text(
-                      'No one has registered for this session yet.',
+                      widget.emptyMessage ??
+                          'No one has registered for this session yet.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -136,10 +179,11 @@ class _SessionRosterViewState extends State<SessionRosterView> {
                   itemBuilder: (context, i) {
                     final e = _roster[i];
                     return SwitchListTile(
+                      isThreeLine: e.answers.isNotEmpty,
                       value: e.attended,
                       onChanged: (v) => _toggle(e, v),
                       title: Text(e.name.isEmpty ? e.email : e.name),
-                      subtitle: Text(e.attended ? 'Present' : 'Not marked'),
+                      subtitle: _rosterSubtitle(theme, e),
                       secondary: CircleAvatar(
                         backgroundColor: e.attended
                             ? theme.colorScheme.primaryContainer

@@ -7,7 +7,14 @@ import '../../models/user_profile.dart';
 /// configured (demo mode).
 class SampleStore {
   final List<Discipline> disciplines = List.of(SampleData.disciplines);
-  final Set<String> mySessionIds = {};
+
+  /// The demo user's registrations: session id → how they joined. Replaces the
+  /// old plain id set so demo mode carries participation type like the live one.
+  final Map<String, ParticipationType> myRegistrations = {};
+
+  /// Just the registered session ids — for the overlap loops that only care
+  /// whether a slot is taken, not how.
+  Set<String> get mySessionIds => myRegistrations.keys.toSet();
   final List<Announcement> announcements = List.of(SampleData.announcements);
   final List<GalleryPhoto> galleryPhotos = List.of(SampleData.galleryPhotos);
 

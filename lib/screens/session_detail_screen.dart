@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -66,7 +67,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         );
 
         final canEdit = appState.canManageDiscipline(current.disciplineId);
-        final canSeeParticipants =
+        // Admins and volunteers who manage this session see the people tabs.
+        final canSeeRoster =
             appState.isAdmin || appState.isManaging(current.id);
         final canSeeVolunteers = appState.isAdmin;
 
@@ -80,9 +82,28 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             onEdit: () => _openEditor(current),
           ),
         ];
-        if (canSeeParticipants) {
+        if (canSeeRoster) {
           tabs.add(const Tab(text: 'Participants'));
-          views.add(SessionRosterView(session: current));
+          views.add(
+            SessionRosterView(
+              session: current,
+              types: const {
+                ParticipationType.participant,
+                ParticipationType.spectator,
+              },
+              emptyMessage:
+                  'No participants have registered for this session '
+                  'yet.',
+            ),
+          );
+          tabs.add(const Tab(text: 'Experts'));
+          views.add(
+            SessionRosterView(
+              session: current,
+              types: const {ParticipationType.expert},
+              emptyMessage: 'No experts have registered for this session yet.',
+            ),
+          );
         }
         if (canSeeVolunteers) {
           tabs.add(const Tab(text: 'Volunteers'));
@@ -167,15 +188,122 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     setState(() => _photos = photos);
   }
 
-  Future<void> _toggleSession(Session s) async {
+  /// Entry point for the "Add to my day" button and the suggested-session Add.
+  /// Routes by role: the Parent/Spectator role auto-spectates; everyone else
+  /// picks a mode, and participating collects the session's questions first.
+  Future<void> _addToDay(Session s) async {
+    if (appState.autoSpectates) {
+      await _register(s, ParticipationType.spectator);
+      return;
+    }
+    final modes = appState.myAddModes;
+    // A single non-manage option (shouldn't happen for these roles, but be safe)
+    // still deserves the chooser so the user knows what they're agreeing to.
+    final mode = await _pickAddMode(modes);
+    if (mode == null || !mounted) return;
+
+    if (mode == AddMode.manage) {
+      await _setManage(s, true);
+      return;
+    }
+    final type = mode.participationType!;
+    if (type == ParticipationType.participant &&
+        s.participantQuestions.isNotEmpty) {
+      final answers = await _collectAnswers(s);
+      if (answers == null || !mounted) return; // cancelled
+      await _register(s, type, answers: answers);
+    } else {
+      await _register(s, type);
+    }
+  }
+
+  /// Shows the role-appropriate mode chooser. Returns the chosen [AddMode], or
+  /// null if dismissed.
+  Future<AddMode?> _pickAddMode(List<AddMode> modes) {
+    final theme = Theme.of(context);
+    final isVolunteer = appState.isVolunteer;
+    return showModalBottomSheet<AddMode>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Text('Add to my day', style: theme.textTheme.titleLarge),
+            ),
+            for (final m in modes)
+              ListTile(
+                leading: Icon(m.icon, color: theme.colorScheme.primary),
+                title: Text(m.title),
+                subtitle: Text(m.blurb),
+                onTap: () => Navigator.of(ctx).pop(m),
+              ),
+            if (isVolunteer)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'To manage this session, an admin will assign you — '
+                        "you'll be notified if they do.",
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Collects answers to [s]'s participant questions. Returns the answers map
+  /// (question id → answer), or null if the user backed out.
+  Future<Map<String, String>?> _collectAnswers(Session s) {
+    return showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: _ParticipantQuestionsSheet(session: s),
+      ),
+    );
+  }
+
+  /// Registers [s] under [type], surfacing full/conflict blocks.
+  Future<void> _register(
+    Session s,
+    ParticipationType type, {
+    Map<String, String> answers = const {},
+  }) async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await appState.toggle(s);
+    final result = await appState.toggle(s, type: type, answers: answers);
     if (!mounted) return;
     messenger.hideCurrentSnackBar();
     switch (result.outcome) {
       case AddOutcome.added:
         messenger.showSnackBar(
-          SnackBar(content: Text('Added "${s.title}" to your day')),
+          SnackBar(
+            content: Text(
+              'Added "${s.title}" — ${type.chipLabel.toLowerCase()}',
+            ),
+          ),
         );
       case AddOutcome.removed:
         messenger.showSnackBar(
@@ -193,6 +321,50 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
           'This overlaps with "${result.conflictingTitle}", which is '
               'already on your schedule. Remove that one first to add this.',
         );
+    }
+  }
+
+  /// Removes [s] from the day (toggles the registration off).
+  Future<void> _removeFromDay(Session s) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await appState.toggle(s);
+    if (!mounted) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            result.outcome == AddOutcome.removed
+                ? 'Removed "${s.title}" from your day'
+                : 'Updated your day',
+          ),
+        ),
+      );
+  }
+
+  /// Admin self-manage toggle for [s].
+  Future<void> _setManage(Session s, bool manage) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await appState.setManage(s, manage);
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    switch (result.outcome) {
+      case AddOutcome.added:
+        messenger.showSnackBar(
+          SnackBar(content: Text('You\'re now managing "${s.title}"')),
+        );
+      case AddOutcome.removed:
+        messenger.showSnackBar(
+          SnackBar(content: Text('Stopped managing "${s.title}"')),
+        );
+      case AddOutcome.conflict:
+        _showBlockedDialog(
+          'Time conflict',
+          'Managing this overlaps with "${result.conflictingTitle}", which is '
+              'already on your schedule.',
+        );
+      case AddOutcome.full:
+        break; // not applicable to managing
     }
   }
 
@@ -222,7 +394,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     final managing = appState.isManaging(current.id);
     // The big top photo: the explicit hero, or the first gallery photo when no
     // hero was set, so a session with any photo always has a banner.
-    final heroUrl = current.heroImageUrl ??
+    final heroUrl =
+        current.heroImageUrl ??
         (_photos.isNotEmpty ? _photos.first.imageUrl : null);
     // The hero is one of the folder's files; keep it out of the strip.
     final gallery = [
@@ -241,14 +414,16 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                current.track.toUpperCase(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.primary,
-                  letterSpacing: 1,
+              if (current.track.trim().isNotEmpty) ...[
+                Text(
+                  current.track.toUpperCase(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    letterSpacing: 1,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
+                const SizedBox(height: 6),
+              ],
               Text(current.title, style: theme.textTheme.headlineSmall),
               const SizedBox(height: 16),
               _InfoRow(icon: Icons.schedule, text: current.timeLabel),
@@ -320,45 +495,34 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               ],
               const SizedBox(height: 28),
               if (managing)
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.assignment_ind,
-                        size: 20,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          "You're managing this session. It was added to your "
-                          'schedule by an admin.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                FilledButton.icon(
-                  onPressed: () => _toggleSession(current),
-                  style: registered
-                      ? FilledButton.styleFrom(
-                          backgroundColor: theme.colorScheme.errorContainer,
-                          foregroundColor: theme.colorScheme.onErrorContainer,
-                        )
+                _ManagingCard(
+                  // An admin who self-managed (or manages any session) can stop;
+                  // a volunteer was assigned by an admin and cannot.
+                  onStop: appState.isAdmin
+                      ? () => _setManage(current, false)
                       : null,
-                  icon: Icon(registered ? Icons.remove_circle : Icons.add),
-                  label: Text(
-                    registered ? 'Remove from my day' : 'Add to my day',
+                )
+              else if (registered) ...[
+                _RegisteredStatus(
+                  type:
+                      appState.participationOf(current.id) ??
+                      ParticipationType.participant,
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () => _removeFromDay(current),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.errorContainer,
+                    foregroundColor: theme.colorScheme.onErrorContainer,
                   ),
+                  icon: const Icon(Icons.remove_circle),
+                  label: const Text('Remove from my day'),
+                ),
+              ] else
+                FilledButton.icon(
+                  onPressed: () => _addToDay(current),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add to my day'),
                 ),
               if (widget.canEdit) ...[
                 const SizedBox(height: 12),
@@ -402,7 +566,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                             builder: (_) => SessionDetailScreen(session: s),
                           ),
                         ),
-                        onAdd: () => _toggleSession(s),
+                        onAdd: () => _addToDay(s),
                       );
                     },
                   ),
@@ -446,8 +610,7 @@ class _SuggestedSessionCardState extends State<_SuggestedSessionCard> {
   }
 
   Future<void> _resolveFromGallery() async {
-    final photos =
-        await sessionMediaRepository.fetchPhotos(widget.session.id);
+    final photos = await sessionMediaRepository.fetchPhotos(widget.session.id);
     if (!mounted || photos.isEmpty) return;
     setState(() => _imageUrl = photos.first.imageUrl);
   }
@@ -477,10 +640,11 @@ class _SuggestedSessionCardState extends State<_SuggestedSessionCard> {
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       )
-                    : Image.network(
-                        _imageUrl!,
+                    : CachedNetworkImage(
+                        imageUrl: _imageUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
+                        memCacheWidth: 1200,
+                        errorWidget: (_, _, _) => Container(
                           color: theme.colorScheme.surfaceContainerHighest,
                           child: Icon(
                             Icons.broken_image_outlined,
@@ -538,22 +702,21 @@ class _HeroImage extends StatelessWidget {
     final theme = Theme.of(context);
     return AspectRatio(
       aspectRatio: 16 / 9,
-      child: Image.network(
-        url,
+      child: CachedNetworkImage(
+        imageUrl: url,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => Container(
+        memCacheWidth: 1200,
+        errorWidget: (_, _, _) => Container(
           color: theme.colorScheme.surfaceContainerHighest,
           child: Icon(
             Icons.image_not_supported_outlined,
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        loadingBuilder: (context, child, progress) => progress == null
-            ? child
-            : Container(
-                color: theme.colorScheme.surfaceContainerHighest,
-                child: const Center(child: CircularProgressIndicator()),
-              ),
+        placeholder: (_, _) => Container(
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: const Center(child: CircularProgressIndicator()),
+        ),
       ),
     );
   }
@@ -576,11 +739,12 @@ class _Gallery extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (context, i) => ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            photos[i].imageUrl,
+          child: CachedNetworkImage(
+            imageUrl: photos[i].imageUrl,
             width: 220,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => Container(
+            memCacheWidth: 660,
+            errorWidget: (_, _, _) => Container(
               width: 220,
               color: theme.colorScheme.surfaceContainerHighest,
               child: Icon(
@@ -611,6 +775,193 @@ class _InfoRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
         ],
+      ),
+    );
+  }
+}
+
+/// The "you're managing this session" card. When [onStop] is set (an admin), it
+/// offers a "Stop managing" action; a volunteer (null) sees the read-only note
+/// that an admin put it on their schedule.
+class _ManagingCard extends StatelessWidget {
+  const _ManagingCard({this.onStop});
+  final VoidCallback? onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.assignment_ind,
+                size: 20,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  onStop != null
+                      ? "You're managing this session."
+                      : "You're managing this session. It was added to your "
+                            'schedule by an admin.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (onStop != null) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: onStop,
+                icon: const Icon(Icons.close, size: 18),
+                label: const Text('Stop managing'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A small status line shown when the user has this session on their day,
+/// telling them how they joined (participating / spectating / expert).
+class _RegisteredStatus extends StatelessWidget {
+  const _RegisteredStatus({required this.type});
+  final ParticipationType type;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.event_available,
+            size: 20,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              type.statusLabel,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A bottom-sheet form collecting a participant's answers to a session's
+/// questions. All questions are required; "Confirm" returns the answers map
+/// (question id → answer) via `Navigator.pop`.
+class _ParticipantQuestionsSheet extends StatefulWidget {
+  const _ParticipantQuestionsSheet({required this.session});
+  final Session session;
+
+  @override
+  State<_ParticipantQuestionsSheet> createState() =>
+      _ParticipantQuestionsSheetState();
+}
+
+class _ParticipantQuestionsSheetState
+    extends State<_ParticipantQuestionsSheet> {
+  late final Map<String, TextEditingController> _controllers = {
+    for (final q in widget.session.participantQuestions)
+      q.id: TextEditingController(),
+  };
+  String? _error;
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _submit() {
+    final answers = <String, String>{};
+    for (final q in widget.session.participantQuestions) {
+      final text = _controllers[q.id]!.text.trim();
+      if (text.isEmpty) {
+        setState(() => _error = 'Please answer every question.');
+        return;
+      }
+      answers[q.id] = text;
+    }
+    Navigator.of(context).pop(answers);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('A few questions', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              'The session organizers ask participants to share this.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            for (final q in widget.session.participantQuestions)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: TextField(
+                  controller: _controllers[q.id],
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: q.prompt,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            if (_error != null) ...[
+              Text(
+                _error!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            FilledButton.icon(
+              onPressed: _submit,
+              icon: const Icon(Icons.check),
+              label: const Text('Confirm & add'),
+            ),
+          ],
+        ),
       ),
     );
   }

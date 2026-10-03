@@ -120,6 +120,28 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     `announcements_write_setup.sql` (step 8) and propagates live over Realtime —
     no extra migration needed for that path. Without this migration the app
     degrades gracefully: swipe-to-hide just won't persist across restarts.
+23. `supabase/rename_parent_to_parent_spectator.sql` — one-line data migration
+    renaming the stored role string `parent` → `parentSpectator` (the app's
+    SummitRole member was renamed for clarity; it's the role that auto-spectates).
+24. `supabase/session_participation_setup.sql` — the **participation model**:
+    adds `registrations.participation_type` (`participant`/`spectator`/`expert`)
+    + `registrations.answers`, and `sessions.participant_questions` (both flow
+    through `sessions_with_counts`). Redefines `register_for_session` (records the
+    type + answers; capacity still counts every registration) and
+    `fetch_session_roster` (now returns the type + answers for the Participants
+    tab), and adds `set_session_manage` (admin self-manage a session),
+    `session_time_conflicts` + `notify_session_time_conflicts` (warn the editor
+    and notify affected people when a session's time change creates a clash), and
+    **rebuilds the `sessions_with_counts` view** so the session-page columns
+    (`hero_image_url`, `page_blocks`, `participant_questions`) are actually
+    exposed — a `select s.*` view does NOT pick up columns added later, so without
+    this rebuild the hero, content sections, and questions all read back null.
+    **Run this to activate Participate/Spectate/Manage, per-session questions, the
+    session-page fields, and edit-time conflict alerts — without it "Add to my
+    day" still works but everyone registers as a plain participant, the
+    Participants tab won't show project answers, and hero/sections/questions won't
+    save.** Supersedes the `register_for_session` + view in step 6 and the
+    `fetch_session_roster` in step 17.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 /// Sheets) or the server forces the account back to `participant`. Volunteers
 /// carry a [VolunteerSubtype] plus fine-grained capability flags (all set by the
 /// server from the sheet); admins are global.
-enum SummitRole { participant, expert, parent, volunteer, admin }
+enum SummitRole { participant, expert, parentSpectator, volunteer, admin }
 
 /// The kind of volunteer, set from the Google Sheet's `subtype` column and
 /// stored on `profiles.volunteer_subtype`. Drives the profile badge and the
@@ -71,7 +71,7 @@ extension SummitRoleX on SummitRole {
   String get label => switch (this) {
         SummitRole.participant => 'Participant',
         SummitRole.expert => 'Expert / Speaker',
-        SummitRole.parent => 'Parent / Spectator',
+        SummitRole.parentSpectator => 'Parent / Spectator',
         SummitRole.volunteer => 'Volunteer',
         SummitRole.admin => 'Admin',
       };
@@ -80,7 +80,7 @@ extension SummitRoleX on SummitRole {
         SummitRole.participant =>
           'Build your schedule and follow your summit day.',
         SummitRole.expert => 'Lead a session or speak at the summit.',
-        SummitRole.parent => 'Follow along and stay in the loop.',
+        SummitRole.parentSpectator => 'Follow along and stay in the loop.',
         SummitRole.volunteer =>
           'Help run the summit — EAF ambassadors, parent and student volunteers.',
         SummitRole.admin => 'Manage the summit, announcements, and content.',
@@ -89,7 +89,7 @@ extension SummitRoleX on SummitRole {
   IconData get icon => switch (this) {
         SummitRole.participant => Icons.school_outlined,
         SummitRole.expert => Icons.mic_none_outlined,
-        SummitRole.parent => Icons.family_restroom_outlined,
+        SummitRole.parentSpectator => Icons.family_restroom_outlined,
         SummitRole.volunteer => Icons.volunteer_activism_outlined,
         SummitRole.admin => Icons.admin_panel_settings_outlined,
       };
@@ -150,7 +150,7 @@ extension SummitRoleX on SummitRole {
                 required: true,
                 hint: 'e.g. Robotics, Bioengineering'),
           ],
-        SummitRole.parent => const [
+        SummitRole.parentSpectator => const [
             ProfileField(
                 key: 'phone',
                 label: 'Mobile number',
