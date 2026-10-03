@@ -551,9 +551,11 @@ test/widget_test.dart       Widget tests
 - **Sorting gotcha:** in the Dart client (`postgrest-dart`), `.order(col)`
   sorts **descending** unless you pass `ascending: true` — the opposite of
   the JavaScript client (used in the Edge Functions). Always pass `ascending`
-  explicitly. (This reversed reopened Archie chats until it was fixed; the
-  older `disciplines` / `sessions_with_counts` / `rooms` queries in
-  `supabase_repositories.dart` still use the bare form.)
+  explicitly — every `.order()` in the app now does. (The bare form had
+  reversed reopened Archie chats, the Discover discipline order, each
+  discipline's session list, and the rooms list; all fixed. Disciplines and
+  rooms now appear in ascending `sort_order` — lowest number first — and
+  sessions earliest-first.)
 - **Keys:** use the **publishable** key (`sb_publishable_…`), not the deprecated
   anon key; never the secret / `service_role` key in the app.
 - Separate Supabase projects for **dev/testing** and **production** (prod added

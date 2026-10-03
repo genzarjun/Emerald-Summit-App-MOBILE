@@ -21,12 +21,12 @@ class SupabaseCatalogRepository implements CatalogRepository {
   @override
   Future<List<Discipline>> fetchAll() async {
     final discRows =
-        await _client.from('disciplines').select().order('sort_order');
+        await _client.from('disciplines').select().order('sort_order', ascending: true);
 
     final sessRows = await _client
         .from('sessions_with_counts')
         .select()
-        .order('start_time');
+        .order('start_time', ascending: true);
 
     final byDiscipline = <String, List<Session>>{};
     for (final row in sessRows) {
@@ -556,8 +556,8 @@ class SupabaseRoomsRepository implements RoomsRepository {
     final rows = await _client
         .from('rooms')
         .select()
-        .order('sort_order')
-        .order('name');
+        .order('sort_order', ascending: true)
+        .order('name', ascending: true);
     return rows.map((r) => Room.fromMap(r)).toList();
   }
 
