@@ -81,11 +81,28 @@ Home header** (Uber-style), not a bottom-bar tab.
     get **Manage** (a self-assignment into `session_volunteers`, with a "Stop
     managing" toggle); and the **Parent / Spectator** role skips the chooser and
     auto-joins as **Spectating**. Volunteers see a note that an admin will assign
-    them if they're to *manage* a session. Choosing **Participate** first collects
-    the session's **participant questions** (e.g. "What is your project name?")
-    when it has any; answers are stored on the registration (keyed by question id)
-    and shown on the Participants tab. All of it goes through the server-side
-    `register_for_session` RPC, which records the participation type + answers and
+    them if they're to *manage* a session. Choosing **Participate** opens a
+    full-screen **registration form** ([session_registration_screen.dart](lib/screens/session_registration_screen.dart))
+    that always asks the app's **built-in project question** — *"Are you
+    participating in a team, or solo?"* — with a note that anyone unsure can
+    register solo and change it later. **Solo** requires a project name.
+    **Team** offers **Create** (enter the project name → get a **team code** to
+    share, shown in a copyable dialog and on the session page) or **Join** (enter
+    a teammate's code → the app asks *"Is your project name X?"* → Yes registers
+    them under that team). Team codes are the discipline's two-letter prefix +
+    digits — **TV** TechVerse, **VV** VentureVerse, **BS** BioSphere, **NS**
+    NovaSphere, **CV** CivicVerse, **IX** ImagineX (other disciplines use the
+    capitals of their name) — e.g. `TV4821`, and only work for the session they
+    were created in. The form then collects the session's own **participant
+    questions**, if any (answers stored on the registration keyed by question
+    id). Joining a team is a normal registration: the session lands on the
+    schedule and still counts toward capacity/conflicts. Once registered, a
+    **project card** shows the solo project or the team (code + members), and
+    **Edit my registration** lets them switch solo ↔ team, create/join another
+    team, rename their team's project, or revise answers. A team whose last
+    member leaves is deleted (its code stops working). All of it goes through
+    the server-side `register_for_session` RPC, which records the participation
+    type + answers + project and
     still enforces no double-booking (time-conflict dialog) and capacity caps
     (every registration type counts toward capacity), so they can't be bypassed
     from the client. Admin self-manage uses the `set_session_manage` RPC. At
@@ -94,11 +111,16 @@ Home header** (Uber-style), not a bottom-bar tab.
     seats left that **fit an open slot** on their schedule (no time overlap with
     what they've already got), each a photo card with a one-tap **Add**
     (`AppState.suggestedSessions`). The whole rail is hidden when nothing fits.
-  - **Participants** (admins + volunteers *assigned* to the session) — the roster
+  - **Participants** (admins, volunteers *assigned* to the session, and the
+    session's **editors** — read-only for editors who aren't assigned, since
+    marking attendance stays assignment-gated) — the roster
     of people attending (participants + spectators) with attendance toggles (same
     server gate as before). Each row also shows the person's **participation
-    type** and, for participants, their **answers** to the session's questions
-    (their project name, teammates, etc.).
+    type** and, for participants, their **answers** to the session's questions.
+    Participants are **grouped by project**: teammates sit under one team header
+    (project name, code, member count, present count), each solo participant
+    gets their own header, then anyone who hasn't shared a project yet, then
+    spectators.
   - **Experts** (same gate as Participants — admins + assigned volunteers) — the
     people who joined this session as **experts** ("serving as an expert"), with
     the same attendance toggles.
@@ -107,7 +129,9 @@ Home header** (Uber-style), not a bottom-bar tab.
   can edit the session's discipline get **Edit** controls (an AppBar pencil + an
   inline button) that open the editor for the whole page — base fields plus the
   hero photo, gallery, content sections, and the **participant questions** asked
-  of anyone who joins as a participant. Photos are **uploaded in-app**
+  of anyone who joins as a participant — shown below the app's **default
+  questions** (solo/team, project name, team code), which editors can see but
+  not edit. Photos are **uploaded in-app**
   (`image_picker`) into a per-session folder in the public `session_photos`
   Storage bucket; hero/gallery editing needs the session id, so on a brand-new
   session you save first, then reopen to add photos. The editor still ties a
@@ -432,14 +456,26 @@ test/widget_test.dart       Widget tests
     Adds/removes go through the **`register_for_session` RPC**, the single
     server-side enforcer of capacity + no-time-overlap; it also records the
     `participation_type` (`participant`/`spectator`/`expert`) and the
-    participant's `answers` (jsonb, keyed by question id). Participants can
-    later revise their answers ("Edit my answers" on the session page) via the
-    **`update_registration_answers` RPC**, which only touches the caller's own
-    row (`registrations` has no direct UPDATE grant). Gains `attended` /
+    participant's `answers` (jsonb, keyed by question id), plus their project:
+    `project_mode` (`solo`/`team`; null for spectators/experts and older
+    registrations), `project_name` (solo) and `team_id` (→ `teams`).
+    Participants revise answers + project ("Edit my registration") via the
+    **`update_my_registration` RPC**, which only touches the caller's own
+    row (`registrations` has no direct UPDATE grant; the older
+    `update_registration_answers` is superseded). Gains `attended` /
     `attended_at` / `marked_by` for session attendance.
     [registrations_setup.sql](supabase/registrations_setup.sql),
     [session_participation_setup.sql](supabase/session_participation_setup.sql),
-    [registration_answers_edit.sql](supabase/registration_answers_edit.sql)
+    [registration_answers_edit.sql](supabase/registration_answers_edit.sql),
+    [teams_setup.sql](supabase/teams_setup.sql)
+  - `teams` — one row per project team: `session_id`, unique `code`
+    (discipline prefix via `team_code_prefix()` + 4 random digits),
+    `project_name`, `created_by`. **No client grants** — reached only through
+    SECURITY DEFINER RPCs: `find_team` (code lookup for the "Is your project
+    name X?" confirm), `register_for_session` / `update_my_registration`
+    (create/join/stay/leave), `fetch_my_project` (the caller's project, code,
+    and teammates). A trigger deletes a team when its last registration leaves.
+    [teams_setup.sql](supabase/teams_setup.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /
@@ -469,9 +505,10 @@ test/widget_test.dart       Widget tests
     [unassign_notification.sql](supabase/unassign_notification.sql),
     [session_participation_setup.sql](supabase/session_participation_setup.sql)
   - `summit_checkins` + attendance RPCs — session rosters
-    (`fetch_session_roster`, which now also returns each registrant's
-    participation type + answers, / `mark_session_attendance`, gated by
-    assignment) and
+    (`fetch_session_roster`, which also returns each registrant's
+    participation type, answers, and project/team, and is readable by assigned
+    volunteers, admins, and the session's discipline editors /
+    `mark_session_attendance`, gated by assignment) and
     the summit-wide front-desk directory (`fetch_attendee_directory` /
     `mark_summit_checkin`, gated by the front-desk capability).
     [attendance_setup.sql](supabase/attendance_setup.sql)

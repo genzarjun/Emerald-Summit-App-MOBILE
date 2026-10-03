@@ -61,15 +61,17 @@ class SampleScheduleRepository implements ScheduleRepository {
     String sessionId, {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
+    ProjectChoice? project,
   }) async {
     final session = _store.sessionById(sessionId);
     if (session == null) {
-      return const RegistrationResult(RegistrationOutcome.added);
+      return const RegistrationResult.added();
     }
     if (_store.myRegistrations.containsKey(sessionId)) {
       _store.myRegistrations.remove(sessionId);
       _store.rosters[sessionId]
           ?.removeWhere((e) => e.userId == _demoUserId);
+      _leaveTeam(sessionId);
       return const RegistrationResult(RegistrationOutcome.removed);
     }
     if (session.isFull) {
@@ -81,45 +83,213 @@ class SampleScheduleRepository implements ScheduleRepository {
         return RegistrationResult(RegistrationOutcome.conflict, other.title);
       }
     }
+    final RosterEntry entry;
+    try {
+      entry = _entryFor(
+        session,
+        type: type,
+        answers: answers,
+        project: type == ParticipationType.participant ? project : null,
+      );
+    } on TeamCodeException catch (e) {
+      return RegistrationResult.invalidProject(e.message);
+    }
     _store.myRegistrations[sessionId] = type;
     // Reflect the join on the demo roster so the Participants tab shows it.
-    (_store.rosters[sessionId] ??= []).add(RosterEntry(
+    (_store.rosters[sessionId] ??= []).add(entry);
+    return RegistrationResult.added(
+      teamCode: project?.action == ProjectAction.createTeam
+          ? entry.teamCode
+          : null,
+    );
+  }
+
+  @override
+  Future<Map<String, String>> fetchMyAnswers(String sessionId) async =>
+      {...?_myEntry(sessionId)?.answers};
+
+  @override
+  Future<MyProject?> fetchMyProject(String sessionId) async {
+    final e = _myEntry(sessionId);
+    if (e == null || e.isTeam == null) return null;
+    return MyProject(
+      isTeam: e.isTeam!,
+      projectName: e.projectName ?? '',
+      teamCode: e.teamCode,
+      members: e.isTeam! ? [e.name] : const [],
+    );
+  }
+
+  @override
+  Future<TeamLookup> findTeam(String sessionId, String code) async {
+    final team = _store.teams[normalizeTeamCode(code)];
+    if (team == null) return const TeamLookup(TeamLookupOutcome.notFound);
+    if (team.sessionId != sessionId) {
+      return TeamLookup(
+        TeamLookupOutcome.wrongSession,
+        sessionTitle: _store.sessionById(team.sessionId)?.title,
+      );
+    }
+    return TeamLookup(
+      TeamLookupOutcome.found,
+      projectName: team.projectName,
+      memberCount: team.memberIds.length,
+    );
+  }
+
+  @override
+  Future<MyProject> updateMyRegistration(
+    String sessionId, {
+    required Map<String, String> answers,
+    required ProjectChoice project,
+  }) async {
+    final roster = _store.rosters[sessionId];
+    final i = roster?.indexWhere((e) => e.userId == _demoUserId) ?? -1;
+    final session = _store.sessionById(sessionId);
+    if (roster == null || i < 0 || session == null ||
+        roster[i].participationType != ParticipationType.participant) {
+      throw StateError("You're not registered as a participant here.");
+    }
+    final current = roster[i];
+    final rejoining = project.action == ProjectAction.joinTeam &&
+        normalizeTeamCode(project.teamCode ?? '') == current.teamCode;
+    if (project.action == ProjectAction.stayOnTeam || rejoining) {
+      final team = _teamById(current.teamId);
+      if (team == null) {
+        throw const TeamCodeException("That team doesn't exist anymore.");
+      }
+      final name = rejoining ? '' : project.projectName?.trim() ?? '';
+      if (name.isNotEmpty) team.projectName = name;
+      roster[i] = _withTeam(current, team, answers);
+    } else {
+      // Validate before leaving the old team so a bad code changes nothing.
+      _entryFor(session,
+          type: ParticipationType.participant,
+          answers: answers,
+          project: project,
+          dryRun: true);
+      _leaveTeam(sessionId);
+      roster[i] = _entryFor(session,
+          type: ParticipationType.participant,
+          answers: answers,
+          project: project,
+          attended: current.attended);
+    }
+    return (await fetchMyProject(sessionId))!;
+  }
+
+  RosterEntry? _myEntry(String sessionId) {
+    for (final e in _store.rosters[sessionId] ?? const <RosterEntry>[]) {
+      if (e.userId == _demoUserId) return e;
+    }
+    return null;
+  }
+
+  SampleTeam? _teamById(String? id) {
+    if (id == null) return null;
+    for (final t in _store.teams.values) {
+      if (t.id == id) return t;
+    }
+    return null;
+  }
+
+  /// Drops the demo user from their team in [sessionId]; an emptied team is
+  /// deleted (mirrors the cleanup trigger in teams_setup.sql).
+  void _leaveTeam(String sessionId) {
+    _store.teams.removeWhere((_, t) {
+      if (t.sessionId != sessionId) return false;
+      t.memberIds.remove(_demoUserId);
+      return t.memberIds.isEmpty;
+    });
+  }
+
+  /// Builds the demo user's roster entry for [project], creating or joining a
+  /// team as needed (unless [dryRun]). Throws [TeamCodeException] for an
+  /// unusable project answer.
+  RosterEntry _entryFor(
+    Session session, {
+    required ParticipationType type,
+    required Map<String, String> answers,
+    ProjectChoice? project,
+    bool attended = false,
+    bool dryRun = false,
+  }) {
+    final base = RosterEntry(
       userId: _demoUserId,
       name: _store.profile?.fullName.isNotEmpty == true
           ? _store.profile!.fullName
           : 'You',
       email: _store.profile?.email ?? '',
-      attended: false,
+      attended: attended,
       participationType: type,
       answers: answers,
-    ));
-    return const RegistrationResult(RegistrationOutcome.added);
+    );
+    if (project == null) return base;
+    final name = project.projectName?.trim() ?? '';
+    switch (project.action) {
+      case ProjectAction.solo:
+        if (name.isEmpty) {
+          throw const TeamCodeException('Please enter your project name.');
+        }
+        return RosterEntry(
+          userId: base.userId,
+          name: base.name,
+          email: base.email,
+          attended: attended,
+          participationType: type,
+          answers: answers,
+          isTeam: false,
+          projectName: name,
+        );
+      case ProjectAction.createTeam:
+        if (name.isEmpty) {
+          throw const TeamCodeException('Please enter your project name.');
+        }
+        if (dryRun) return base;
+        final prefix = teamCodePrefix(session.disciplineId, session.disciplineName);
+        var n = 1000 + _store.teams.length;
+        while (_store.teams.containsKey('$prefix$n')) {
+          n++;
+        }
+        final team = SampleTeam(
+          id: 'team-$prefix$n',
+          sessionId: session.id,
+          code: '$prefix$n',
+          projectName: name,
+        );
+        _store.teams[team.code] = team;
+        return _withTeam(base, team, answers);
+      case ProjectAction.joinTeam:
+        final team = _store.teams[normalizeTeamCode(project.teamCode ?? '')];
+        if (team == null) {
+          throw const TeamCodeException(
+              "We couldn't find a team with that code.");
+        }
+        if (team.sessionId != session.id) {
+          throw const TeamCodeException(
+              'That team code is for a different session.');
+        }
+        if (dryRun) return base;
+        return _withTeam(base, team, answers);
+      case ProjectAction.stayOnTeam:
+        throw const TeamCodeException("You're not on a team yet.");
+    }
   }
 
-  @override
-  Future<Map<String, String>> fetchMyAnswers(String sessionId) async {
-    for (final e in _store.rosters[sessionId] ?? const <RosterEntry>[]) {
-      if (e.userId == _demoUserId) return {...e.answers};
-    }
-    return const {};
-  }
-
-  @override
-  Future<void> updateMyAnswers(
-      String sessionId, Map<String, String> answers) async {
-    final roster = _store.rosters[sessionId];
-    final i = roster?.indexWhere((e) => e.userId == _demoUserId) ?? -1;
-    if (roster == null || i < 0) {
-      throw StateError("You're not registered for this session.");
-    }
-    final e = roster[i];
-    roster[i] = RosterEntry(
+  RosterEntry _withTeam(
+      RosterEntry e, SampleTeam team, Map<String, String> answers) {
+    team.memberIds.add(e.userId);
+    return RosterEntry(
       userId: e.userId,
       name: e.name,
       email: e.email,
       attended: e.attended,
       participationType: e.participationType,
       answers: answers,
+      isTeam: true,
+      projectName: team.projectName,
+      teamId: team.id,
+      teamCode: team.code,
     );
   }
 

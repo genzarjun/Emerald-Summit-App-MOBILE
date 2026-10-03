@@ -10,7 +10,9 @@ import 'models/user_profile.dart';
 import 'widgets/in_app_banner.dart';
 
 /// Result of trying to add a session to the day plan (app/UI-facing).
-enum AddOutcome { added, removed, conflict, full }
+/// [invalidProject] means the project/team answer was rejected (e.g. the team
+/// code stopped working) and nothing changed.
+enum AddOutcome { added, removed, conflict, full, invalidProject }
 
 /// A way a user can add a session to their day, offered in the "Add to my day"
 /// chooser. Which of these appear depends on the user's role (see
@@ -28,7 +30,7 @@ extension AddModeX on AddMode {
 
   String get blurb => switch (this) {
         AddMode.participate =>
-          'Join in and take part. You may be asked a few questions first.',
+          "Join in and take part. You'll tell us about your project first.",
         AddMode.spectate => 'Watch and follow along, without taking part.',
         AddMode.expert => 'Lead or advise as the session expert.',
         AddMode.manage => "Run this session — it's added to your schedule.",
@@ -52,9 +54,20 @@ extension AddModeX on AddMode {
 }
 
 class AddResult {
-  const AddResult(this.outcome, [this.conflictingTitle]);
+  const AddResult(
+    this.outcome, [
+    this.conflictingTitle,
+    this.teamCode,
+    this.message,
+  ]);
   final AddOutcome outcome;
   final String? conflictingTitle;
+
+  /// Set when the add created a team: the code to share with teammates.
+  final String? teamCode;
+
+  /// Why an [AddOutcome.invalidProject] was rejected.
+  final String? message;
 }
 
 /// App-wide state. Talks ONLY to the backend seam (`backend/`) — it has no
@@ -212,7 +225,8 @@ class AppState extends ChangeNotifier {
   }
 
   /// Toggles a session in the plan. On the ADD branch [type] records how the
-  /// user is joining and [answers] carries participant question answers. The
+  /// user is joining, [answers] carries participant question answers, and
+  /// [project] is a participant's solo/team answer. The
   /// repository is the trusted enforcer of capacity + no-overlap (server-side for
   /// a live backend, in-memory for the sample one); this just mirrors the outcome
   /// into the UI cache.
@@ -220,11 +234,13 @@ class AppState extends ChangeNotifier {
     Session session, {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
+    ProjectChoice? project,
   }) async {
     final res = await scheduleRepository.toggle(
       session.id,
       type: type,
       answers: answers,
+      project: project,
     );
     switch (res.outcome) {
       case RegistrationOutcome.added:
@@ -237,18 +253,41 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       case RegistrationOutcome.full:
       case RegistrationOutcome.conflict:
+      case RegistrationOutcome.invalidProject:
         break; // nothing changed
     }
-    return AddResult(_toAddOutcome(res.outcome), res.conflictingTitle);
+    return AddResult(
+      _toAddOutcome(res.outcome),
+      res.conflictingTitle,
+      res.teamCode,
+      res.message,
+    );
   }
 
   /// The user's saved answers to [session]'s participant questions.
   Future<Map<String, String>> myAnswers(Session session) =>
       scheduleRepository.fetchMyAnswers(session.id);
 
-  /// Replaces the user's answers for a session they've already joined.
-  Future<void> updateMyAnswers(Session session, Map<String, String> answers) =>
-      scheduleRepository.updateMyAnswers(session.id, answers);
+  /// The user's project (solo, or their team + its code) for [session].
+  Future<MyProject?> myProject(Session session) =>
+      scheduleRepository.fetchMyProject(session.id);
+
+  /// Looks up a teammate's code for [session] before joining.
+  Future<TeamLookup> findTeam(Session session, String code) =>
+      scheduleRepository.findTeam(session.id, code);
+
+  /// Replaces the user's answers and project for a session they've already
+  /// joined as a participant.
+  Future<MyProject> updateMyRegistration(
+    Session session, {
+    required Map<String, String> answers,
+    required ProjectChoice project,
+  }) =>
+      scheduleRepository.updateMyRegistration(
+        session.id,
+        answers: answers,
+        project: project,
+      );
 
   /// Admin self-manage: adds or removes the current admin as a manager of
   /// [session]. Mirrors the server outcome into the local assignments cache.
@@ -275,6 +314,7 @@ class AppState extends ChangeNotifier {
         RegistrationOutcome.removed => AddOutcome.removed,
         RegistrationOutcome.full => AddOutcome.full,
         RegistrationOutcome.conflict => AddOutcome.conflict,
+        RegistrationOutcome.invalidProject => AddOutcome.invalidProject,
       };
 
   // ---- Content management (mentors/admins) ---------------------------------

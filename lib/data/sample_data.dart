@@ -34,9 +34,7 @@ class SampleData {
               'panel of industry mentors. Laptops provided.',
           sponsor: 'Sponsored by NorCal DevWorks',
           participantQuestions: [
-            SessionQuestion(id: 'q_project', prompt: 'What is your project name?'),
-            SessionQuestion(
-                id: 'q_teammates', prompt: 'Who are your teammates? (optional)'),
+            SessionQuestion(id: 'q_grade', prompt: 'What grade are you in?'),
           ],
         ),
         Session(

@@ -164,6 +164,16 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     answers" on the session page). It only updates the caller's own
     registration's `answers`. Without it, saving edited answers fails with an
     error snackbar (registering still works).
+28. `supabase/teams_setup.sql` — **solo/team projects**: the `teams` table
+    (RPC-only, no client grants), `registrations.project_mode` /
+    `project_name` / `team_id`, team-code helpers (`team_code_prefix` — TV, VV,
+    BS, NS, CV, IX — and `new_team_code`), an empty-team cleanup trigger, and
+    the RPCs `find_team`, `update_my_registration`, `fetch_my_project`.
+    **Redefines `register_for_session`** (drops the older overloads; adds the
+    project params) and **`fetch_session_roster`** (adds project/team columns
+    and lets the session's discipline editors read it). **Required by the
+    current app: until it's run, participating fails** (the app sends the new
+    project parameters). Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

@@ -71,6 +71,9 @@ class SampleStore {
   /// The summit-wide attendee directory for front-desk check-in.
   final List<Attendee> attendees = [];
 
+  /// Project teams, keyed by code (in-memory analogue of the `teams` table).
+  final Map<String, SampleTeam> teams = {};
+
   List<Session> get allSessions => [for (final d in disciplines) ...d.sessions];
 
   Session? sessionById(String id) {
@@ -79,4 +82,20 @@ class SampleStore {
     }
     return null;
   }
+}
+
+/// One demo team: the session it belongs to, its project, and member user ids.
+class SampleTeam {
+  SampleTeam({
+    required this.id,
+    required this.sessionId,
+    required this.code,
+    required this.projectName,
+  });
+
+  final String id;
+  final String sessionId;
+  final String code;
+  String projectName;
+  final Set<String> memberIds = {};
 }

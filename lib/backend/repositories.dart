@@ -19,17 +19,45 @@ import '../models/models.dart';
 import '../models/user_profile.dart';
 
 /// Outcome of toggling a session in the personal schedule. Mirrors the states
-/// the server-side enforcer can return (capacity + no time overlap).
-enum RegistrationOutcome { added, removed, full, conflict }
+/// the server-side enforcer can return (capacity + no time overlap, plus a
+/// project/team answer it couldn't accept).
+enum RegistrationOutcome { added, removed, full, conflict, invalidProject }
 
 /// Result of a schedule toggle. [conflictingTitle] is set only for
-/// [RegistrationOutcome.conflict].
+/// [RegistrationOutcome.conflict]; [message] only for
+/// [RegistrationOutcome.invalidProject]. On an add that created a team,
+/// [teamCode] is the code to share with teammates.
 class RegistrationResult {
-  const RegistrationResult(this.outcome, [this.conflictingTitle]);
+  const RegistrationResult(
+    this.outcome, [
+    this.conflictingTitle,
+  ])  : teamCode = null,
+        message = null;
+
+  const RegistrationResult.added({this.teamCode})
+      : outcome = RegistrationOutcome.added,
+        conflictingTitle = null,
+        message = null;
+
+  const RegistrationResult.invalidProject(String this.message)
+      : outcome = RegistrationOutcome.invalidProject,
+        conflictingTitle = null,
+        teamCode = null;
 
   final RegistrationOutcome outcome;
   final String? conflictingTitle;
+  final String? teamCode;
+  final String? message;
 }
+
+/// User-facing text for the project/team outcomes the backend can return.
+String? projectProblemMessage(String? outcome) => switch (outcome) {
+      'team_not_found' || 'no_team' =>
+        "That team doesn't exist anymore. Check the code with your teammate.",
+      'team_wrong_session' => 'That team code is for a different session.',
+      'project_name_required' => 'Please enter your project name.',
+      _ => null,
+    };
 
 /// Outcome of an admin assigning a volunteer to a session. [conflict] mirrors
 /// the server-side overlap guard (the volunteer is already committed to an
@@ -117,20 +145,36 @@ abstract interface class ScheduleRepository {
 
   /// Toggles a session in the schedule, enforcing capacity + no-overlap. On the
   /// ADD branch, records [type] and (for participants) [answers] to the session's
-  /// questions; both are ignored when the call toggles a registration OFF.
+  /// questions plus their [project] (solo / create team / join team); all are
+  /// ignored when the call toggles a registration OFF.
   Future<RegistrationResult> toggle(
     String sessionId, {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
+    ProjectChoice? project,
   });
 
   /// The current user's saved answers to [sessionId]'s questions (question id →
   /// answer). Empty if they aren't registered or answered nothing.
   Future<Map<String, String>> fetchMyAnswers(String sessionId);
 
-  /// Replaces the current user's answers for a session they're registered for.
-  /// Throws if they aren't registered for it.
-  Future<void> updateMyAnswers(String sessionId, Map<String, String> answers);
+  /// The current user's project for [sessionId], or null if they aren't
+  /// registered or haven't answered the project question yet.
+  Future<MyProject?> fetchMyProject(String sessionId);
+
+  /// Looks up a team code for [sessionId] so the user can confirm its project
+  /// name before joining.
+  Future<TeamLookup> findTeam(String sessionId, String code);
+
+  /// Replaces the current participant's answers and project for a session
+  /// they're registered for, returning the updated project. Throws
+  /// [TeamCodeException] if the project/team can't be used, or a [StateError]
+  /// if they aren't registered as a participant.
+  Future<MyProject> updateMyRegistration(
+    String sessionId, {
+    required Map<String, String> answers,
+    required ProjectChoice project,
+  });
 }
 
 /// The signed-in user's own profile row.
@@ -289,7 +333,8 @@ abstract interface class AssignmentRepository {
 /// summit-wide front-desk directory (for front-desk-capable volunteers). Every
 /// method is gated server-side.
 abstract interface class AttendanceRepository {
-  /// The registered participants of [sessionId] + their attendance state.
+  /// The registered participants of [sessionId] + their attendance state and
+  /// project/team. Readable by the session's attendance takers and its editors.
   Future<List<RosterEntry>> fetchSessionRoster(String sessionId);
 
   Future<void> markSessionAttendance(

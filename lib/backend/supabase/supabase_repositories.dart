@@ -119,6 +119,7 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     String sessionId, {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
+    ProjectChoice? project,
   }) async {
     final res = await _client.rpc(
       'register_for_session',
@@ -126,17 +127,22 @@ class SupabaseScheduleRepository implements ScheduleRepository {
         'p_session_id': sessionId,
         'p_participation_type': type.id,
         'p_answers': answers,
+        'p_project_mode': project?.modeId,
+        'p_project_name': project?.projectName,
+        'p_team_code': project?.teamCode,
       },
     );
     final map = (res as Map).cast<String, dynamic>();
-    final outcome = switch ((map['outcome'] ?? 'added') as String) {
-      'added' => RegistrationOutcome.added,
-      'removed' => RegistrationOutcome.removed,
-      'full' => RegistrationOutcome.full,
-      'conflict' => RegistrationOutcome.conflict,
-      _ => RegistrationOutcome.added,
+    final raw = (map['outcome'] ?? 'added') as String;
+    final problem = projectProblemMessage(raw);
+    if (problem != null) return RegistrationResult.invalidProject(problem);
+    return switch (raw) {
+      'removed' => const RegistrationResult(RegistrationOutcome.removed),
+      'full' => const RegistrationResult(RegistrationOutcome.full),
+      'conflict' => RegistrationResult(
+          RegistrationOutcome.conflict, map['conflicting_title'] as String?),
+      _ => RegistrationResult.added(teamCode: map['team_code'] as String?),
     };
-    return RegistrationResult(outcome, map['conflicting_title'] as String?);
   }
 
   @override
@@ -150,16 +156,65 @@ class SupabaseScheduleRepository implements ScheduleRepository {
   }
 
   @override
-  Future<void> updateMyAnswers(
-      String sessionId, Map<String, String> answers) async {
+  Future<MyProject?> fetchMyProject(String sessionId) async {
     final res = await _client.rpc(
-      'update_registration_answers',
-      params: {'p_session_id': sessionId, 'p_answers': answers},
+      'fetch_my_project',
+      params: {'p_session_id': sessionId},
     );
-    final outcome = (res as Map?)?['outcome'];
+    return MyProject.fromMap((res as Map?)?.cast<String, dynamic>());
+  }
+
+  @override
+  Future<TeamLookup> findTeam(String sessionId, String code) async {
+    final res = await _client.rpc(
+      'find_team',
+      params: {'p_session_id': sessionId, 'p_code': code},
+    );
+    final map = (res as Map).cast<String, dynamic>();
+    return switch (map['outcome']) {
+      'found' => TeamLookup(
+          TeamLookupOutcome.found,
+          projectName: map['project_name'] as String?,
+          memberCount: (map['member_count'] as num?)?.toInt() ?? 0,
+        ),
+      'wrong_session' => TeamLookup(
+          TeamLookupOutcome.wrongSession,
+          sessionTitle: map['session_title'] as String?,
+        ),
+      _ => const TeamLookup(TeamLookupOutcome.notFound),
+    };
+  }
+
+  @override
+  Future<MyProject> updateMyRegistration(
+    String sessionId, {
+    required Map<String, String> answers,
+    required ProjectChoice project,
+  }) async {
+    final res = await _client.rpc(
+      'update_my_registration',
+      params: {
+        'p_session_id': sessionId,
+        'p_answers': answers,
+        'p_project_mode': project.modeId,
+        'p_project_name': project.projectName,
+        'p_team_code': project.teamCode,
+      },
+    );
+    final map = (res as Map).cast<String, dynamic>();
+    final outcome = map['outcome'] as String?;
+    final problem = projectProblemMessage(outcome);
+    if (problem != null) throw TeamCodeException(problem);
     if (outcome != 'updated') {
-      throw StateError("You're not registered for this session.");
+      throw StateError("You're not registered as a participant here.");
     }
+    // Re-read so a team edit comes back with its full member list.
+    return await fetchMyProject(sessionId) ??
+        MyProject(
+          isTeam: map['team_code'] != null,
+          projectName: (map['project_name'] ?? '') as String,
+          teamCode: map['team_code'] as String?,
+        );
   }
 }
 
@@ -663,7 +718,8 @@ class SupabaseAssignmentRepository implements AssignmentRepository {
 
 /// Attendance: session rosters + mark, and the front-desk attendee directory +
 /// check-in. Every call is a SECURITY DEFINER RPC that enforces the right gate
-/// (session assignment, or the front-desk capability) server-side.
+/// (session assignment / discipline editor, or the front-desk capability)
+/// server-side.
 class SupabaseAttendanceRepository implements AttendanceRepository {
   SupabaseAttendanceRepository(this._client);
 

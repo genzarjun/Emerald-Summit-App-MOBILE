@@ -139,6 +139,166 @@ class SessionQuestion {
   }
 }
 
+/// The app's built-in registration questions, asked of EVERY participant on top
+/// of a session's own [SessionQuestion]s. Session editors see them (read-only)
+/// in the session editor.
+abstract final class DefaultQuestions {
+  static const soloOrTeam = 'Are you participating in a team, or solo?';
+  static const projectName = 'What is your project name?';
+  static const teamCode = "What's your team code?";
+  static const unsureNote =
+      "Not sure yet whether you'll have a team? Register as solo for now — you "
+      'can always change your answer later from the session page.';
+}
+
+/// The two-letter prefix that starts every team code in a discipline (e.g.
+/// TV4821 for TechVerse). Mirrors `team_code_prefix` in teams_setup.sql, which
+/// is what actually issues codes — this is only for display.
+String teamCodePrefix(String disciplineId, String disciplineName) {
+  const pinned = {
+    'techverse': 'TV',
+    'ventureverse': 'VV',
+    'biosphere': 'BS',
+    'novasphere': 'NS',
+    'civicverse': 'CV',
+    'imaginex': 'IX',
+  };
+  final fixed = pinned[disciplineId];
+  if (fixed != null) return fixed;
+  final caps = disciplineName.replaceAll(RegExp('[^A-Z]'), '');
+  if (caps.length >= 2) return caps.substring(0, 2);
+  final letters = disciplineName.replaceAll(RegExp('[^A-Za-z]'), '');
+  if (letters.isEmpty) return 'TM';
+  return letters.substring(0, letters.length < 2 ? letters.length : 2)
+      .toUpperCase()
+      .padRight(2, 'X');
+}
+
+/// Cleans up a typed team code ("tv 4821" → "TV4821").
+String normalizeTeamCode(String code) =>
+    code.replaceAll(RegExp(r'\s'), '').toUpperCase();
+
+/// What a participant chose for the built-in project question.
+enum ProjectAction {
+  /// Working alone; [ProjectChoice.projectName] is their project.
+  solo,
+
+  /// Starting a team; [ProjectChoice.projectName] names it and a code is issued.
+  createTeam,
+
+  /// Joining a teammate's team by [ProjectChoice.teamCode].
+  joinTeam,
+
+  /// (Editing only) staying on the current team, optionally renaming its
+  /// project to [ProjectChoice.projectName].
+  stayOnTeam,
+}
+
+/// A participant's answer to the built-in solo/team question, sent along with a
+/// registration (or a later edit of it).
+class ProjectChoice {
+  const ProjectChoice.solo(String this.projectName)
+      : action = ProjectAction.solo,
+        teamCode = null;
+  const ProjectChoice.createTeam(String this.projectName)
+      : action = ProjectAction.createTeam,
+        teamCode = null;
+  const ProjectChoice.joinTeam(String this.teamCode)
+      : action = ProjectAction.joinTeam,
+        projectName = null;
+  const ProjectChoice.stayOnTeam([this.projectName])
+      : action = ProjectAction.stayOnTeam,
+        teamCode = null;
+
+  final ProjectAction action;
+  final String? projectName;
+  final String? teamCode;
+
+  /// The `p_project_mode` value the backend RPCs take.
+  String get modeId => switch (action) {
+        ProjectAction.solo => 'solo',
+        ProjectAction.createTeam => 'create',
+        ProjectAction.joinTeam => 'join',
+        ProjectAction.stayOnTeam => 'stay',
+      };
+}
+
+/// The signed-in participant's project for one session — what the session page
+/// shows them (and the team code they share with teammates).
+class MyProject {
+  const MyProject({
+    required this.isTeam,
+    required this.projectName,
+    this.teamCode,
+    this.members = const [],
+  });
+
+  /// True for a team project, false for solo.
+  final bool isTeam;
+  final String projectName;
+  final String? teamCode;
+
+  /// Everyone on the team (including the caller), by display name.
+  final List<String> members;
+
+  /// Parses the `fetch_my_project` result. Null when the user isn't registered
+  /// or registered before the team question existed (no answer yet).
+  static MyProject? fromMap(Map<String, dynamic>? row) {
+    if (row == null) return null;
+    final mode = row['mode'] as String?;
+    if (mode != 'solo' && mode != 'team') return null;
+    return MyProject(
+      isTeam: mode == 'team',
+      projectName: (row['project_name'] ?? '') as String,
+      teamCode: row['team_code'] as String?,
+      members: [
+        for (final m in (row['members'] as List?) ?? const []) '$m',
+      ],
+    );
+  }
+}
+
+/// Result of looking up a team code before joining.
+enum TeamLookupOutcome { found, notFound, wrongSession }
+
+class TeamLookup {
+  const TeamLookup(
+    this.outcome, {
+    this.projectName,
+    this.memberCount = 0,
+    this.sessionTitle,
+  });
+
+  final TeamLookupOutcome outcome;
+
+  /// The team's project, for the "Is your project name …?" confirmation.
+  final String? projectName;
+  final int memberCount;
+
+  /// For [TeamLookupOutcome.wrongSession]: the session the code belongs to.
+  final String? sessionTitle;
+
+  /// The user-facing reason a code can't be used, or null when [found].
+  String? get problem => switch (outcome) {
+        TeamLookupOutcome.found => null,
+        TeamLookupOutcome.notFound =>
+          "We couldn't find a team with that code. Check it with your teammate.",
+        TeamLookupOutcome.wrongSession => sessionTitle == null
+            ? 'That code is for a different session.'
+            : 'That code is for "$sessionTitle", not this session.',
+      };
+}
+
+/// A team-code problem reported by the backend when saving a registration
+/// (e.g. the team was deleted between lookup and save).
+class TeamCodeException implements Exception {
+  const TeamCodeException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// A single session/activity a participant can add to their day plan.
 class Session {
   const Session({
@@ -449,6 +609,10 @@ class RosterEntry {
     required this.attended,
     this.participationType = ParticipationType.participant,
     this.answers = const {},
+    this.isTeam,
+    this.projectName,
+    this.teamId,
+    this.teamCode,
   });
 
   final String userId;
@@ -463,15 +627,38 @@ class RosterEntry {
   /// Empty for spectators/experts and for sessions with no questions.
   final Map<String, String> answers;
 
-  factory RosterEntry.fromMap(Map<String, dynamic> row) => RosterEntry(
-        userId: row['user_id'].toString(),
-        name: (row['full_name'] ?? '') as String,
-        email: (row['email'] ?? '') as String,
-        attended: (row['attended'] ?? false) as bool,
-        participationType:
-            ParticipationTypeX.fromId(row['participation_type'] as String?),
-        answers: parseAnswers(row['answers']),
-      );
+  /// True for a team project, false for solo, null when the participant hasn't
+  /// answered the project question (spectators, experts, older registrations).
+  final bool? isTeam;
+
+  /// Their project's name (the team's, for a team member).
+  final String? projectName;
+
+  /// The team they're on — teammates share it, which is how the roster groups
+  /// them. Null for solo participants.
+  final String? teamId;
+  final String? teamCode;
+
+  factory RosterEntry.fromMap(Map<String, dynamic> row) {
+    final mode = row['project_mode'] as String?;
+    return RosterEntry(
+      userId: row['user_id'].toString(),
+      name: (row['full_name'] ?? '') as String,
+      email: (row['email'] ?? '') as String,
+      attended: (row['attended'] ?? false) as bool,
+      participationType:
+          ParticipationTypeX.fromId(row['participation_type'] as String?),
+      answers: parseAnswers(row['answers']),
+      isTeam: switch (mode) {
+        'team' => true,
+        'solo' => false,
+        _ => null,
+      },
+      projectName: row['project_name'] as String?,
+      teamId: row['team_id']?.toString(),
+      teamCode: row['team_code'] as String?,
+    );
+  }
 
   /// Decodes the `answers` jsonb (a decoded [Map] from some backends, a JSON
   /// [String] from others) into a `{questionId: answer}` string map.
@@ -502,6 +689,10 @@ class RosterEntry {
         attended: attended ?? this.attended,
         participationType: participationType,
         answers: answers,
+        isTeam: isTeam,
+        projectName: projectName,
+        teamId: teamId,
+        teamCode: teamCode,
       );
 }
 

@@ -1,11 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
 import '../theme.dart';
 import 'session_editor_screen.dart';
+import 'session_registration_screen.dart';
 import 'session_roster_screen.dart';
 import 'session_volunteers_screen.dart';
 
@@ -67,9 +69,12 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         );
 
         final canEdit = appState.canManageDiscipline(current.disciplineId);
-        // Admins and volunteers who manage this session see the people tabs.
-        final canSeeRoster =
+        // Admins and volunteers who manage this session take attendance; the
+        // session's editors also see the people tabs (read-only) so they can
+        // follow who's working on which project.
+        final canMarkAttendance =
             appState.isAdmin || appState.isManaging(current.id);
+        final canSeeRoster = canMarkAttendance || canEdit;
         final canSeeVolunteers = appState.isAdmin;
 
         // Build the tab set in a fixed order, tracking labels for the TabBar.
@@ -91,6 +96,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                 ParticipationType.participant,
                 ParticipationType.spectator,
               },
+              canMarkAttendance: canMarkAttendance,
               emptyMessage:
                   'No participants have registered for this session '
                   'yet.',
@@ -101,6 +107,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             SessionRosterView(
               session: current,
               types: const {ParticipationType.expert},
+              canMarkAttendance: canMarkAttendance,
               emptyMessage: 'No experts have registered for this session yet.',
             ),
           );
@@ -176,10 +183,35 @@ class _SessionAboutTab extends StatefulWidget {
 class _SessionAboutTabState extends State<_SessionAboutTab> {
   List<GalleryPhoto> _photos = const [];
 
+  /// The viewer's project for this session (solo, or their team + code), shown
+  /// once they've registered as a participant. Null when not loaded/answered.
+  MyProject? _project;
+  bool _projectLoaded = false;
+
   @override
   void initState() {
     super.initState();
     _loadPhotos();
+    _loadProject();
+  }
+
+  Future<void> _loadProject() async {
+    if (appState.participationOf(widget.session.id) !=
+        ParticipationType.participant) {
+      if (mounted) setState(() => _project = null);
+      return;
+    }
+    MyProject? project;
+    try {
+      project = await appState.myProject(widget.session);
+    } catch (_) {
+      project = null;
+    }
+    if (!mounted) return;
+    setState(() {
+      _project = project;
+      _projectLoaded = true;
+    });
   }
 
   Future<void> _loadPhotos() async {
@@ -207,11 +239,17 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
       return;
     }
     final type = mode.participationType!;
-    if (type == ParticipationType.participant &&
-        s.participantQuestions.isNotEmpty) {
-      final answers = await _collectAnswers(s);
-      if (answers == null || !mounted) return; // cancelled
-      await _register(s, type, answers: answers);
+    if (type == ParticipationType.participant) {
+      // Every participant answers the built-in solo/team question, plus any
+      // questions the session's editors added.
+      final form = await Navigator.of(context).push(
+        MaterialPageRoute<RegistrationFormResult>(
+          fullscreenDialog: true,
+          builder: (_) => SessionRegistrationScreen(session: s),
+        ),
+      );
+      if (form == null || !mounted) return; // cancelled
+      await _register(s, type, answers: form.answers, project: form.project);
     } else {
       await _register(s, type);
     }
@@ -272,55 +310,89 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     );
   }
 
-  /// Collects answers to [s]'s participant questions. Returns the answers map
-  /// (question id → answer), or null if the user backed out.
-  Future<Map<String, String>?> _collectAnswers(
-    Session s, {
-    Map<String, String> initialAnswers = const {},
-    String submitLabel = 'Confirm & add',
-  }) {
-    return showModalBottomSheet<Map<String, String>>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: _ParticipantQuestionsSheet(
+  /// Lets a registered participant revise their project (solo ↔ team, a
+  /// different team, a renamed project) and the answers they gave on joining.
+  Future<void> _editRegistration(Session s) async {
+    final messenger = ScaffoldMessenger.of(context);
+    Map<String, String> answers;
+    try {
+      answers = await appState.myAnswers(s);
+    } catch (_) {
+      answers = const {};
+    }
+    if (!mounted) return;
+    final form = await Navigator.of(context).push(
+      MaterialPageRoute<RegistrationFormResult>(
+        fullscreenDialog: true,
+        builder: (_) => SessionRegistrationScreen(
           session: s,
-          initialAnswers: initialAnswers,
-          submitLabel: submitLabel,
+          editing: true,
+          initialProject: _project,
+          initialAnswers: answers,
         ),
       ),
     );
-  }
-
-  /// Lets a registered participant revise the answers they gave on joining.
-  Future<void> _editAnswers(Session s) async {
-    final messenger = ScaffoldMessenger.of(context);
-    Map<String, String> current;
-    try {
-      current = await appState.myAnswers(s);
-    } catch (_) {
-      current = const {};
-    }
-    if (!mounted) return;
-    final answers = await _collectAnswers(
-      s,
-      initialAnswers: current,
-      submitLabel: 'Save answers',
-    );
-    if (answers == null || !mounted) return;
+    if (form == null || !mounted) return;
     messenger.hideCurrentSnackBar();
     try {
-      await appState.updateMyAnswers(s, answers);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Your answers were updated')),
+      final project = await appState.updateMyRegistration(
+        s,
+        answers: form.answers,
+        project: form.project,
       );
+      if (!mounted) return;
+      setState(() => _project = project);
+      if (form.project.action == ProjectAction.createTeam &&
+          project.teamCode != null) {
+        await _showTeamCode(project.teamCode!, project.projectName);
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Your registration was updated')),
+        );
+      }
+    } on TeamCodeException catch (e) {
+      _showBlockedDialog('Couldn\'t update your team', e.message);
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text("Couldn't save your answers. Try again.")),
+        const SnackBar(content: Text("Couldn't save your changes. Try again.")),
       );
     }
+  }
+
+  /// Shows a newly created team's code, ready to copy and share.
+  Future<void> _showTeamCode(String code, String projectName) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.groups_outlined),
+        title: const Text('Your team is ready'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              projectName,
+              textAlign: TextAlign.center,
+              style: Theme.of(ctx).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 16),
+            _TeamCodeChip(code: code),
+            const SizedBox(height: 16),
+            const Text(
+              'Share this code with your teammates. They enter it when they '
+              'register for this session to join your team. You can always '
+              'find it again on this page.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Registers [s] under [type], surfacing full/conflict blocks.
@@ -328,11 +400,18 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     Session s,
     ParticipationType type, {
     Map<String, String> answers = const {},
+    ProjectChoice? project,
   }) async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await appState.toggle(s, type: type, answers: answers);
+    final result = await appState.toggle(
+      s,
+      type: type,
+      answers: answers,
+      project: project,
+    );
     if (!mounted) return;
     messenger.hideCurrentSnackBar();
+    if (s.id == widget.session.id) _loadProject();
     switch (result.outcome) {
       case AddOutcome.added:
         messenger.showSnackBar(
@@ -342,9 +421,17 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
             ),
           ),
         );
+        if (result.teamCode != null) {
+          await _showTeamCode(result.teamCode!, project?.projectName ?? '');
+        }
       case AddOutcome.removed:
         messenger.showSnackBar(
           SnackBar(content: Text('Removed "${s.title}" from your day')),
+        );
+      case AddOutcome.invalidProject:
+        _showBlockedDialog(
+          "Couldn't register",
+          result.message ?? 'Check your project details and try again.',
         );
       case AddOutcome.full:
         _showBlockedDialog(
@@ -366,6 +453,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     final messenger = ScaffoldMessenger.of(context);
     final result = await appState.toggle(s);
     if (!mounted) return;
+    if (s.id == widget.session.id) setState(() => _project = null);
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -401,6 +489,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               'already on your schedule.',
         );
       case AddOutcome.full:
+      case AddOutcome.invalidProject:
         break; // not applicable to managing
     }
   }
@@ -546,13 +635,20 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                       ParticipationType.participant,
                 ),
                 if (appState.participationOf(current.id) ==
-                        ParticipationType.participant &&
-                    current.participantQuestions.isNotEmpty) ...[
+                    ParticipationType.participant) ...[
+                  if (_projectLoaded) ...[
+                    const SizedBox(height: 12),
+                    _ProjectCard(project: _project),
+                  ],
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
-                    onPressed: () => _editAnswers(current),
+                    onPressed: () => _editRegistration(current),
                     icon: const Icon(Icons.edit_note),
-                    label: const Text('Edit my answers'),
+                    label: Text(
+                      _projectLoaded && _project == null
+                          ? 'Add my project details'
+                          : 'Edit my registration',
+                    ),
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -921,101 +1017,131 @@ class _RegisteredStatus extends StatelessWidget {
   }
 }
 
-/// A bottom-sheet form collecting a participant's answers to a session's
-/// questions. All questions are required; "Confirm" returns the answers map
-/// (question id → answer) via `Navigator.pop`. [initialAnswers] prefills the
-/// fields when editing answers given earlier.
-class _ParticipantQuestionsSheet extends StatefulWidget {
-  const _ParticipantQuestionsSheet({
-    required this.session,
-    this.initialAnswers = const {},
-    this.submitLabel = 'Confirm & add',
-  });
-  final Session session;
-  final Map<String, String> initialAnswers;
-  final String submitLabel;
-
-  @override
-  State<_ParticipantQuestionsSheet> createState() =>
-      _ParticipantQuestionsSheetState();
-}
-
-class _ParticipantQuestionsSheetState
-    extends State<_ParticipantQuestionsSheet> {
-  late final Map<String, TextEditingController> _controllers = {
-    for (final q in widget.session.participantQuestions)
-      q.id: TextEditingController(text: widget.initialAnswers[q.id] ?? ''),
-  };
-  String? _error;
-
-  @override
-  void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  void _submit() {
-    final answers = <String, String>{};
-    for (final q in widget.session.participantQuestions) {
-      final text = _controllers[q.id]!.text.trim();
-      if (text.isEmpty) {
-        setState(() => _error = 'Please answer every question.');
-        return;
-      }
-      answers[q.id] = text;
-    }
-    Navigator.of(context).pop(answers);
-  }
+/// The participant's project on the session page: solo, or their team with
+/// its shareable code and members. A null [project] means they registered
+/// before the team question existed and haven't answered it yet.
+class _ProjectCard extends StatelessWidget {
+  const _ProjectCard({required this.project});
+  final MyProject? project;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('A few questions', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              'The session organizers ask participants to share this.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+    final p = project;
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                p == null
+                    ? Icons.help_outline
+                    : p.isTeam
+                        ? Icons.groups_outlined
+                        : Icons.person_outline,
+                size: 20,
+                color: theme.colorScheme.primary,
               ),
-            ),
-            const SizedBox(height: 16),
-            for (final q in widget.session.participantQuestions)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: TextField(
-                  controller: _controllers[q.id],
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: q.prompt,
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-              ),
-            if (_error != null) ...[
+              const SizedBox(width: 10),
               Text(
-                _error!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
+                p == null
+                    ? 'Your project'
+                    : p.isTeam
+                        ? 'Team project'
+                        : 'Solo project',
+                style: theme.textTheme.labelLarge,
               ),
-              const SizedBox(height: 8),
             ],
-            FilledButton.icon(
-              onPressed: _submit,
-              icon: const Icon(Icons.check),
-              label: Text(widget.submitLabel),
-            ),
+          ),
+          const SizedBox(height: 8),
+          if (p == null)
+            Text(
+              "Let the organizers know whether you're working solo or on a "
+              'team, and what your project is.',
+              style: theme.textTheme.bodyMedium,
+            )
+          else ...[
+            Text(p.projectName, style: theme.textTheme.titleMedium),
+            if (p.isTeam && p.teamCode != null) ...[
+              const SizedBox(height: 12),
+              _TeamCodeChip(code: p.teamCode!),
+              const SizedBox(height: 8),
+              Text(
+                'Share this code with teammates so they can join when they '
+                'register for this session.',
+                style: muted,
+              ),
+            ],
+            if (p.isTeam && p.members.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Members (${p.members.length}): ${p.members.join(', ')}',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+            if (!p.isTeam) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Teaming up later? Edit your registration to create or join '
+                'a team.',
+                style: muted,
+              ),
+            ],
           ],
-        ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A team code in large type with a copy button.
+class _TeamCodeChip extends StatelessWidget {
+  const _TeamCodeChip({required this.code});
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: EmeraldTheme.mist,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SelectableText(
+            code,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: EmeraldTheme.deepEmerald,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(width: 6),
+          IconButton(
+            tooltip: 'Copy code',
+            icon: const Icon(Icons.copy, size: 20),
+            color: EmeraldTheme.deepEmerald,
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              await Clipboard.setData(ClipboardData(text: code));
+              messenger?.showSnackBar(
+                SnackBar(content: Text('Copied team code $code')),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

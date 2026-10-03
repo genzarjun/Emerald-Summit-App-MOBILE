@@ -634,9 +634,20 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         Text('Participant questions', style: theme.textTheme.labelLarge),
         const SizedBox(height: 4),
         Text(
-          'Asked when someone adds this session as a participant (e.g. "What is '
-          'your project name?"). Answers show on the Participants tab. Leave '
-          'empty to let participants join without questions.',
+          'Asked when someone adds this session as a participant. Answers show '
+          'on the Participants tab, where teammates are grouped under their '
+          'project.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _defaultQuestions(theme),
+        const SizedBox(height: 16),
+        Text('Your additional questions', style: theme.textTheme.labelMedium),
+        const SizedBox(height: 4),
+        Text(
+          'Optional — asked after the default questions above.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -679,6 +690,55 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// The app's built-in questions every participant answers. Shown read-only
+  /// so editors know what's already asked (and don't duplicate it).
+  Widget _defaultQuestions(ThemeData theme) {
+    final prefix = teamCodePrefix(widget.discipline.id, widget.discipline.name);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    Widget item(String prompt, String detail) => Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.lock_outline, size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(prompt, style: theme.textTheme.bodyMedium),
+                    Text(detail, style: muted),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Default questions (set by the app)',
+              style: theme.textTheme.labelMedium),
+          item(DefaultQuestions.soloOrTeam,
+              'Always asked. Answer: Solo or Team.'),
+          item(DefaultQuestions.projectName,
+              'Asked of solo participants and of whoever creates a team.'),
+          item(DefaultQuestions.teamCode,
+              'Asked when joining a team. Codes for this discipline look like '
+              '${prefix}1234; the joiner confirms the team\'s project name.'),
+        ],
+      ),
     );
   }
 
