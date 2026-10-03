@@ -152,9 +152,13 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     (creating an 11th deletes the least-recently-used) and **15 questions per
     chat** (`archie_chat_full` error). Adds the admin-only
     `archie_recent_exchanges()` RPC — recent question/answer pairs with **no
-    user identity** — behind Profile → *Archie insights*. Without it, Archie
+    user identity** — behind Profile → *Archie insights*. The app saves via
+    the `archie_save_exchange()` RPC, which writes the chat and both messages
+    in **one transaction** (an earlier version used a client-side bulk insert
+    that failed silently and left empty chats; re-running this file installs
+    the RPC and deletes those empty chats). Safe to re-run. Without it, Archie
     still chats but nothing is saved and the history sheet can't load.
-26. `supabase/registration_answers_edit.sql` — adds the
+27. `supabase/registration_answers_edit.sql` — adds the
     `update_registration_answers(session_id, answers)` SECURITY DEFINER RPC so a
     participant can **edit the answers they gave when registering** ("Edit my
     answers" on the session page). It only updates the caller's own

@@ -66,6 +66,29 @@ void main() {
     expect(find.textContaining('park'), findsNothing);
   });
 
+  testWidgets('header: History sits flush right until New chat appears', (
+    tester,
+  ) async {
+    await pumpArchie(tester);
+    final screenWidth = tester.getSize(find.byType(ArchieScreen)).width;
+    expect(find.byTooltip('New chat'), findsNothing);
+    // Flush with the header's right padding — not a button-width (48px) in.
+    expect(
+      tester.getRect(find.byTooltip('Your chats')).right,
+      greaterThan(screenWidth - 24),
+    );
+
+    await tester.tap(find.text('Which sessions still have open seats?'));
+    await frames(tester, frames: 10);
+    expect(find.byTooltip('New chat'), findsOneWidget);
+    expect(
+      tester.getRect(find.byTooltip('Your chats')).right,
+      lessThan(screenWidth - 40),
+    );
+    fake.current.close();
+    await frames(tester);
+  });
+
   testWidgets('tapping a starter streams steps, types out the answer, '
       'then shows sources', (tester) async {
     await pumpArchie(tester);

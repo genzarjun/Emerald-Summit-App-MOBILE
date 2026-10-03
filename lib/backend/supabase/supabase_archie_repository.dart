@@ -18,8 +18,9 @@ class SupabaseArchieRepository implements ArchieRepository {
 
   final SupabaseClient _client;
 
-  static final Uri _endpoint =
-      Uri.parse('${SupabaseConfig.supabaseUrl}/functions/v1/archie-chat');
+  static final Uri _endpoint = Uri.parse(
+    '${SupabaseConfig.supabaseUrl}/functions/v1/archie-chat',
+  );
 
   @override
   Stream<ArchieEvent> ask(List<ArchieTurn> transcript) {
@@ -56,7 +57,9 @@ class SupabaseArchieRepository implements ArchieRepository {
         final response = await httpClient.send(request);
         if (response.statusCode != 200) {
           final body = await response.stream.bytesToString();
-          controller.add(ArchieFailure(_errorMessage(response.statusCode, body)));
+          controller.add(
+            ArchieFailure(_errorMessage(response.statusCode, body)),
+          );
           await controller.close();
           return;
         }
@@ -65,23 +68,29 @@ class SupabaseArchieRepository implements ArchieRepository {
             .transform(utf8.decoder)
             .transform(const LineSplitter())
             .listen(
-          (line) {
-            if (!line.startsWith('data:')) return;
-            final event = _parse(line.substring(5).trim());
-            if (event != null) controller.add(event);
-          },
-          onError: (Object _) {
-            controller.add(const ArchieFailure(
-                'Lost the connection to Archie. Please try again.'));
-            controller.close();
-          },
-          onDone: controller.close,
-          cancelOnError: true,
-        );
+              (line) {
+                if (!line.startsWith('data:')) return;
+                final event = _parse(line.substring(5).trim());
+                if (event != null) controller.add(event);
+              },
+              onError: (Object _) {
+                controller.add(
+                  const ArchieFailure(
+                    'Lost the connection to Archie. Please try again.',
+                  ),
+                );
+                controller.close();
+              },
+              onDone: controller.close,
+              cancelOnError: true,
+            );
       } catch (_) {
         if (!controller.isClosed) {
-          controller.add(const ArchieFailure(
-              "Couldn't reach Archie. Check your connection and try again."));
+          controller.add(
+            const ArchieFailure(
+              "Couldn't reach Archie. Check your connection and try again.",
+            ),
+          );
           await controller.close();
         }
       }
@@ -149,26 +158,21 @@ class SupabaseArchieRepository implements ArchieRepository {
     required ArchieSavedMessage answer,
   }) async {
     try {
-      final id = chatId ??
-          (await _client
-              .from('archie_chats')
-              .insert({'title': archieChatTitle(question)})
-              .select('id')
-              .single())['id'] as String;
-      // One insert, two rows: the identity id keeps question before answer.
-      await _client.from('archie_messages').insert([
-        {'chat_id': id, 'role': 'user', 'content': question},
-        {
-          'chat_id': id,
-          'role': 'assistant',
-          'content': answer.text,
-          'sources': [
+      // One atomic RPC: creates the chat if needed and saves both messages in
+      // a single transaction, so a failure never leaves an empty chat.
+      return await _client.rpc(
+        'archie_save_exchange',
+        params: {
+          'p_chat_id': chatId,
+          'p_title': archieChatTitle(question),
+          'p_question': question,
+          'p_answer': answer.text,
+          'p_sources': [
             for (final s in answer.sources) {'title': s.title, 'url': s.url},
           ],
-          'steps': answer.steps,
+          'p_steps': answer.steps,
         },
-      ]);
-      return id;
+      ) as String;
     } on PostgrestException catch (e) {
       if (e.message.contains('archie_chat_full')) {
         throw const ArchieChatFullException();
@@ -183,8 +187,10 @@ class SupabaseArchieRepository implements ArchieRepository {
 
   @override
   Future<List<ArchieExchange>> recentExchanges({int limit = 100}) async {
-    final rows = await _client
-        .rpc('archie_recent_exchanges', params: {'p_limit': limit}) as List;
+    final rows = await _client.rpc(
+      'archie_recent_exchanges',
+      params: {'p_limit': limit},
+    ) as List;
     return [
       for (final r in rows)
         ArchieExchange(
@@ -208,14 +214,15 @@ class SupabaseArchieRepository implements ArchieRepository {
       'status' => ArchieStatus((json['text'] ?? '') as String),
       'delta' => ArchieDelta((json['text'] ?? '') as String),
       'sources' => ArchieSources([
-          for (final s in (json['sources'] as List? ?? const []))
-            ArchieSource(
-              title: (s['title'] ?? '') as String,
-              url: (s['url'] ?? '') as String,
-            ),
-        ]),
+        for (final s in (json['sources'] as List? ?? const []))
+          ArchieSource(
+            title: (s['title'] ?? '') as String,
+            url: (s['url'] ?? '') as String,
+          ),
+      ]),
       'error' => ArchieFailure(
-          (json['message'] ?? 'Something went wrong.') as String),
+        (json['message'] ?? 'Something went wrong.') as String,
+      ),
       _ => null, // 'done' and unknown types: the stream closing ends the answer
     };
   }

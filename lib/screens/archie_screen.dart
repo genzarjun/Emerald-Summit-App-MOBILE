@@ -250,8 +250,17 @@ class _ArchieScreenState extends State<ArchieScreen>
           setState(() => _chatFull = true);
         }
       } catch (e) {
-        // Saving is best-effort; the chat on screen is unaffected.
+        // The chat on screen is unaffected, but say so once per conversation
+        // rather than failing silently (an earlier silent failure hid a bug).
         debugPrint('Archie: could not save exchange: $e');
+        if (mounted && !conversation.warnedSaveFailed) {
+          conversation.warnedSaveFailed = true;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Couldn't save this chat to your history."),
+            ),
+          );
+        }
       }
     });
   }
@@ -627,6 +636,9 @@ class _Conversation {
 
   /// Null until the conversation's first exchange is saved.
   String? id;
+
+  /// A save failed and the user has been told (once).
+  bool warnedSaveFailed = false;
 }
 
 class _Starter {
@@ -695,20 +707,21 @@ class _Header extends StatelessWidget {
               onPressed: onHistory,
               icon: const Icon(Icons.history, color: _ArchieColors.text),
             ),
-            AnimatedOpacity(
-              opacity: showNewChat ? 1 : 0,
+            // Takes no space when hidden, so History sits flush right on the
+            // welcome screen; it slides over when New chat appears.
+            AnimatedSize(
               duration: const Duration(milliseconds: 200),
-              child: IgnorePointer(
-                ignoring: !showNewChat,
-                child: IconButton(
-                  tooltip: 'New chat',
-                  onPressed: onNewChat,
-                  icon: const Icon(
-                    Icons.add_comment_outlined,
-                    color: _ArchieColors.text,
-                  ),
-                ),
-              ),
+              curve: Curves.easeOutCubic,
+              child: showNewChat
+                  ? IconButton(
+                      tooltip: 'New chat',
+                      onPressed: onNewChat,
+                      icon: const Icon(
+                        Icons.add_comment_outlined,
+                        color: _ArchieColors.text,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ],
         ),

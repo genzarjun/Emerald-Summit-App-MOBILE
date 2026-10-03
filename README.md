@@ -176,13 +176,22 @@ Home header** (Uber-style), not a bottom-bar tab.
   matching **haptics** (a light tap as it starts and ends, soft throttled ticks
   while it types), markdown
   rendering, **source chips** for the web pages it cited, copy, retry, and New
-  chat. The bottom bar turns dark while the tab is open.
+  chat. The header has **Your chats** (history) flush right; **New chat**
+  slides in beside it only once a conversation exists. The bottom bar turns
+  dark while the tab is open.
   - **Saved chats.** Each finished question + answer is saved to the user's
     account ([archie_history_setup.sql](supabase/archie_history_setup.sql));
     the header's **history** button opens *Your chats* to reopen or delete
-    them. Limits are enforced in the database, not just the UI: **10 chats per
-    user** (starting an 11th drops the least-recently-used) and **15 questions
-    per chat**. At the limit the composer is replaced by *"This conversation is
+    them. Each exchange is saved with one atomic RPC, `archie_save_exchange`
+    (chat + question + answer in a single transaction); a failed save shows a
+    one-time *"Couldn't save this chat"* snackbar instead of failing silently.
+    *(An earlier build saved with a client-side bulk insert: the Supabase
+    client's `defaultToNull` filled the question row's missing `sources` /
+    `steps` with NULL, the NOT NULL check rejected it, and the error was
+    swallowed — leaving empty chats that opened blank. Fixed by the RPC; the
+    migration deletes the empty chats.)* Limits are enforced in the database,
+    not just the UI: **10 chats per user** (starting an 11th drops the
+    least-recently-used) and **15 questions per chat**. At the limit the composer is replaced by *"This conversation is
     too long. Please start a new chat."* (the hint counts down the last 3). A
     notice under the composer and in *Your chats* says chats are saved and
     reviewed **anonymously** to improve Archie. The server still keeps no chat
@@ -211,14 +220,43 @@ Home header** (Uber-style), not a bottom-bar tab.
     then general **`web_search`** (located to Dublin, CA). Scope is the summit,
     EHS, and summit-related topics; off-topic requests are politely declined.
     A per-user **daily question cap** (default 50,
-    [archie_setup.sql](supabase/archie_setup.sql)) guards cost. **Prompt
-    caching:** the persona + live catalog are rendered byte-identically for
-    every user (stable ordering; personal notices live in the per-user block)
-    behind a cache breakpoint, and automatic caching covers the growing
-    conversation, so repeat input is billed at ~5%. Each call logs an
-    `archie_usage` line (tokens, cache reads/writes, searches). The Anthropic
-    key lives only in the function's secrets. Sample mode uses a canned,
-    catalog-aware stand-in so the UI works offline.
+    [archie_setup.sql](supabase/archie_setup.sql)) guards cost. Each call logs
+    an `archie_usage` line (model, input / cache-read / cache-write / output
+    tokens, web searches) in the function's Logs. The Anthropic key lives only
+    in the function's secrets. Sample mode uses a canned, catalog-aware
+    stand-in so the UI works offline.
+  - **Prompt caching** (cache reads cost ~10% of normal input on Sonnet 5.5;
+    a cache matches only an *exact* prefix and is reusable only at marked
+    breakpoints). The request is laid out from least to most likely to change,
+    using all 4 breakpoints the API allows:
+    `[persona][sessions ◆][announcements ◆][seats left ◆][user's own info][conversation ◆]`.
+    The three shared blocks are byte-identical for every user (fully ordered
+    queries; personal notices live in the per-user block), so one cached copy
+    serves everyone. A registration only re-caches the short seats block, a
+    new announcement re-caches announcements + seats, and automatic caching
+    re-reads earlier turns of a conversation from cache. Entries live ~5
+    minutes, so savings are largest on busy days and within a conversation.
+  - **The persona** is the `PERSONA` constant in
+    [index.ts](supabase/functions/archie-chat/index.ts) (identity, sources and
+    their priority, grounding rules, scope, style — contact
+    president@ehsacademics.org, no emojis, treat earlier answers as settled).
+    **Edit it in the repo and deploy with the CLI**, not in the dashboard
+    editor: a CLI deploy overwrites dashboard edits (this happened once and
+    was merged back by hand).
+  - **Cost** (rough estimates on Sonnet 5.5; check the `archie_usage` logs for
+    real numbers): ~1–2¢ for a question answered from app data, ~6–8¢ when it
+    searches the web (search results are large and carry a per-search fee),
+    roughly half of Opus 5.5. Usage is bounded by the daily cap, not the
+    10-chat limit (which only bounds storage). Set a monthly spend limit in
+    the Anthropic Console as the hard ceiling.
+  - **Supabase storage & egress.** Chat history is tiny next to photos: a
+    question + answer is ~1–3 KB, so even a user who maxes out 10 chats × 15
+    questions stores well under 1 MB, and realistic totals are a few MB for
+    the whole summit (free plan: 500 MB database). Egress per question is the
+    function's catalog read (now only the columns Archie uses) plus the
+    streamed answer — tens of KB — and opening a saved chat is similar.
+    Thousands of questions stay well inside the free plan's egress; Storage
+    photos remain the egress risk (see the `CachedNetworkImage` note).
 - **Resources** — searchable document hub (sample documents). No longer a tab;
   opened from the Home **Campus map** / **Resources** tiles.
 - **Profile** (reached from the Home-header avatar) — contact card with role

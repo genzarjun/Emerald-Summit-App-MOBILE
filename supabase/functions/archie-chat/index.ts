@@ -69,7 +69,7 @@ ABOUT THE EVENT
 Emerald Summit '27 is the Tri-Valley's student-run STEAM summit, hosted at Emerald High School (3600 Central Pkwy, Dublin, CA 94568) in January 2027 and organized by the EHS Academic Foundation, a 501(c)(3) nonprofit. It brings together student participants, expert mentors, volunteers, and families for exhibits, presentations, workshops, and competitions across six disciplines: TechVerse, BioSphere, NovaSphere, ImagineX, VentureVerse, and CivicVerse. The previous edition, Emerald Summit '26, was held March 7, 2026.
 
 WHERE YOUR ANSWERS COME FROM (in priority order)
-1. LIVE APP DATA — provided below in <app_data>. It is the source of truth for sessions, times, rooms, experts, seats left, announcements, and the user's own schedule. It is newer than anything on the web; when they disagree, trust the app data and say so.
+1. LIVE APP DATA — provided below in the <app_data> sections. It is the source of truth for sessions, times, rooms, experts, seats left, announcements, and the user's own schedule. It is newer than anything on the web; when they disagree, trust the app data and say so.
 2. OFFICIAL SITES — fetch these with web_fetch when the question is about the summit or the school and the app data doesn't answer it:
    - Emerald Summit: https://sites.google.com/view/ehs-academic-foundation/programs/emerald-summit
    - EHS Academic Foundation: https://sites.google.com/view/ehs-academic-foundation
@@ -152,7 +152,7 @@ type Send = (event: Record<string, unknown>) => void;
 
 async function streamAnswer(
   history: Anthropic.MessageParam[],
-  catalog: string,
+  catalog: CatalogContext,
   personal: string,
   send: Send,
   signal: AbortSignal,
@@ -176,8 +176,15 @@ async function streamAnswer(
       output_config: { effort: EFFORT },
       system: [
         { type: "text", text: PERSONA },
-        // Shared by every user until the catalog changes → cache it.
-        { type: "text", text: catalog, cache_control: { type: "ephemeral" } },
+        // Shared data, ordered least → most likely to change, each block
+        // ending in a cache breakpoint (3 here + the automatic one on the
+        // conversation = the API's maximum of 4). A change only invalidates
+        // its own block and the ones after it: a registration re-caches just
+        // the small seats block; a new announcement, news + seats.
+        { type: "text", text: catalog.sessions, cache_control: { type: "ephemeral" } },
+        { type: "text", text: catalog.news, cache_control: { type: "ephemeral" } },
+        { type: "text", text: catalog.seats, cache_control: { type: "ephemeral" } },
+        // Per user — after the shared blocks so it never breaks their cache.
         { type: "text", text: personal },
       ],
       tools: [
@@ -324,33 +331,36 @@ function describeToolStep(name: string, rawJson: string): string | null {
 // ---------------------------------------------------------------------------
 // Grounding data (read as the caller → RLS-scoped)
 // ---------------------------------------------------------------------------
-async function loadCatalogContext(db: SupabaseClient): Promise<string> {
+/// The shared (same-for-every-user) app data, split by how often it changes.
+type CatalogContext = { sessions: string; news: string; seats: string };
+
+async function loadCatalogContext(db: SupabaseClient): Promise<CatalogContext> {
   const [disciplines, sessions, announcements] = await Promise.all([
     // Fully ordered (ties broken by id) so the same data always renders to the
     // same bytes — any byte difference would defeat the shared cache.
     db.from("disciplines").select("id, name, tagline").order("sort_order").order("id"),
-    db.from("sessions_with_counts").select("*").order("start_time").order("id"),
+    // Only the columns Archie uses — keeps each question's database egress
+    // small (no hero images, gallery data, participant questions, etc.).
+    db.from("sessions_with_counts")
+      .select("id, title, discipline_name, start_time, end_time, room, expert_name, description, page_blocks, capacity, enrolled")
+      .order("start_time").order("id"),
     loadBroadcastAnnouncements(db),
   ]);
 
-  const lines: string[] = ["<app_data source=\"Emerald Summit app — live\">", "## Disciplines"];
+  // Sessions block: changes only when an editor changes a session.
+  const lines: string[] = ['<app_data section="catalog">', "## Disciplines"];
   for (const d of disciplines.data ?? []) {
     lines.push(`- ${d.name} (id: ${d.id})${d.tagline ? ` — ${d.tagline}` : ""}`);
   }
-
-  lines.push("", "## Sessions (summit day; times are 24h HH:mm)");
+  lines.push("", "## Sessions (summit day; times are 24h HH:mm; seats are listed separately below)");
   const rows = (sessions.data ?? []) as Record<string, unknown>[];
   if (rows.length === 0) lines.push("(No sessions published yet.)");
   for (const s of rows) {
-    const cap = Number(s.capacity ?? 0);
-    const enrolled = Number(s.enrolled ?? 0);
-    const seats = cap > 0 ? `${Math.max(cap - enrolled, 0)} of ${cap} seats left` : "open seating";
     const parts = [
       `- [${s.id}] "${s.title}" — ${s.discipline_name}`,
       `${s.start_time}–${s.end_time}`,
       s.room ? `room: ${s.room}` : null,
       s.expert_name ? `expert: ${s.expert_name}` : null,
-      seats,
     ].filter(Boolean);
     lines.push(parts.join(" · "));
     const desc = String(s.description ?? "").trim();
@@ -361,12 +371,27 @@ async function loadCatalogContext(db: SupabaseClient): Promise<string> {
       }
     }
   }
-
-  lines.push("", "## Recent announcements (News tab, newest first)");
-  if (announcements.length === 0) lines.push("(None yet.)");
-  for (const a of announcements) lines.push(describeAnnouncement(a));
   lines.push("</app_data>");
-  return lines.join("\n");
+
+  // News block: changes when an admin posts or deletes an announcement.
+  const news = ['<app_data section="announcements">', "## Recent announcements (News tab, newest first)"];
+  if (announcements.length === 0) news.push("(None yet.)");
+  for (const a of announcements) news.push(describeAnnouncement(a));
+  news.push("</app_data>");
+
+  // Seats block: changes on every registration, so it comes last and is short.
+  const seats = ['<app_data section="seats">', "## Seats left right now (by session id)"];
+  if (rows.length === 0) seats.push("(No sessions published yet.)");
+  for (const s of rows) {
+    const cap = Number(s.capacity ?? 0);
+    const enrolled = Number(s.enrolled ?? 0);
+    seats.push(
+      `- [${s.id}] "${s.title}": ${cap > 0 ? `${Math.max(cap - enrolled, 0)} of ${cap} seats left` : "open seating"}`,
+    );
+  }
+  seats.push("</app_data>");
+
+  return { sessions: lines.join("\n"), news: news.join("\n"), seats: seats.join("\n") };
 }
 
 type AnnouncementRow = { title: string; body: string; audience: string; pinned: boolean; created_at: string };

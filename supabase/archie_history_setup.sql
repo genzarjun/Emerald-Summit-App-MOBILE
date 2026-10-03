@@ -10,7 +10,8 @@
 --     used chat (the app tells users this).
 --   * 15 questions per chat — a chat that full rejects more questions; the app
 --     asks the user to start a new chat.
--- Users can read and delete only their own chats. Admins never read chats
+-- The app saves through archie_save_exchange() (one atomic call per question +
+-- answer). Users can read and delete only their own chats. Admins never read chats
 -- directly; they get question/answer pairs WITHOUT any user identity through
 -- archie_recent_exchanges().
 
@@ -130,7 +131,56 @@ create trigger archie_chats_prune
   after insert on public.archie_chats
   for each row execute function public.archie_prune_chats();
 
--- 4. Anonymous insights for organizers ---------------------------------------
+-- 4. Saving an exchange (the app's only write path) -------------------------
+-- Saves one question + answer atomically: creates the chat when p_chat_id is
+-- null, then both messages, in a single transaction — so a failure (e.g. the
+-- 15-question limit) never leaves an empty chat behind. SECURITY INVOKER, so
+-- the RLS policies above still decide what the caller may write.
+-- Returns the chat id.
+create or replace function public.archie_save_exchange(
+  p_chat_id  uuid,
+  p_title    text,
+  p_question text,
+  p_answer   text,
+  p_sources  jsonb default '[]'::jsonb,
+  p_steps    jsonb default '[]'::jsonb
+)
+returns uuid
+language plpgsql
+security invoker set search_path = public
+as $$
+declare
+  v_chat uuid := p_chat_id;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  if v_chat is null then
+    insert into public.archie_chats (title)
+    values (left(coalesce(p_title, ''), 120))
+    returning id into v_chat;
+  end if;
+  insert into public.archie_messages (chat_id, role, content)
+  values (v_chat, 'user', p_question);
+  insert into public.archie_messages (chat_id, role, content, sources, steps)
+  values (v_chat, 'assistant', p_answer,
+          coalesce(p_sources, '[]'::jsonb), coalesce(p_steps, '[]'::jsonb));
+  return v_chat;
+end;
+$$;
+
+revoke all on function public.archie_save_exchange(uuid, text, text, text, jsonb, jsonb)
+  from public, anon;
+grant execute on function public.archie_save_exchange(uuid, text, text, text, jsonb, jsonb)
+  to authenticated;
+
+-- One-time cleanup: an earlier app build could create a chat whose messages
+-- then failed to save, leaving empty chats in the history list.
+delete from public.archie_chats c
+where not exists (select 1 from public.archie_messages m where m.chat_id = c.id)
+  and c.created_at < now() - interval '1 minute';
+
+-- 5. Anonymous insights for organizers ---------------------------------------
 -- Recent question → answer pairs across all users, newest first, with NO user
 -- id, name, or chat id. Admin-only. Reflects deletions (a deleted chat is gone
 -- from here too).
