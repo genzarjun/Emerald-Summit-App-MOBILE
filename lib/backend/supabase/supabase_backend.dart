@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../backend.dart';
+import 'supabase_archie_repository.dart';
 import 'supabase_auth_service.dart';
 import 'supabase_config.dart';
 import 'supabase_repositories.dart';
@@ -47,6 +48,7 @@ class SupabaseBackend {
       ..registerSingleton<AssignmentRepository>(
           SupabaseAssignmentRepository(client))
       ..registerSingleton<AttendanceRepository>(
-          SupabaseAttendanceRepository(client));
+          SupabaseAttendanceRepository(client))
+      ..registerSingleton<ArchieRepository>(SupabaseArchieRepository(client));
   }
 }

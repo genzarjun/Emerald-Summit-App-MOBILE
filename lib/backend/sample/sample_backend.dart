@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 
 import '../backend.dart';
+import 'sample_archie_repository.dart';
 import 'sample_repositories.dart';
 import 'sample_store.dart';
 
@@ -31,6 +32,7 @@ class SampleBackend {
       ..registerSingleton<AssignmentRepository>(
           SampleAssignmentRepository(store))
       ..registerSingleton<AttendanceRepository>(
-          SampleAttendanceRepository(store));
+          SampleAttendanceRepository(store))
+      ..registerSingleton<ArchieRepository>(SampleArchieRepository());
   }
 }

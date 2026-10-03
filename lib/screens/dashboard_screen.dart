@@ -13,6 +13,7 @@ import '../theme.dart';
 import '../widgets/summit_logo.dart';
 import 'discipline_screen.dart';
 import 'profile_screen.dart';
+import 'resources_screen.dart';
 import 'session_detail_screen.dart';
 
 /// "Home" tab — the launchpad. Instead of dropping the participant straight
@@ -781,12 +782,14 @@ class _QuickActions extends StatelessWidget {
       _Action(
         icon: Icons.map,
         label: 'Campus map',
-        onTap: () => rootTab.value = kResourcesTabIndex,
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const ResourcesScreen())),
       ),
       _Action(
         icon: Icons.folder,
         label: 'Resources',
-        onTap: () => rootTab.value = kResourcesTabIndex,
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const ResourcesScreen())),
       ),
       _Action(
         icon: Icons.person,

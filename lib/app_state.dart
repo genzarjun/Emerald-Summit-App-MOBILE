@@ -242,6 +242,14 @@ class AppState extends ChangeNotifier {
     return AddResult(_toAddOutcome(res.outcome), res.conflictingTitle);
   }
 
+  /// The user's saved answers to [session]'s participant questions.
+  Future<Map<String, String>> myAnswers(Session session) =>
+      scheduleRepository.fetchMyAnswers(session.id);
+
+  /// Replaces the user's answers for a session they've already joined.
+  Future<void> updateMyAnswers(Session session, Map<String, String> answers) =>
+      scheduleRepository.updateMyAnswers(session.id, answers);
+
   /// Admin self-manage: adds or removes the current admin as a manager of
   /// [session]. Mirrors the server outcome into the local assignments cache.
   /// Returns [AddResult] so callers can surface a time-conflict the same way as

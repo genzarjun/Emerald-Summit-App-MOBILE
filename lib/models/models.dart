@@ -470,12 +470,12 @@ class RosterEntry {
         attended: (row['attended'] ?? false) as bool,
         participationType:
             ParticipationTypeX.fromId(row['participation_type'] as String?),
-        answers: _parseAnswers(row['answers']),
+        answers: parseAnswers(row['answers']),
       );
 
   /// Decodes the `answers` jsonb (a decoded [Map] from some backends, a JSON
   /// [String] from others) into a `{questionId: answer}` string map.
-  static Map<String, String> _parseAnswers(dynamic raw) {
+  static Map<String, String> parseAnswers(dynamic raw) {
     if (raw == null) return const {};
     Map<dynamic, dynamic> map;
     if (raw is String) {

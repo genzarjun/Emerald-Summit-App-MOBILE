@@ -6,9 +6,11 @@ import 'dashboard_screen.dart';
 import 'schedule_screen.dart';
 import 'discover_screen.dart';
 import 'announcements_screen.dart';
-import 'resources_screen.dart';
+import 'archie_screen.dart';
 
-/// Bottom-tab shell hosting the five main sections of the app. Profile lives
+/// Bottom-tab shell hosting the five main sections of the app (Home ·
+/// Schedule · Discover · News · Archie). Resources is no longer a tab — it's
+/// pushed from the Home tiles. Profile lives
 /// behind the avatar in the [DashboardScreen] header (Uber-style), so it isn't
 /// a bottom-bar destination.
 class RootNav extends StatelessWidget {
@@ -19,7 +21,7 @@ class RootNav extends StatelessWidget {
     ScheduleScreen(),
     DiscoverScreen(),
     AnnouncementsScreen(),
-    ResourcesScreen(),
+    ArchieScreen(),
   ];
 
   @override
@@ -33,40 +35,48 @@ class RootNav extends StatelessWidget {
         // Inner builder so the News unread badge repaints on feed/read changes.
         bottomNavigationBar: ListenableBuilder(
           listenable: appState,
-          builder: (context, _) => NavigationBar(
-            selectedIndex: index,
-            onDestinationSelected: (i) => rootTab.value = i,
-            destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.event_note_outlined),
-                selectedIcon: Icon(Icons.event_note),
-                label: 'Schedule',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.explore_outlined),
-                selectedIcon: Icon(Icons.explore),
-                label: 'Discover',
-              ),
-              NavigationDestination(
-                icon: _newsIcon(
+          builder: (context, _) => Theme(
+            // Archie's tab is dark; darken the bar with it.
+            data: index == kArchieTabIndex
+                ? ArchieScreen.navBarTheme(Theme.of(context))
+                : Theme.of(context),
+            child: NavigationBar(
+              selectedIndex: index,
+              onDestinationSelected: (i) => rootTab.value = i,
+              destinations: [
+                const NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.event_note_outlined),
+                  selectedIcon: Icon(Icons.event_note),
+                  label: 'Schedule',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.explore_outlined),
+                  selectedIcon: Icon(Icons.explore),
+                  label: 'Discover',
+                ),
+                NavigationDestination(
+                  icon: _newsIcon(
                     const Icon(Icons.campaign_outlined),
-                    appState.unreadAnnouncementCount),
-                selectedIcon: _newsIcon(
+                    appState.unreadAnnouncementCount,
+                  ),
+                  selectedIcon: _newsIcon(
                     const Icon(Icons.campaign),
-                    appState.unreadAnnouncementCount),
-                label: 'News',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.folder_outlined),
-                selectedIcon: Icon(Icons.folder),
-                label: 'Resources',
-              ),
-            ],
+                    appState.unreadAnnouncementCount,
+                  ),
+                  label: 'News',
+                ),
+                const NavigationDestination(
+                  icon: ArchieNavIcon(selected: false),
+                  selectedIcon: ArchieNavIcon(selected: true),
+                  label: 'Archie',
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -123,6 +123,14 @@ abstract interface class ScheduleRepository {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
   });
+
+  /// The current user's saved answers to [sessionId]'s questions (question id →
+  /// answer). Empty if they aren't registered or answered nothing.
+  Future<Map<String, String>> fetchMyAnswers(String sessionId);
+
+  /// Replaces the current user's answers for a session they're registered for.
+  /// Throws if they aren't registered for it.
+  Future<void> updateMyAnswers(String sessionId, Map<String, String> answers);
 }
 
 /// The signed-in user's own profile row.
@@ -291,4 +299,143 @@ abstract interface class AttendanceRepository {
   Future<List<Attendee>> fetchAttendeeDirectory([String query]);
 
   Future<void> markSummitCheckin(String attendeeId, bool present);
+}
+
+// ---- Archie (AI assistant) --------------------------------------------------
+
+/// One turn of the visible Archie conversation, resent with each question so
+/// the assistant has the context (the server keeps no chat state).
+class ArchieTurn {
+  const ArchieTurn({required this.fromUser, required this.text});
+
+  final bool fromUser;
+  final String text;
+}
+
+/// A web page Archie read or cited while answering.
+class ArchieSource {
+  const ArchieSource({required this.title, required this.url});
+
+  final String title;
+  final String url;
+}
+
+/// One event in a streamed Archie answer, in arrival order.
+sealed class ArchieEvent {
+  const ArchieEvent();
+}
+
+/// A progress step, e.g. "Searching the web for …". Shown above the answer.
+class ArchieStatus extends ArchieEvent {
+  const ArchieStatus(this.text);
+  final String text;
+}
+
+/// The next fragment of answer text (markdown); append in order.
+class ArchieDelta extends ArchieEvent {
+  const ArchieDelta(this.text);
+  final String text;
+}
+
+/// The web sources the finished answer drew on.
+class ArchieSources extends ArchieEvent {
+  const ArchieSources(this.sources);
+  final List<ArchieSource> sources;
+}
+
+/// The answer failed; [message] is user-facing.
+class ArchieFailure extends ArchieEvent {
+  const ArchieFailure(this.message);
+  final String message;
+}
+
+/// Questions allowed per Archie chat before the user must start a new one.
+/// Mirrors the server-side limits (archie_history_setup.sql + archie-chat).
+const int kArchieMaxQuestionsPerChat = 15;
+
+/// Saved Archie chats kept per account; starting one more drops the oldest.
+const int kArchieMaxSavedChats = 10;
+
+/// A saved Archie chat, for the history list.
+class ArchieChatSummary {
+  const ArchieChatSummary({
+    required this.id,
+    required this.title,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String title;
+  final DateTime updatedAt;
+}
+
+/// One saved message in an Archie chat.
+class ArchieSavedMessage {
+  const ArchieSavedMessage({
+    required this.fromUser,
+    required this.text,
+    this.sources = const [],
+    this.steps = const [],
+  });
+
+  final bool fromUser;
+  final String text;
+  final List<ArchieSource> sources;
+  final List<String> steps;
+}
+
+/// An anonymous question → answer pair, for the organizers' insights view.
+class ArchieExchange {
+  const ArchieExchange({
+    required this.question,
+    required this.answer,
+    required this.sourceCount,
+    required this.askedAt,
+  });
+
+  final String question;
+  final String answer;
+  final int sourceCount;
+  final DateTime askedAt;
+}
+
+/// A saved chat's title: its first question on one line, capped at 80 chars.
+String archieChatTitle(String question) {
+  final oneLine = question.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return oneLine.length <= 80 ? oneLine : '${oneLine.substring(0, 79)}…';
+}
+
+/// The chat already has [kArchieMaxQuestionsPerChat] questions.
+class ArchieChatFullException implements Exception {
+  const ArchieChatFullException();
+}
+
+/// Archie, the in-app assistant.
+abstract interface class ArchieRepository {
+  /// Streams the answer to the last user turn in [transcript]; the stream
+  /// closes when the answer is complete. Cancelling the subscription stops
+  /// generation.
+  Stream<ArchieEvent> ask(List<ArchieTurn> transcript);
+
+  /// The signed-in user's saved chats, most recently used first.
+  Future<List<ArchieChatSummary>> listChats();
+
+  /// Every message of one of the user's chats, in order.
+  Future<List<ArchieSavedMessage>> loadChat(String chatId);
+
+  /// Saves a finished question + answer. Starts a new chat (titled from the
+  /// question) when [chatId] is null — which may drop the user's oldest chat.
+  /// Returns the chat's id. Throws [ArchieChatFullException] when the chat is
+  /// at its question limit.
+  Future<String> saveExchange({
+    String? chatId,
+    required String question,
+    required ArchieSavedMessage answer,
+  });
+
+  Future<void> deleteChat(String chatId);
+
+  /// Admin only: recent question → answer pairs across all users, with no
+  /// user identity attached. Newest first.
+  Future<List<ArchieExchange>> recentExchanges({int limit = 100});
 }

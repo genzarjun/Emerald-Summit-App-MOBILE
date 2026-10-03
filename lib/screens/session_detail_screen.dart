@@ -274,16 +274,53 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
 
   /// Collects answers to [s]'s participant questions. Returns the answers map
   /// (question id → answer), or null if the user backed out.
-  Future<Map<String, String>?> _collectAnswers(Session s) {
+  Future<Map<String, String>?> _collectAnswers(
+    Session s, {
+    Map<String, String> initialAnswers = const {},
+    String submitLabel = 'Confirm & add',
+  }) {
     return showModalBottomSheet<Map<String, String>>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: _ParticipantQuestionsSheet(session: s),
+        child: _ParticipantQuestionsSheet(
+          session: s,
+          initialAnswers: initialAnswers,
+          submitLabel: submitLabel,
+        ),
       ),
     );
+  }
+
+  /// Lets a registered participant revise the answers they gave on joining.
+  Future<void> _editAnswers(Session s) async {
+    final messenger = ScaffoldMessenger.of(context);
+    Map<String, String> current;
+    try {
+      current = await appState.myAnswers(s);
+    } catch (_) {
+      current = const {};
+    }
+    if (!mounted) return;
+    final answers = await _collectAnswers(
+      s,
+      initialAnswers: current,
+      submitLabel: 'Save answers',
+    );
+    if (answers == null || !mounted) return;
+    messenger.hideCurrentSnackBar();
+    try {
+      await appState.updateMyAnswers(s, answers);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Your answers were updated')),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't save your answers. Try again.")),
+      );
+    }
   }
 
   /// Registers [s] under [type], surfacing full/conflict blocks.
@@ -508,6 +545,16 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                       appState.participationOf(current.id) ??
                       ParticipationType.participant,
                 ),
+                if (appState.participationOf(current.id) ==
+                        ParticipationType.participant &&
+                    current.participantQuestions.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => _editAnswers(current),
+                    icon: const Icon(Icons.edit_note),
+                    label: const Text('Edit my answers'),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: () => _removeFromDay(current),
@@ -876,10 +923,17 @@ class _RegisteredStatus extends StatelessWidget {
 
 /// A bottom-sheet form collecting a participant's answers to a session's
 /// questions. All questions are required; "Confirm" returns the answers map
-/// (question id → answer) via `Navigator.pop`.
+/// (question id → answer) via `Navigator.pop`. [initialAnswers] prefills the
+/// fields when editing answers given earlier.
 class _ParticipantQuestionsSheet extends StatefulWidget {
-  const _ParticipantQuestionsSheet({required this.session});
+  const _ParticipantQuestionsSheet({
+    required this.session,
+    this.initialAnswers = const {},
+    this.submitLabel = 'Confirm & add',
+  });
   final Session session;
+  final Map<String, String> initialAnswers;
+  final String submitLabel;
 
   @override
   State<_ParticipantQuestionsSheet> createState() =>
@@ -890,7 +944,7 @@ class _ParticipantQuestionsSheetState
     extends State<_ParticipantQuestionsSheet> {
   late final Map<String, TextEditingController> _controllers = {
     for (final q in widget.session.participantQuestions)
-      q.id: TextEditingController(),
+      q.id: TextEditingController(text: widget.initialAnswers[q.id] ?? ''),
   };
   String? _error;
 
@@ -958,7 +1012,7 @@ class _ParticipantQuestionsSheetState
             FilledButton.icon(
               onPressed: _submit,
               icon: const Icon(Icons.check),
-              label: const Text('Confirm & add'),
+              label: Text(widget.submitLabel),
             ),
           ],
         ),

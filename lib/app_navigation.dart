@@ -12,4 +12,4 @@ const int kHomeTabIndex = 0;
 const int kScheduleTabIndex = 1;
 const int kDiscoverTabIndex = 2;
 const int kNewsTabIndex = 3;
-const int kResourcesTabIndex = 4;
+const int kArchieTabIndex = 4;

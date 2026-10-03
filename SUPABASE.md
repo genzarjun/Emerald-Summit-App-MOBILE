@@ -142,6 +142,24 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     Participants tab won't show project answers, and hero/sections/questions won't
     save.** Supersedes the `register_for_session` + view in step 6 and the
     `fetch_session_roster` in step 17.
+25. `supabase/archie_setup.sql` — *(optional)* the **Archie daily question
+    cap**: `archie_usage` (per user per Pacific-time day, owner-read RLS) + the
+    `archie_bump_usage(limit)` SECURITY DEFINER RPC the `archie-chat` function
+    calls before answering. Without it Archie is uncapped. See §3c.
+26. `supabase/archie_history_setup.sql` — **Archie saved chats**:
+    `archie_chats` + `archie_messages` (owner-only RLS; users read, add to, and
+    delete only their own chats). Limits live in triggers: **10 chats per user**
+    (creating an 11th deletes the least-recently-used) and **15 questions per
+    chat** (`archie_chat_full` error). Adds the admin-only
+    `archie_recent_exchanges()` RPC — recent question/answer pairs with **no
+    user identity** — behind Profile → *Archie insights*. Without it, Archie
+    still chats but nothing is saved and the history sheet can't load.
+26. `supabase/registration_answers_edit.sql` — adds the
+    `update_registration_answers(session_id, answers)` SECURITY DEFINER RPC so a
+    participant can **edit the answers they gave when registering** ("Edit my
+    answers" on the session page). It only updates the caller's own
+    registration's `answers`. Without it, saving edited answers fails with an
+    error snackbar (registering still works).
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
@@ -248,6 +266,44 @@ want to test. Make **one code email per scenario** to cover unique permissions.
 4. **Test:** on the sign-in screen, type a code email and tap *Email me a code* —
    you're signed straight in as that account. Non-code emails fall through to the
    normal OTP flow untouched.
+
+## 3c. Archie — the AI assistant (`archie-chat`)
+The **Archie** tab streams answers from the
+[`archie-chat`](supabase/functions/archie-chat/index.ts) Edge Function, which
+calls Claude (Anthropic API) with server-side web search/fetch and grounds it in
+the live catalog, News feed, and the caller's own schedule (read with the
+caller's JWT, so RLS applies). Without it deployed, the tab shows *"Archie isn't
+set up on this server yet."*
+
+1. **Get an Anthropic API key** (console.anthropic.com → API keys). It lives
+   only in the function's secrets — never in `env.json` or the app.
+2. *(Recommended)* run [`supabase/archie_setup.sql`](supabase/archie_setup.sql)
+   — a per-user **daily question cap** (`archie_usage` + `archie_bump_usage`
+   RPC). Without it Archie works but is uncapped.
+   Also run [`supabase/archie_history_setup.sql`](supabase/archie_history_setup.sql)
+   for **saved chats** (step 26).
+3. **Deploy + set secrets:**
+   ```bash
+   supabase functions deploy archie-chat --no-verify-jwt   # the function checks the session itself
+   supabase secrets set ANTHROPIC_API_KEY="sk-ant-..."
+   # optional: ARCHIE_MODEL (default claude-opus-5-5), ARCHIE_EFFORT (default medium),
+   #           ARCHIE_DAILY_LIMIT (default 50)
+   ```
+   Or via the dashboard editor (paste `index.ts`, turn **Verify JWT OFF**, add
+   the secrets under Edge Functions → Secrets).
+4. **Test:** sign in, open the Archie tab, tap a starter. You should see
+   "Searching the web…"/"Reading …" steps for web questions, the answer typing
+   out, and source chips under it.
+
+Cost note: every question is a paid model call (plus web searches). Prompt
+caching is built in (see the function header); the daily cap and the
+`ARCHIE_EFFORT` / `ARCHIE_MODEL` secrets are the remaining levers. Each model
+call logs one `archie_usage` line (input / cache_read / cache_write / output
+tokens, web searches) — check Edge Functions → archie-chat → Logs to see real
+costs and confirm cache hits (`cache_read` > 0 from the second question on).
+
+**After changing `index.ts`, redeploy** (secrets persist across deploys):
+`supabase functions deploy archie-chat --no-verify-jwt`.
 
 ## 4. Verify Realtime
 Dashboard → Database → Replication → ensure `announcements` is in the

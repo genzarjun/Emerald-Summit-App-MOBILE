@@ -96,6 +96,33 @@ class SampleScheduleRepository implements ScheduleRepository {
     return const RegistrationResult(RegistrationOutcome.added);
   }
 
+  @override
+  Future<Map<String, String>> fetchMyAnswers(String sessionId) async {
+    for (final e in _store.rosters[sessionId] ?? const <RosterEntry>[]) {
+      if (e.userId == _demoUserId) return {...e.answers};
+    }
+    return const {};
+  }
+
+  @override
+  Future<void> updateMyAnswers(
+      String sessionId, Map<String, String> answers) async {
+    final roster = _store.rosters[sessionId];
+    final i = roster?.indexWhere((e) => e.userId == _demoUserId) ?? -1;
+    if (roster == null || i < 0) {
+      throw StateError("You're not registered for this session.");
+    }
+    final e = roster[i];
+    roster[i] = RosterEntry(
+      userId: e.userId,
+      name: e.name,
+      email: e.email,
+      attended: e.attended,
+      participationType: e.participationType,
+      answers: answers,
+    );
+  }
+
   /// Stable id for the demo user's own roster entry in sample mode.
   static const String _demoUserId = 'demo-user';
 }

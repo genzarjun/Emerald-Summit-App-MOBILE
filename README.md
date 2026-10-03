@@ -24,11 +24,15 @@ Tri-Valley's student-run STEAM summit at Emerald High, Dublin CA
 > features are code-complete; run the SQL in [SUPABASE.md](SUPABASE.md) to
 > activate them.)* Without `env.json` the app still runs standalone on
 > **sample data**.
+> **Archie**, an AI assistant tab (Claude via a Supabase Edge Function, grounded
+> in the live catalog + web search), replaces the old Resources tab; it's
+> code-complete but needs the `archie-chat` function + an Anthropic key deployed
+> (see [SUPABASE.md](SUPABASE.md) §3c).
 > **OS push notifications** (banner when the app is closed) and server-side PDF
 > generation are the main things still to come (see Roadmap).
 
 ## What's implemented
-Five-tab app (**Home · Schedule · Discover · News · Resources**) matching the
+Five-tab app (**Home · Schedule · Discover · News · Archie**) matching the
 spec's core participant features. **Profile is reached from the avatar in the
 Home header** (Uber-style), not a bottom-bar tab.
 
@@ -39,7 +43,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   daily-rotating quote card with brand
   art, an **Up next** card (the next session in your schedule, or a "plan your
   day" nudge when it's empty), a grid of Uber-style **Jump to** action tiles
-  (schedule, browse, news with an unread badge, campus map, resources, profile),
+  (schedule, browse, news with an unread badge, campus map, resources, profile —
+  campus map/resources push the Resources screen, which is no longer a tab),
   a horizontal **Explore disciplines** rail into the catalog, a **Latest news**
   peek, and outbound **Links** (website, Instagram, contact) opened via
   `url_launcher`. Exists so the app has an interesting home even before anything
@@ -156,7 +161,55 @@ Home header** (Uber-style), not a bottom-bar tab.
   Without the dismissals table, swipe-to-hide simply doesn't persist across
   restarts. **OS push** (when the app is closed) is designed but not yet built
   (see Roadmap).
-- **Resources** — searchable document hub.
+- **Archie** — the in-app **AI assistant**
+  ([lib/screens/archie_screen.dart](lib/screens/archie_screen.dart)), a dragon
+  mascot in shades (`assets/branding/archie.png`), replacing the old Resources
+  tab. Modeled on FTC Bonfire's **Sparky** (FTCScoutingConsole/Server, kept only
+  as reference): a Gemini-style dark screen with a *"Hi {name}, what's the
+  move?"* greeting and three tappable **conversation starters** (one tailored
+  to the user's schedule, one evergreen, one about a random discipline — edit
+  them in `_starters()`), a pill composer with
+  Send/Stop, live **progress steps** while it works ("Searching the web for …",
+  "Reading ehs.dublinusd.org"), the answer streamed in with a ChatGPT-style
+  **typing reveal** (a ticker paces the text and speeds up when behind) with
+  matching **haptics** (a light tap as it starts and ends, soft throttled ticks
+  while it types), markdown
+  rendering, **source chips** for the web pages it cited, copy, retry, and New
+  chat. The bottom bar turns dark while the tab is open.
+  - **Saved chats.** Each finished question + answer is saved to the user's
+    account ([archie_history_setup.sql](supabase/archie_history_setup.sql));
+    the header's **history** button opens *Your chats* to reopen or delete
+    them. Limits are enforced in the database, not just the UI: **10 chats per
+    user** (starting an 11th drops the least-recently-used) and **15 questions
+    per chat**. At the limit the composer is replaced by *"This conversation is
+    too long. Please start a new chat."* (the hint counts down the last 3). A
+    notice under the composer and in *Your chats* says chats are saved and
+    reviewed **anonymously** to improve Archie. The server still keeps no chat
+    state for the model — the app resends the visible transcript each turn.
+  - **Archie insights** (admins, Profile → *Archie insights*): recent
+    question/answer pairs across all users with **no identity attached**
+    (`archie_recent_exchanges` RPC), to spot content gaps and check answers.
+  - **Backend:** the [`archie-chat`](supabase/functions/archie-chat/index.ts)
+    Edge Function calls **Claude** (`claude-opus-5-5` by default, adaptive
+    thinking, server-side refusal fallback) and streams **SSE** events
+    (`status` / `delta` / `sources` / `done` / `error`). Grounding, in priority
+    order: the **live app data** (disciplines, sessions + seats left, rooms,
+    recent announcements, and the caller's own profile + schedule — read with
+    the **caller's JWT** so RLS applies), then the **official sites** (summit /
+    EHS Academic Foundation, ehs.dublinusd.org, dublinusd.org) via `web_fetch`,
+    then general **`web_search`** (located to Dublin, CA). Scope is the summit,
+    EHS, and summit-related topics; off-topic requests are politely declined.
+    A per-user **daily question cap** (default 50,
+    [archie_setup.sql](supabase/archie_setup.sql)) guards cost. **Prompt
+    caching:** the persona + live catalog are rendered byte-identically for
+    every user (stable ordering; personal notices live in the per-user block)
+    behind a cache breakpoint, and automatic caching covers the growing
+    conversation, so repeat input is billed at ~5%. Each call logs an
+    `archie_usage` line (tokens, cache reads/writes, searches). The Anthropic
+    key lives only in the function's secrets. Sample mode uses a canned,
+    catalog-aware stand-in so the UI works offline.
+- **Resources** — searchable document hub (sample documents). No longer a tab;
+  opened from the Home **Campus map** / **Resources** tiles.
 - **Profile** (reached from the Home-header avatar) — contact card with role
   badge (volunteers also show their **subtype** and the discipline(s) they
   manage), notifications toggle, and role-gated shortcuts: **My sessions**
@@ -239,7 +292,7 @@ lib/
   backend/                  The backend seam — see "Swapping backends" under Backend
     backend.dart              Re-exports the contracts + BackendDescriptor
     auth_service.dart         Abstract AuthService, AuthUser, AuthFailure (neutral)
-    repositories.dart         Abstract Catalog/Content/Schedule/Profile/Announcements/Allowlist/Gallery repos
+    repositories.dart         Abstract Catalog/Content/Schedule/Profile/Announcements/Allowlist/Gallery/Archie repos
     service_locator.dart      get_it wiring + configureBackend() (the single switch point)
     supabase/                 The Supabase implementation — ONLY place supabase_flutter is imported
     sample/                   In-memory implementation (standalone/demo mode)
@@ -248,7 +301,7 @@ lib/
   widgets/summit_logo.dart    Brand mark rebuilt as a CustomPainter (no asset)
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
-    root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Resources)
+    root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
     dashboard_screen.dart   Home launchpad (greeting, photo slideshow, quote, up-next, action grid, links)
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate)
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
@@ -263,8 +316,10 @@ lib/
     rooms_manager_screen.dart    Admin rooms catalog CRUD
     discipline_editor_screen.dart  Create a discipline (admin)
     announcement_compose_screen.dart  Post an announcement (admin / scoped volunteer)
+    archie_screen.dart      Archie AI assistant tab (welcome + starters, streamed chat, typing reveal)
+    archie_insights_screen.dart  Admin: anonymous recent Archie questions + answers
     announcements_screen.dart, resources_screen.dart, profile_screen.dart
-supabase/                   SQL migrations + Edge Functions (see Backend)
+supabase/                   SQL migrations + Edge Functions (sync-allowlist, dev-login, archie-chat)
 test/widget_test.dart       Widget tests
 ```
 
@@ -328,10 +383,14 @@ test/widget_test.dart       Widget tests
     Adds/removes go through the **`register_for_session` RPC**, the single
     server-side enforcer of capacity + no-time-overlap; it also records the
     `participation_type` (`participant`/`spectator`/`expert`) and the
-    participant's `answers` (jsonb, keyed by question id). Gains `attended` /
+    participant's `answers` (jsonb, keyed by question id). Participants can
+    later revise their answers ("Edit my answers" on the session page) via the
+    **`update_registration_answers` RPC**, which only touches the caller's own
+    row (`registrations` has no direct UPDATE grant). Gains `attended` /
     `attended_at` / `marked_by` for session attendance.
     [registrations_setup.sql](supabase/registrations_setup.sql),
-    [session_participation_setup.sql](supabase/session_participation_setup.sql)
+    [session_participation_setup.sql](supabase/session_participation_setup.sql),
+    [registration_answers_edit.sql](supabase/registration_answers_edit.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /
@@ -584,6 +643,11 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   attendance marking are implemented but not yet live-tested. Run the SQL files
   in [SUPABASE.md](SUPABASE.md) + deploy the Edge Functions to activate on a
   fresh project.)*
+- ✅ **Archie AI assistant** — a Claude-backed chat tab (live-data grounding +
+  web search, streamed with a typing reveal) replacing Resources. *(code done;
+  needs `archie-chat` deployed with an `ANTHROPIC_API_KEY` — SUPABASE.md §3c.
+  UI verified in the simulator in sample mode and against the live backend's
+  not-deployed path; a live model answer hasn't been tested end-to-end yet.)*
 - ⏳ **Next: OS push notifications** — deliver announcements as real push even
   when the app is closed (see Roadmap for the planned pipeline).
 

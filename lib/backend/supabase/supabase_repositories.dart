@@ -138,6 +138,29 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     };
     return RegistrationResult(outcome, map['conflicting_title'] as String?);
   }
+
+  @override
+  Future<Map<String, String>> fetchMyAnswers(String sessionId) async {
+    final row = await _client
+        .from('registrations')
+        .select('answers')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+    return RosterEntry.parseAnswers(row?['answers']);
+  }
+
+  @override
+  Future<void> updateMyAnswers(
+      String sessionId, Map<String, String> answers) async {
+    final res = await _client.rpc(
+      'update_registration_answers',
+      params: {'p_session_id': sessionId, 'p_answers': answers},
+    );
+    final outcome = (res as Map?)?['outcome'];
+    if (outcome != 'updated') {
+      throw StateError("You're not registered for this session.");
+    }
+  }
 }
 
 /// Reads and writes the signed-in user's own `profiles` row (RLS-scoped to

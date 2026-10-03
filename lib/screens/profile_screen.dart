@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../theme.dart';
+import 'archie_insights_screen.dart';
 import 'auth/onboarding_screen.dart';
 import 'front_desk_screen.dart';
 import 'my_assignments_screen.dart';
@@ -170,6 +171,19 @@ class _VisibilityCard extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                           builder: (_) => const RoomsManagerScreen()),
+                    ),
+                  ),
+                if (appState.isAdmin)
+                  ListTile(
+                    leading: Icon(Icons.insights_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Archie insights'),
+                    subtitle:
+                        const Text('What people ask Archie (anonymous)'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const ArchieInsightsScreen()),
                     ),
                   ),
                 if (backendInfo.isLive)
