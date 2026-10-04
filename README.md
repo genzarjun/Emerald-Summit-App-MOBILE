@@ -145,7 +145,10 @@ Home header** (Uber-style), not a bottom-bar tab.
   *No teams allowed — solo only*. Lowering the limit or turning teams off
   never removes anyone — full teams just stop taking members, and people
   already on a team in a now-solo-only session can keep it or go solo, but no
-  team can be created or joined. Photos are **uploaded in-app**
+  team can be created or joined. The editor says so: picking a setting that
+  affects existing teams (turning teams off, or a limit below a current team's
+  size) shows an inline warning with the number of teams, and saving asks to
+  confirm. Photos are **uploaded in-app**
   (`image_picker`) into a per-session folder in the public `session_photos`
   Storage bucket; hero/gallery editing needs the session id, so on a brand-new
   session you save first, then reopen to add photos. The editor still ties a

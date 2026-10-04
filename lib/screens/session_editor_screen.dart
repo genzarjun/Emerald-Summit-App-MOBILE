@@ -35,6 +35,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   /// solo-only session.
   late int _maxTeamSize;
 
+  /// The session's existing teams (team id → member count), from its roster,
+  /// so the editor can warn before a team setting change affects them.
+  Map<String, int> _teamSizes = const {};
+
   bool _busy = false;
   String? _error;
 
@@ -80,13 +84,54 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       _questions.add(_QuestionControllers(id: q.id, prompt: q.prompt));
     }
     _loadRooms();
-    if (_sessionId != null) _loadPhotos();
+    if (_sessionId != null) {
+      _loadPhotos();
+      _loadTeams();
+    }
   }
 
   Future<void> _loadPhotos() async {
     final photos = await sessionMediaRepository.fetchPhotos(_sessionId!);
     if (!mounted) return;
     setState(() => _photos = photos);
+  }
+
+  /// Best-effort: without the roster the editor just can't warn about teams.
+  Future<void> _loadTeams() async {
+    try {
+      final roster = await attendanceRepository.fetchSessionRoster(_sessionId!);
+      final sizes = <String, int>{};
+      for (final e in roster) {
+        final team = e.teamId;
+        if (team != null) sizes[team] = (sizes[team] ?? 0) + 1;
+      }
+      if (mounted) setState(() => _teamSizes = sizes);
+    } catch (_) {}
+  }
+
+  /// Existing teams the chosen Teams setting newly affects: all of them when
+  /// teams are being turned off, or those bigger than a lowered limit. Zero
+  /// when the setting hasn't changed.
+  int get _affectedTeamCount {
+    final original = widget.session?.maxTeamSize;
+    if (original == null || _maxTeamSize == original) return 0;
+    if (_maxTeamSize < 2) return original >= 2 ? _teamSizes.length : 0;
+    if (_maxTeamSize > original) return 0;
+    return _teamSizes.values.where((n) => n > _maxTeamSize).length;
+  }
+
+  /// What happens to those teams, or null when none are affected.
+  String? get _teamsNotice {
+    final n = _affectedTeamCount;
+    if (n == 0) return null;
+    final teams = n == 1 ? '1 team' : '$n teams';
+    return _maxTeamSize < 2
+        ? '$teams already registered for this session will keep their team — '
+            'nobody is removed, and members can still leave to go solo. No new '
+            'teams can be created or joined.'
+        : '$teams already ${n == 1 ? 'has' : 'have'} more than $_maxTeamSize '
+            "members. Nobody is removed, but ${n == 1 ? 'it' : 'they'} can't "
+            'take new members.';
   }
 
   Future<void> _loadRooms() async {
@@ -278,6 +323,17 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     // now clash with people already registered for it — and, after saving,
     // notify those people so they can adjust their schedule.
     final id = widget.session?.id;
+    // Turning teams off (or lowering the limit) never breaks up existing
+    // teams — make sure the editor knows that before it takes effect.
+    final notice = _teamsNotice;
+    if (notice != null) {
+      final proceed = await _confirmTeamsChange(notice);
+      if (!mounted) return;
+      if (proceed != true) {
+        setState(() => _busy = false);
+        return;
+      }
+    }
     final timeChanged =
         _isEditing &&
         (start != widget.session!.start || end != widget.session!.end);
@@ -322,6 +378,29 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         _error = 'Could not save. You may not manage this discipline.';
       });
     }
+  }
+
+  /// Confirms a Teams setting change that affects existing teams.
+  Future<bool?> _confirmTeamsChange(String notice) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          _maxTeamSize < 2 ? 'This session has teams' : 'Some teams are bigger',
+        ),
+        content: Text('$notice Save anyway?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Save anyway'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Confirms a time change that will clash with [affected] people's schedules.
@@ -775,6 +854,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
           const SizedBox(height: 16),
           DropdownButtonFormField<int>(
             initialValue: _maxTeamSize,
+            isExpanded: true,
             decoration: InputDecoration(
               labelText: 'Teams',
               helperText: soloOnly
@@ -788,7 +868,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             items: [
               const DropdownMenuItem(
                 value: kSoloOnlyTeamSize,
-                child: Text('No teams allowed — solo only'),
+                child: Text(
+                  'No teams allowed — solo only',
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               for (var n = 2; n <= kLargestTeamSizeLimit; n++)
                 DropdownMenuItem(
@@ -796,6 +879,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                   child: Text(
                     'Teams of up to $n'
                     '${n == kDefaultMaxTeamSize ? ' (default)' : ''}',
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
             ],
@@ -803,6 +887,35 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                 ? null
                 : (v) => setState(() => _maxTeamSize = v ?? _maxTeamSize),
           ),
+          if (_teamsNotice != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 20,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _teamsNotice!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

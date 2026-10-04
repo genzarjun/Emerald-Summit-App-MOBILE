@@ -5,6 +5,7 @@ import 'package:emerald_summit/app_state.dart';
 import 'package:emerald_summit/backend/repositories.dart';
 import 'package:emerald_summit/backend/service_locator.dart';
 import 'package:emerald_summit/screens/session_detail_screen.dart';
+import 'package:emerald_summit/screens/session_editor_screen.dart';
 import 'package:emerald_summit/screens/session_registration_screen.dart';
 import 'package:emerald_summit/theme.dart';
 import 'package:emerald_summit/backend/sample/sample_repositories.dart';
@@ -510,6 +511,69 @@ void main() {
       expect(find.text('Kite', skipOffstage: false), findsOneWidget);
       final mine = await appState.myProject(session);
       expect(mine!.isTeam, isFalse);
+      await appState.toggle(session); // tidy the shared sample store
+    });
+  });
+
+  group('session editor', () {
+    setUp(() async {
+      await getIt.reset();
+      await configureBackend();
+      await appState.loadCatalog();
+    });
+
+    testWidgets('warns before turning teams off when teams exist',
+        (tester) async {
+      tester.view.physicalSize = const Size(375 * 3, 812 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final session = appState.allSessions.first;
+      await appState.toggle(
+        session,
+        project: const ProjectChoice.createTeam('Solar Rover'),
+      );
+      final discipline =
+          appState.disciplines.firstWhere((d) => d.id == session.disciplineId);
+
+      await tester.pumpWidget(MaterialApp(
+        theme: EmeraldTheme.light(),
+        home: SessionEditorScreen(discipline: discipline, session: session),
+      ));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final scrollable = find.byType(Scrollable).first;
+      final dropdown = find.byType(DropdownButtonFormField<int>);
+      await tester.scrollUntilVisible(dropdown, 200, scrollable: scrollable);
+      await tester.ensureVisible(dropdown);
+      await tester.pump();
+      expect(find.textContaining('already registered'), findsNothing);
+
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('No teams allowed — solo only').last);
+      await tester.pumpAndSettle();
+      expect(find.text("Teams aren't allowed for this session."), findsOneWidget);
+      expect(
+        find.textContaining('1 team already registered for this session'),
+        findsOneWidget,
+      );
+
+      await tester.scrollUntilVisible(find.text('Save changes'), 200,
+          scrollable: scrollable);
+      await tester.ensureVisible(find.text('Save changes'));
+      await tester.pump();
+      await tester.tap(find.text('Save changes'));
+      // The busy spinner behind the dialog never settles; pump fixed frames.
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('This session has teams'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Save changes'), findsOneWidget,
+          reason: 'the button is back (not busy) after cancelling');
+      expect(find.byType(SessionEditorScreen), findsOneWidget,
+          reason: 'cancelling keeps the editor open, unsaved');
       await appState.toggle(session); // tidy the shared sample store
     });
   });
