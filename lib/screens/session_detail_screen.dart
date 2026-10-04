@@ -333,12 +333,30 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
       ),
     );
     if (form == null || !mounted) return;
+    // Leaving the current team (to go solo, start a new one, or join another)
+    // means an owner with teammates hands the team over first.
+    final current = _project;
+    final leavingTeam = current != null &&
+        current.isTeam &&
+        switch (form.project.action) {
+          ProjectAction.stayOnTeam => false,
+          ProjectAction.joinTeam =>
+            normalizeTeamCode(form.project.teamCode ?? '') != current.teamCode,
+          _ => true,
+        };
+    String? newOwnerId;
+    if (leavingTeam) {
+      final handOff = await _handOffIfNeeded(s, action: 'leave');
+      if (!handOff.proceed || !mounted) return;
+      newOwnerId = handOff.newOwnerId;
+    }
     messenger.hideCurrentSnackBar();
     try {
       final project = await appState.updateMyRegistration(
         s,
         answers: form.answers,
         project: form.project,
+        newOwnerId: newOwnerId,
       );
       if (!mounted) return;
       setState(() => _project = project);
@@ -357,6 +375,156 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
         const SnackBar(content: Text("Couldn't save your changes. Try again.")),
       );
     }
+  }
+
+  /// Re-reads the user's project (teammates may have joined since the page
+  /// loaded) and, when they own a team that still has others on it, asks which
+  /// teammate takes over. `proceed` is false if they back out.
+  Future<({bool proceed, String? newOwnerId})> _handOffIfNeeded(
+    Session s, {
+    required String action,
+  }) async {
+    MyProject? fresh;
+    try {
+      fresh = await appState.myProject(s);
+    } catch (_) {
+      fresh = _project;
+    }
+    if (!mounted) return (proceed: false, newOwnerId: null);
+    if (fresh == null || !fresh.mustHandOff) {
+      return (proceed: true, newOwnerId: null);
+    }
+    final id = await _pickNewOwner(
+      fresh,
+      title: 'Choose a new owner',
+      blurb: 'You own "${fresh.projectName}". Pick the teammate who takes it '
+          'over before you $action.',
+    );
+    return (proceed: id != null, newOwnerId: id);
+  }
+
+  /// A sheet listing [p]'s other members; returns the chosen member's id.
+  Future<String?> _pickNewOwner(
+    MyProject p, {
+    required String title,
+    required String blurb,
+  }) {
+    final theme = Theme.of(context);
+    final candidates = [
+      for (final m in p.members)
+        if (!m.isOwner && m.id.isNotEmpty) m,
+    ];
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                child: Text(title, style: theme.textTheme.titleLarge),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  blurb,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              for (final m in candidates)
+                ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                  title: Text(m.name),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(ctx).pop(m.id),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Leaves the user's team and keeps them registered as a solo participant.
+  Future<void> _leaveTeam(Session s) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => _LeaveTeamDialog(
+        initialProjectName: _project?.projectName ?? '',
+      ),
+    );
+    if (name == null || !mounted) return;
+    final handOff = await _handOffIfNeeded(s, action: 'leave');
+    if (!handOff.proceed || !mounted) return;
+    Map<String, String> answers;
+    try {
+      answers = await appState.myAnswers(s);
+    } catch (_) {
+      answers = const {};
+    }
+    try {
+      final project = await appState.updateMyRegistration(
+        s,
+        answers: answers,
+        project: ProjectChoice.solo(name),
+        newOwnerId: handOff.newOwnerId,
+      );
+      if (!mounted) return;
+      setState(() => _project = project);
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("You left the team — you're now registered solo."),
+        ),
+      );
+    } on TeamCodeException catch (e) {
+      _showBlockedDialog("Couldn't leave the team", e.message);
+      _loadProject();
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't leave the team. Try again.")),
+      );
+    }
+  }
+
+  /// Lets a team owner hand the team to a teammate while staying on it.
+  Future<void> _transferOwnership(Session s) async {
+    final messenger = ScaffoldMessenger.of(context);
+    MyProject? fresh;
+    try {
+      fresh = await appState.myProject(s);
+    } catch (_) {
+      fresh = _project;
+    }
+    if (fresh == null || !fresh.mustHandOff || !mounted) return;
+    final id = await _pickNewOwner(
+      fresh,
+      title: 'Transfer ownership',
+      blurb: "Pick the teammate who'll own \"${fresh.projectName}\". You'll "
+          'stay on the team.',
+    );
+    if (id == null || !mounted) return;
+    try {
+      await appState.transferTeamOwnership(s, id);
+      final name = fresh.members.firstWhere((m) => m.id == id).name;
+      messenger.showSnackBar(
+        SnackBar(content: Text('$name now owns the team')),
+      );
+    } on TeamCodeException catch (e) {
+      _showBlockedDialog("Couldn't transfer ownership", e.message);
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't transfer ownership. Try again.")),
+      );
+    }
+    _loadProject();
   }
 
   /// Shows a newly created team's code, ready to copy and share.
@@ -448,11 +616,26 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     }
   }
 
-  /// Removes [s] from the day (toggles the registration off).
+  /// Removes [s] from the day (toggles the registration off). A team owner
+  /// with teammates picks a new owner first.
   Future<void> _removeFromDay(Session s) async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await appState.toggle(s);
+    String? newOwnerId;
+    if (appState.participationOf(s.id) == ParticipationType.participant) {
+      final handOff = await _handOffIfNeeded(s, action: 'remove this session');
+      if (!handOff.proceed || !mounted) return;
+      newOwnerId = handOff.newOwnerId;
+    }
+    final result = await appState.toggle(s, newOwnerId: newOwnerId);
     if (!mounted) return;
+    if (result.outcome == AddOutcome.invalidProject) {
+      _showBlockedDialog(
+        "Couldn't remove this session",
+        result.message ?? 'Try again.',
+      );
+      _loadProject();
+      return;
+    }
     if (s.id == widget.session.id) setState(() => _project = null);
     messenger
       ..hideCurrentSnackBar()
@@ -638,7 +821,11 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                     ParticipationType.participant) ...[
                   if (_projectLoaded) ...[
                     const SizedBox(height: 12),
-                    _ProjectCard(project: _project),
+                    _ProjectCard(
+                      project: _project,
+                      onLeave: () => _leaveTeam(current),
+                      onTransfer: () => _transferOwnership(current),
+                    ),
                   ],
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
@@ -1021,8 +1208,14 @@ class _RegisteredStatus extends StatelessWidget {
 /// its shareable code and members. A null [project] means they registered
 /// before the team question existed and haven't answered it yet.
 class _ProjectCard extends StatelessWidget {
-  const _ProjectCard({required this.project});
+  const _ProjectCard({
+    required this.project,
+    required this.onLeave,
+    required this.onTransfer,
+  });
   final MyProject? project;
+  final VoidCallback onLeave;
+  final VoidCallback onTransfer;
 
   @override
   Widget build(BuildContext context) {
@@ -1082,10 +1275,52 @@ class _ProjectCard extends StatelessWidget {
               ),
             ],
             if (p.isTeam && p.members.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
-                'Members (${p.members.length}): ${p.members.join(', ')}',
-                style: theme.textTheme.bodyMedium,
+                'Members (${p.members.length} of ${p.maxTeamSize})',
+                style: theme.textTheme.labelLarge,
+              ),
+              const SizedBox(height: 4),
+              for (final m in p.members)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Icon(
+                        m.isOwner ? Icons.star_rounded : Icons.person_outline,
+                        size: 18,
+                        color: m.isOwner
+                            ? EmeraldTheme.emerald
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          m.isOwner ? '${m.name} · Owner' : m.name,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            if (p.isTeam) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 4,
+                children: [
+                  TextButton.icon(
+                    onPressed: onLeave,
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: const Text('Leave team / go solo'),
+                  ),
+                  if (p.mustHandOff)
+                    TextButton.icon(
+                      onPressed: onTransfer,
+                      icon: const Icon(Icons.swap_horiz, size: 18),
+                      label: const Text('Transfer ownership'),
+                    ),
+                ],
               ),
             ],
             if (!p.isTeam) ...[
@@ -1143,6 +1378,76 @@ class _TeamCodeChip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Confirms leaving a team and asks for the solo project name the user will be
+/// registered under (prefilled with the team's project).
+class _LeaveTeamDialog extends StatefulWidget {
+  const _LeaveTeamDialog({required this.initialProjectName});
+  final String initialProjectName;
+
+  @override
+  State<_LeaveTeamDialog> createState() => _LeaveTeamDialogState();
+}
+
+class _LeaveTeamDialogState extends State<_LeaveTeamDialog> {
+  late final TextEditingController _name =
+      TextEditingController(text: widget.initialProjectName);
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Please enter your project name.');
+      return;
+    }
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Leave team?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            "You'll stay registered for this session as a solo participant. "
+            'You can join or create a team again any time from Edit my '
+            'registration.',
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _name,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            onSubmitted: (_) => _submit(),
+            decoration: InputDecoration(
+              labelText: 'Your solo project name',
+              errorText: _error,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Leave team'),
+        ),
+      ],
     );
   }
 }

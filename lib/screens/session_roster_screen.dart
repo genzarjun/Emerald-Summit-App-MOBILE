@@ -138,7 +138,8 @@ class _SessionRosterViewState extends State<SessionRosterView> {
       }
     }
     projects
-      ..addAll(teams.values.map(_RosterGroup.team))
+      ..addAll(teams.values.map(
+          (m) => _RosterGroup.team(m, widget.session.maxTeamSize)))
       ..sort((a, b) {
         if (a.isTeam != b.isTeam) return a.isTeam ? -1 : 1;
         return a.title.toLowerCase().compareTo(b.title.toLowerCase());
@@ -182,7 +183,11 @@ class _SessionRosterViewState extends State<SessionRosterView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${e.attended ? 'Present' : 'Not marked'} · ${e.participationType.chipLabel}',
+          [
+            e.attended ? 'Present' : 'Not marked',
+            e.participationType.chipLabel,
+            if (e.isTeamOwner) 'Team owner',
+          ].join(' · '),
         ),
         for (final line in lines)
           Text(
@@ -322,11 +327,17 @@ class _RosterGroup {
     this.detail,
     this.isProject = false,
     this.isTeam = false,
+    this.owner,
   });
 
-  factory _RosterGroup.team(List<RosterEntry> members) {
+  /// A team's group: the owner listed first, then everyone else by name.
+  factory _RosterGroup.team(List<RosterEntry> members, int maxTeamSize) {
     final first = members.first;
-    members.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    members.sort((a, b) {
+      if (a.isTeamOwner != b.isTeamOwner) return a.isTeamOwner ? -1 : 1;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    final owner = members.first.isTeamOwner ? members.first : null;
     return _RosterGroup(
       title: (first.projectName ?? '').isEmpty
           ? 'Untitled project'
@@ -335,8 +346,11 @@ class _RosterGroup {
       members: members,
       isProject: true,
       isTeam: true,
-      detail: 'Team ${first.teamCode ?? ''} · ${members.length} '
-          'member${members.length == 1 ? '' : 's'}',
+      detail: 'Team ${first.teamCode ?? ''} · '
+          '${members.length}/$maxTeamSize members',
+      owner: owner == null
+          ? null
+          : (owner.name.isEmpty ? owner.email : owner.name),
     );
   }
 
@@ -356,6 +370,9 @@ class _RosterGroup {
   /// A real project (team or solo), as opposed to a bucket like Spectators.
   final bool isProject;
   final bool isTeam;
+
+  /// The team owner's display name (teams only).
+  final String? owner;
 }
 
 class _GroupHeader extends StatelessWidget {
@@ -394,6 +411,14 @@ class _GroupHeader extends StatelessWidget {
                     color: EmeraldTheme.deepEmerald,
                   ),
                 ),
+                if (group.owner != null)
+                  Text(
+                    'Owner: ${group.owner}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: EmeraldTheme.deepEmerald,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
               ],
             ),
           ),

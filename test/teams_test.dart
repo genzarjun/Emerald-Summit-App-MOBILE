@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:emerald_summit/app_state.dart';
 import 'package:emerald_summit/backend/repositories.dart';
 import 'package:emerald_summit/backend/service_locator.dart';
+import 'package:emerald_summit/screens/session_detail_screen.dart';
 import 'package:emerald_summit/screens/session_registration_screen.dart';
 import 'package:emerald_summit/theme.dart';
 import 'package:emerald_summit/backend/sample/sample_repositories.dart';
@@ -55,6 +56,42 @@ void main() {
 
       final legacy = RosterEntry.fromMap({'user_id': 'u3'});
       expect(legacy.isTeam, isNull);
+    });
+  });
+
+  group('ownership parsing', () {
+    test('MyProject reads member details and the size limit', () {
+      final p = MyProject.fromMap({
+        'mode': 'team',
+        'project_name': 'Solar Rover',
+        'team_code': 'TV1234',
+        'is_owner': false,
+        'max_team_size': 6,
+        'members': ['Ana', 'You'],
+        'member_details': [
+          {'id': 'u2', 'name': 'Ana', 'is_owner': true},
+          {'id': 'u1', 'name': 'You', 'is_owner': false},
+        ],
+      })!;
+      expect(p.ownerName, 'Ana');
+      expect(p.maxTeamSize, 6);
+      expect(p.mustHandOff, isFalse);
+    });
+
+    test('roster rows carry the owner flag', () {
+      final e = RosterEntry.fromMap({
+        'user_id': 'u2',
+        'project_mode': 'team',
+        'team_id': 't1',
+        'is_team_owner': true,
+      });
+      expect(e.isTeamOwner, isTrue);
+      expect(e.copyWith(attended: true).isTeamOwner, isTrue);
+    });
+
+    test('sessions default to a team size of 4', () {
+      expect(Session.fromMap({'id': 's'}).maxTeamSize, 4);
+      expect(Session.fromMap({'id': 's', 'max_team_size': 3}).maxTeamSize, 3);
     });
   });
 
@@ -129,6 +166,100 @@ void main() {
       );
       final lookup = await repo.findTeam(session.id, updated.teamCode!);
       expect(lookup.outcome, TeamLookupOutcome.notFound);
+    });
+
+    /// Creates a team as the demo user and adds [others] (id → name) to it.
+    Future<String> teamWith(Map<String, String> others) async {
+      final res = await repo.toggle(
+        session.id,
+        project: const ProjectChoice.createTeam('Solar Rover'),
+      );
+      store.teams[res.teamCode]!.members.addAll(others);
+      return res.teamCode!;
+    }
+
+    test('the creator owns the team', () async {
+      await teamWith({'u2': 'Ana'});
+      final mine = (await repo.fetchMyProject(session.id))!;
+      expect(mine.isOwner, isTrue);
+      expect(mine.ownerName, 'You');
+      expect(mine.mustHandOff, isTrue);
+      expect(mine.maxTeamSize, kDefaultMaxTeamSize);
+    });
+
+    test('an owner with teammates must name a new owner to leave', () async {
+      final code = await teamWith({'u2': 'Ana', 'u3': 'Ben'});
+
+      await expectLater(
+        repo.updateMyRegistration(session.id,
+            answers: const {}, project: const ProjectChoice.solo('Kite')),
+        throwsA(isA<TeamCodeException>()),
+      );
+      expect((await repo.fetchMyProject(session.id))!.isTeam, isTrue,
+          reason: 'a refused leave changes nothing');
+
+      await expectLater(
+        repo.updateMyRegistration(session.id,
+            answers: const {},
+            project: const ProjectChoice.solo('Kite'),
+            newOwnerId: 'nobody'),
+        throwsA(isA<TeamCodeException>()),
+      );
+
+      final solo = await repo.updateMyRegistration(session.id,
+          answers: const {},
+          project: const ProjectChoice.solo('Kite'),
+          newOwnerId: 'u3');
+      expect(solo.isTeam, isFalse);
+      final team = store.teams[code]!;
+      expect(team.ownerId, 'u3');
+      expect(team.members.keys, ['u2', 'u3']);
+    });
+
+    test('an owner unregistering hands the team over', () async {
+      final code = await teamWith({'u2': 'Ana'});
+      final refused = await repo.toggle(session.id);
+      expect(refused.outcome, RegistrationOutcome.invalidProject);
+      expect(await repo.fetchMyRegistrations(), contains(session.id));
+
+      final removed = await repo.toggle(session.id, newOwnerId: 'u2');
+      expect(removed.outcome, RegistrationOutcome.removed);
+      expect(store.teams[code]!.ownerId, 'u2');
+    });
+
+    test('a non-owner member leaves freely', () async {
+      final code = await teamWith({'u2': 'Ana'});
+      store.teams[code]!.ownerId = 'u2';
+      final solo = await repo.updateMyRegistration(session.id,
+          answers: const {}, project: const ProjectChoice.solo('Kite'));
+      expect(solo.isTeam, isFalse);
+      expect(store.teams[code]!.members.keys, ['u2']);
+    });
+
+    test('ownership can be transferred while staying', () async {
+      final code = await teamWith({'u2': 'Ana'});
+      await repo.transferTeamOwnership(session.id, 'u2');
+      final mine = (await repo.fetchMyProject(session.id))!;
+      expect(mine.isOwner, isFalse);
+      expect(mine.ownerName, 'Ana');
+      expect(store.teams[code]!.members.length, 2);
+      await expectLater(repo.transferTeamOwnership(session.id, 'u2'),
+          throwsA(isA<TeamCodeException>()));
+    });
+
+    test('a full team cannot be joined', () async {
+      final code = await teamWith({'u2': 'Ana', 'u3': 'Ben', 'u4': 'Cy'});
+      // Hand the team off and leave it, so the demo user can try to rejoin.
+      await repo.toggle(session.id, newOwnerId: 'u2');
+      store.teams[code]!.members['u5'] = 'Di';
+
+      final lookup = await repo.findTeam(session.id, code);
+      expect(lookup.outcome, TeamLookupOutcome.full);
+      expect(lookup.problem, contains('full'));
+
+      final res = await repo.toggle(session.id,
+          project: ProjectChoice.joinTeam(code));
+      expect(res.outcome, RegistrationOutcome.invalidProject);
     });
 
     test('unregistering removes the project', () async {
@@ -234,6 +365,55 @@ void main() {
       await tester.pumpAndSettle();
       expect(results.single!.project.action, ProjectAction.joinTeam);
       expect(results.single!.project.teamCode, created.teamCode);
+    });
+  });
+
+  group('session page', () {
+    setUp(() async {
+      await getIt.reset();
+      await configureBackend();
+      await appState.loadCatalog();
+    });
+
+    testWidgets('a team member can leave the team and go solo',
+        (tester) async {
+      tester.view.physicalSize = const Size(375 * 3, 812 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final session = appState.allSessions.first;
+      await appState.toggle(
+        session,
+        project: const ProjectChoice.createTeam('Solar Rover'),
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        theme: EmeraldTheme.light(),
+        home: SessionDetailScreen(session: session),
+      ));
+      await tester.pump(const Duration(milliseconds: 300));
+      final scrollable = find.byType(Scrollable).first;
+      await tester.scrollUntilVisible(
+          find.text('Leave team / go solo'), 200,
+          scrollable: scrollable);
+      expect(find.text('Team project'), findsOneWidget);
+      expect(find.textContaining('Owner'), findsWidgets);
+
+      await tester.ensureVisible(find.text('Leave team / go solo'));
+      await tester.pump();
+      await tester.tap(find.text('Leave team / go solo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Leave team?'), findsOneWidget);
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Your solo project name'), 'Kite');
+      await tester.tap(find.widgetWithText(FilledButton, 'Leave team'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Solo project', skipOffstage: false), findsOneWidget);
+      expect(find.text('Kite', skipOffstage: false), findsOneWidget);
+      final mine = await appState.myProject(session);
+      expect(mine!.isTeam, isFalse);
+      await appState.toggle(session); // tidy the shared sample store
     });
   });
 }

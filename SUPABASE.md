@@ -174,6 +174,17 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     and lets the session's discipline editors read it). **Required by the
     current app: until it's run, participating fails** (the app sends the new
     project parameters). Safe to re-run.
+29. `supabase/teams_ownership_setup.sql` — **team owners + size limits**:
+    `teams.owner_id` (backfilled from the creator), `sessions.max_team_size`
+    (default 4, 2–50; **rebuilds `sessions_with_counts`** so it's exposed), an
+    internal `team_hand_off` helper, the `transfer_team_ownership` RPC, and new
+    versions of `find_team`, `register_for_session`, `update_my_registration`
+    (both gain `p_new_owner_id`; the old signatures are dropped),
+    `fetch_my_project` (owner + member details), `fetch_session_roster` (adds
+    `is_team_owner`), and the empty-team trigger. **Run before shipping the
+    current app: until then, saving a session in the editor fails (it writes
+    `max_team_size`), and owner hand-off, team-full checks, and the roster's
+    owner marker don't work.** Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

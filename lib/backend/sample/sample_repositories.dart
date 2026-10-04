@@ -62,16 +62,21 @@ class SampleScheduleRepository implements ScheduleRepository {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
     ProjectChoice? project,
+    String? newOwnerId,
   }) async {
     final session = _store.sessionById(sessionId);
     if (session == null) {
       return const RegistrationResult.added();
     }
     if (_store.myRegistrations.containsKey(sessionId)) {
+      try {
+        _leaveTeam(_myEntry(sessionId)?.teamId, newOwnerId);
+      } on TeamCodeException catch (e) {
+        return RegistrationResult.invalidProject(e.message);
+      }
       _store.myRegistrations.remove(sessionId);
       _store.rosters[sessionId]
           ?.removeWhere((e) => e.userId == _demoUserId);
-      _leaveTeam(sessionId);
       return const RegistrationResult(RegistrationOutcome.removed);
     }
     if (session.isFull) {
@@ -112,11 +117,23 @@ class SampleScheduleRepository implements ScheduleRepository {
   Future<MyProject?> fetchMyProject(String sessionId) async {
     final e = _myEntry(sessionId);
     if (e == null || e.isTeam == null) return null;
+    final max = _store.sessionById(sessionId)?.maxTeamSize ??
+        kDefaultMaxTeamSize;
+    final team = _teamById(e.teamId);
+    if (team == null) {
+      return MyProject(
+          isTeam: false, projectName: e.projectName ?? '', maxTeamSize: max);
+    }
     return MyProject(
-      isTeam: e.isTeam!,
-      projectName: e.projectName ?? '',
-      teamCode: e.teamCode,
-      members: e.isTeam! ? [e.name] : const [],
+      isTeam: true,
+      projectName: team.projectName,
+      teamCode: team.code,
+      isOwner: team.ownerId == _demoUserId,
+      maxTeamSize: max,
+      members: [
+        for (final m in team.members.entries)
+          TeamMember(id: m.key, name: m.value, isOwner: m.key == team.ownerId),
+      ],
     );
   }
 
@@ -130,10 +147,15 @@ class SampleScheduleRepository implements ScheduleRepository {
         sessionTitle: _store.sessionById(team.sessionId)?.title,
       );
     }
+    final max = _store.sessionById(sessionId)?.maxTeamSize ??
+        kDefaultMaxTeamSize;
     return TeamLookup(
-      TeamLookupOutcome.found,
+      team.members.length >= max
+          ? TeamLookupOutcome.full
+          : TeamLookupOutcome.found,
       projectName: team.projectName,
-      memberCount: team.memberIds.length,
+      memberCount: team.members.length,
+      maxTeamSize: max,
     );
   }
 
@@ -142,6 +164,7 @@ class SampleScheduleRepository implements ScheduleRepository {
     String sessionId, {
     required Map<String, String> answers,
     required ProjectChoice project,
+    String? newOwnerId,
   }) async {
     final roster = _store.rosters[sessionId];
     final i = roster?.indexWhere((e) => e.userId == _demoUserId) ?? -1;
@@ -162,13 +185,14 @@ class SampleScheduleRepository implements ScheduleRepository {
       if (name.isNotEmpty) team.projectName = name;
       roster[i] = _withTeam(current, team, answers);
     } else {
-      // Validate before leaving the old team so a bad code changes nothing.
+      // Validate the destination before leaving the old team so a bad code
+      // (or a missing new owner) changes nothing.
       _entryFor(session,
           type: ParticipationType.participant,
           answers: answers,
           project: project,
           dryRun: true);
-      _leaveTeam(sessionId);
+      _leaveTeam(current.teamId, newOwnerId);
       roster[i] = _entryFor(session,
           type: ParticipationType.participant,
           answers: answers,
@@ -176,6 +200,20 @@ class SampleScheduleRepository implements ScheduleRepository {
           attended: current.attended);
     }
     return (await fetchMyProject(sessionId))!;
+  }
+
+  @override
+  Future<void> transferTeamOwnership(
+      String sessionId, String newOwnerId) async {
+    final team = _teamById(_myEntry(sessionId)?.teamId);
+    if (team == null || team.ownerId != _demoUserId) {
+      throw const TeamCodeException("Only the team's owner can hand it over.");
+    }
+    if (newOwnerId == _demoUserId || !team.members.containsKey(newOwnerId)) {
+      throw const TeamCodeException(
+          "That person isn't on your team anymore. Pick someone else.");
+    }
+    team.ownerId = newOwnerId;
   }
 
   RosterEntry? _myEntry(String sessionId) {
@@ -193,14 +231,26 @@ class SampleScheduleRepository implements ScheduleRepository {
     return null;
   }
 
-  /// Drops the demo user from their team in [sessionId]; an emptied team is
-  /// deleted (mirrors the cleanup trigger in teams_setup.sql).
-  void _leaveTeam(String sessionId) {
-    _store.teams.removeWhere((_, t) {
-      if (t.sessionId != sessionId) return false;
-      t.memberIds.remove(_demoUserId);
-      return t.memberIds.isEmpty;
-    });
+  /// Takes the demo user off [teamId]. Mirrors teams_ownership_setup.sql: an
+  /// owner with teammates must name [newOwnerId]; an emptied team is deleted.
+  void _leaveTeam(String? teamId, String? newOwnerId) {
+    final team = _teamById(teamId);
+    if (team == null) return;
+    final others = team.members.keys.where((id) => id != _demoUserId);
+    if (team.ownerId == _demoUserId && others.isNotEmpty) {
+      if (newOwnerId == null) {
+        throw const TeamCodeException(
+            'You own this team. Choose a teammate to take over before you '
+            'leave.');
+      }
+      if (!others.contains(newOwnerId)) {
+        throw const TeamCodeException(
+            "That person isn't on your team anymore. Pick someone else.");
+      }
+      team.ownerId = newOwnerId;
+    }
+    team.members.remove(_demoUserId);
+    if (team.members.isEmpty) _store.teams.remove(team.code);
   }
 
   /// Builds the demo user's roster entry for [project], creating or joining a
@@ -246,7 +296,8 @@ class SampleScheduleRepository implements ScheduleRepository {
           throw const TeamCodeException('Please enter your project name.');
         }
         if (dryRun) return base;
-        final prefix = teamCodePrefix(session.disciplineId, session.disciplineName);
+        final prefix =
+            teamCodePrefix(session.disciplineId, session.disciplineName);
         var n = 1000 + _store.teams.length;
         while (_store.teams.containsKey('$prefix$n')) {
           n++;
@@ -256,6 +307,7 @@ class SampleScheduleRepository implements ScheduleRepository {
           sessionId: session.id,
           code: '$prefix$n',
           projectName: name,
+          ownerId: _demoUserId,
         );
         _store.teams[team.code] = team;
         return _withTeam(base, team, answers);
@@ -269,6 +321,10 @@ class SampleScheduleRepository implements ScheduleRepository {
           throw const TeamCodeException(
               'That team code is for a different session.');
         }
+        if (!team.members.containsKey(_demoUserId) &&
+            team.members.length >= session.maxTeamSize) {
+          throw const TeamCodeException('That team is already full.');
+        }
         if (dryRun) return base;
         return _withTeam(base, team, answers);
       case ProjectAction.stayOnTeam:
@@ -278,7 +334,7 @@ class SampleScheduleRepository implements ScheduleRepository {
 
   RosterEntry _withTeam(
       RosterEntry e, SampleTeam team, Map<String, String> answers) {
-    team.memberIds.add(e.userId);
+    team.members.putIfAbsent(e.userId, () => e.name);
     return RosterEntry(
       userId: e.userId,
       name: e.name,
@@ -290,6 +346,7 @@ class SampleScheduleRepository implements ScheduleRepository {
       projectName: team.projectName,
       teamId: team.id,
       teamCode: team.code,
+      isTeamOwner: team.ownerId == e.userId,
     );
   }
 

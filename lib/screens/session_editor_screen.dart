@@ -30,6 +30,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   late final TextEditingController _end;
   late final TextEditingController _capacity;
   late final TextEditingController _description;
+  late final TextEditingController _maxTeamSize;
 
   bool _busy = false;
   String? _error;
@@ -66,6 +67,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     _end = TextEditingController(text: s?.end ?? '');
     _capacity = TextEditingController(text: s != null ? '${s.capacity}' : '');
     _description = TextEditingController(text: s?.description ?? '');
+    _maxTeamSize = TextEditingController(
+      text: '${s?.maxTeamSize ?? kDefaultMaxTeamSize}',
+    );
     _heroImageUrl = s?.heroImageUrl;
     for (final block in s?.pageBlocks ?? const <SessionPageBlock>[]) {
       _blocks.add(_BlockControllers(title: block.title, body: block.body));
@@ -97,7 +101,15 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
 
   @override
   void dispose() {
-    for (final c in [_title, _expert, _start, _end, _capacity, _description]) {
+    for (final c in [
+      _title,
+      _expert,
+      _start,
+      _end,
+      _capacity,
+      _description,
+      _maxTeamSize,
+    ]) {
       c.dispose();
     }
     for (final b in _blocks) {
@@ -224,6 +236,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       setState(() => _error = 'Capacity must be a positive number.');
       return;
     }
+    final maxTeamSize = int.tryParse(_maxTeamSize.text.trim());
+    if (maxTeamSize == null || maxTeamSize < 2 || maxTeamSize > 50) {
+      setState(() => _error = 'Team size limit must be between 2 and 50.');
+      return;
+    }
 
     setState(() {
       _busy = true;
@@ -247,6 +264,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       'start_time': start,
       'end_time': end,
       'capacity': capacity,
+      'max_team_size': maxTeamSize,
       'description': _description.text.trim(),
       'hero_image_url': _heroImageUrl,
       'page_blocks': [
@@ -737,6 +755,20 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
           item(DefaultQuestions.teamCode,
               'Asked when joining a team. Codes for this discipline look like '
               '${prefix}1234; the joiner confirms the team\'s project name.'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _maxTeamSize,
+            enabled: !_busy,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Team size limit',
+              helperText: 'Most people allowed on one team (2–50). Lowering '
+                  "it doesn't remove anyone; full teams just stop accepting "
+                  'new members.',
+              helperMaxLines: 3,
+              border: OutlineInputBorder(),
+            ),
+          ),
         ],
       ),
     );

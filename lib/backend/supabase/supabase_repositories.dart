@@ -120,6 +120,7 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
     ProjectChoice? project,
+    String? newOwnerId,
   }) async {
     final res = await _client.rpc(
       'register_for_session',
@@ -130,6 +131,9 @@ class SupabaseScheduleRepository implements ScheduleRepository {
         'p_project_mode': project?.modeId,
         'p_project_name': project?.projectName,
         'p_team_code': project?.teamCode,
+        // Only sent when set, so the call also matches the pre-ownership
+        // signature of the RPC (teams_setup.sql).
+        'p_new_owner_id': ?newOwnerId,
       },
     );
     final map = (res as Map).cast<String, dynamic>();
@@ -172,10 +176,14 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     );
     final map = (res as Map).cast<String, dynamic>();
     return switch (map['outcome']) {
-      'found' => TeamLookup(
-          TeamLookupOutcome.found,
+      'found' || 'full' => TeamLookup(
+          map['outcome'] == 'full'
+              ? TeamLookupOutcome.full
+              : TeamLookupOutcome.found,
           projectName: map['project_name'] as String?,
           memberCount: (map['member_count'] as num?)?.toInt() ?? 0,
+          maxTeamSize: (map['max_team_size'] as num?)?.toInt() ??
+              kDefaultMaxTeamSize,
         ),
       'wrong_session' => TeamLookup(
           TeamLookupOutcome.wrongSession,
@@ -190,6 +198,7 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     String sessionId, {
     required Map<String, String> answers,
     required ProjectChoice project,
+    String? newOwnerId,
   }) async {
     final res = await _client.rpc(
       'update_my_registration',
@@ -199,6 +208,7 @@ class SupabaseScheduleRepository implements ScheduleRepository {
         'p_project_mode': project.modeId,
         'p_project_name': project.projectName,
         'p_team_code': project.teamCode,
+        'p_new_owner_id': ?newOwnerId,
       },
     );
     final map = (res as Map).cast<String, dynamic>();
@@ -215,6 +225,19 @@ class SupabaseScheduleRepository implements ScheduleRepository {
           projectName: (map['project_name'] ?? '') as String,
           teamCode: map['team_code'] as String?,
         );
+  }
+
+  @override
+  Future<void> transferTeamOwnership(
+      String sessionId, String newOwnerId) async {
+    final res = await _client.rpc(
+      'transfer_team_ownership',
+      params: {'p_session_id': sessionId, 'p_new_owner_id': newOwnerId},
+    );
+    final outcome = (res as Map?)?['outcome'];
+    if (outcome == 'transferred') return;
+    throw TeamCodeException(projectProblemMessage(outcome as String?) ??
+        "Only the team's owner can hand it over.");
   }
 }
 

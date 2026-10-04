@@ -89,7 +89,9 @@ Home header** (Uber-style), not a bottom-bar tab.
     **Team** offers **Create** (enter the project name → get a **team code** to
     share, shown in a copyable dialog and on the session page) or **Join** (enter
     a teammate's code → the app asks *"Is your project name X?"* → Yes registers
-    them under that team). Team codes are the discipline's two-letter prefix +
+    them under that team). Each team has an **owner** — its creator until they
+    hand it over — and a **size limit** the session's editors set (default
+    **4**); a full team can't be joined. Team codes are the discipline's two-letter prefix +
     digits — **TV** TechVerse, **VV** VentureVerse, **BS** BioSphere, **NS**
     NovaSphere, **CV** CivicVerse, **IX** ImagineX (other disciplines use the
     capitals of their name) — e.g. `TV4821`, and only work for the session they
@@ -97,10 +99,15 @@ Home header** (Uber-style), not a bottom-bar tab.
     questions**, if any (answers stored on the registration keyed by question
     id). Joining a team is a normal registration: the session lands on the
     schedule and still counts toward capacity/conflicts. Once registered, a
-    **project card** shows the solo project or the team (code + members), and
-    **Edit my registration** lets them switch solo ↔ team, create/join another
-    team, rename their team's project, or revise answers. A team whose last
-    member leaves is deleted (its code stops working). All of it goes through
+    **project card** shows the solo project or the team (code, members with the
+    owner starred, *n of max*), with **Leave team / go solo** (asks for a solo
+    project name; they stay registered) and, for an owner with teammates,
+    **Transfer ownership**. **Edit my registration** lets them switch solo ↔
+    team, create/join another team, rename their team's project, or revise
+    answers. An **owner who leaves** their team (going solo, switching teams, or
+    removing the session) while teammates remain must first **pick a new
+    owner**; if nobody else is on it, the team is deleted (its code stops
+    working). All of it goes through
     the server-side `register_for_session` RPC, which records the participation
     type + answers + project and
     still enforces no double-booking (time-conflict dialog) and capacity caps
@@ -118,7 +125,8 @@ Home header** (Uber-style), not a bottom-bar tab.
     server gate as before). Each row also shows the person's **participation
     type** and, for participants, their **answers** to the session's questions.
     Participants are **grouped by project**: teammates sit under one team header
-    (project name, code, member count, present count), each solo participant
+    (project name, code, *members/limit*, present count, and the **owner**,
+    who's listed first and tagged "Team owner"), each solo participant
     gets their own header, then anyone who hasn't shared a project yet, then
     spectators.
   - **Experts** (same gate as Participants — admins + assigned volunteers) — the
@@ -131,7 +139,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   hero photo, gallery, content sections, and the **participant questions** asked
   of anyone who joins as a participant — shown below the app's **default
   questions** (solo/team, project name, team code), which editors can see but
-  not edit. Photos are **uploaded in-app**
+  not edit, plus the session's **team size limit** (2–50, default 4; lowering
+  it never removes anyone, it only stops full teams taking new members). Photos are **uploaded in-app**
   (`image_picker`) into a per-session folder in the public `session_photos`
   Storage bucket; hero/gallery editing needs the session id, so on a brand-new
   session you save first, then reopen to add photos. The editor still ties a
@@ -470,12 +479,19 @@ test/widget_test.dart       Widget tests
     [teams_setup.sql](supabase/teams_setup.sql)
   - `teams` — one row per project team: `session_id`, unique `code`
     (discipline prefix via `team_code_prefix()` + 4 random digits),
-    `project_name`, `created_by`. **No client grants** — reached only through
-    SECURITY DEFINER RPCs: `find_team` (code lookup for the "Is your project
-    name X?" confirm), `register_for_session` / `update_my_registration`
-    (create/join/stay/leave), `fetch_my_project` (the caller's project, code,
-    and teammates). A trigger deletes a team when its last registration leaves.
-    [teams_setup.sql](supabase/teams_setup.sql)
+    `project_name`, `created_by`, `owner_id`. **No client grants** — reached
+    only through SECURITY DEFINER RPCs: `find_team` (code lookup for the "Is
+    your project name X?" confirm; reports `full`), `register_for_session` /
+    `update_my_registration` (create/join/stay/leave; refuse `team_full`, and
+    refuse `choose_new_owner` when an owner with teammates leaves without a
+    `p_new_owner_id`), `transfer_team_ownership`, and `fetch_my_project` (the
+    caller's project, code, owner flag, size limit, and teammates). The size
+    limit lives on `sessions.max_team_size` (default 4, 2–50). A trigger
+    deletes a team when its last registration leaves, and — as a backstop for
+    account deletion — promotes the earliest-joined member if the owner
+    vanishes without a hand-off.
+    [teams_setup.sql](supabase/teams_setup.sql),
+    [teams_ownership_setup.sql](supabase/teams_ownership_setup.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /
@@ -506,7 +522,8 @@ test/widget_test.dart       Widget tests
     [session_participation_setup.sql](supabase/session_participation_setup.sql)
   - `summit_checkins` + attendance RPCs — session rosters
     (`fetch_session_roster`, which also returns each registrant's
-    participation type, answers, and project/team, and is readable by assigned
+    participation type, answers, project/team, and whether they own the team,
+    and is readable by assigned
     volunteers, admins, and the session's discipline editors /
     `mark_session_attendance`, gated by assignment) and
     the summit-wide front-desk directory (`fetch_attendee_directory` /

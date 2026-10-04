@@ -55,7 +55,12 @@ String? projectProblemMessage(String? outcome) => switch (outcome) {
       'team_not_found' || 'no_team' =>
         "That team doesn't exist anymore. Check the code with your teammate.",
       'team_wrong_session' => 'That team code is for a different session.',
+      'team_full' => 'That team is already full.',
       'project_name_required' => 'Please enter your project name.',
+      'choose_new_owner' =>
+        'You own this team. Choose a teammate to take over before you leave.',
+      'invalid_new_owner' =>
+        "That person isn't on your team anymore. Pick someone else.",
       _ => null,
     };
 
@@ -146,12 +151,14 @@ abstract interface class ScheduleRepository {
   /// Toggles a session in the schedule, enforcing capacity + no-overlap. On the
   /// ADD branch, records [type] and (for participants) [answers] to the session's
   /// questions plus their [project] (solo / create team / join team); all are
-  /// ignored when the call toggles a registration OFF.
+  /// ignored when the call toggles a registration OFF. When a team owner with
+  /// teammates unregisters, [newOwnerId] names the teammate taking over.
   Future<RegistrationResult> toggle(
     String sessionId, {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
     ProjectChoice? project,
+    String? newOwnerId,
   });
 
   /// The current user's saved answers to [sessionId]'s questions (question id →
@@ -167,14 +174,20 @@ abstract interface class ScheduleRepository {
   Future<TeamLookup> findTeam(String sessionId, String code);
 
   /// Replaces the current participant's answers and project for a session
-  /// they're registered for, returning the updated project. Throws
-  /// [TeamCodeException] if the project/team can't be used, or a [StateError]
-  /// if they aren't registered as a participant.
+  /// they're registered for, returning the updated project. A team owner with
+  /// teammates who leaves their team passes [newOwnerId]. Throws
+  /// [TeamCodeException] if the project/team can't be used (or a new owner is
+  /// needed), or a [StateError] if they aren't registered as a participant.
   Future<MyProject> updateMyRegistration(
     String sessionId, {
     required Map<String, String> answers,
     required ProjectChoice project,
+    String? newOwnerId,
   });
+
+  /// Hands the caller's team in [sessionId] to teammate [newOwnerId]. Owner
+  /// only; throws [TeamCodeException] if it's refused.
+  Future<void> transferTeamOwnership(String sessionId, String newOwnerId);
 }
 
 /// The signed-in user's own profile row.

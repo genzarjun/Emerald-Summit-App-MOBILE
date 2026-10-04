@@ -66,6 +66,20 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
 
   bool get _onTeamNow => widget.initialProject?.isTeam ?? false;
 
+  /// True when saving would take an owner (with teammates) off their team, so
+  /// they'll be asked to choose a new owner.
+  bool get _willHandOff {
+    final p = widget.initialProject;
+    if (p == null || !p.mustHandOff || _isTeam == null) return false;
+    if (_isTeam == false) return true;
+    return switch (_teamAction) {
+      ProjectAction.createTeam => true,
+      ProjectAction.joinTeam =>
+        _confirmedTeam != null && _confirmedTeam!.code != p.teamCode,
+      _ => false,
+    };
+  }
+
   String get _prefix => teamCodePrefix(
         widget.session.disciplineId,
         widget.session.disciplineName,
@@ -277,6 +291,14 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
             const SizedBox(height: 20),
             if (_isTeam == false) _soloSection(theme),
             if (_isTeam == true) _teamSection(theme),
+            if (_willHandOff) ...[
+              const SizedBox(height: 14),
+              _Note(
+                text: 'You own "${widget.initialProject!.projectName}". '
+                    "After you save, you'll pick the teammate who takes it "
+                    'over.',
+              ),
+            ],
             if (questions.isNotEmpty) ...[
               const SizedBox(height: 28),
               Text('A few more questions', style: theme.textTheme.titleMedium),
@@ -423,7 +445,9 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
         const SizedBox(height: 10),
         Text(
           "You'll get a team code (like ${_prefix}1234) to share with your "
-          'teammates. They enter it when they register for this session.',
+          'teammates. They enter it when they register for this session. '
+          'Teams here can have up to ${widget.session.maxTeamSize} members, '
+          "and you'll be the team's owner.",
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

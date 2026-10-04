@@ -84,18 +84,21 @@ class SampleStore {
   }
 }
 
-/// One demo team: the session it belongs to, its project, and member user ids.
+/// One demo team: the session it belongs to, its project, its owner, and its
+/// members (user id → display name, in the order they joined).
 class SampleTeam {
   SampleTeam({
     required this.id,
     required this.sessionId,
     required this.code,
     required this.projectName,
+    required this.ownerId,
   });
 
   final String id;
   final String sessionId;
   final String code;
   String projectName;
-  final Set<String> memberIds = {};
+  String ownerId;
+  final Map<String, String> members = {};
 }

@@ -226,7 +226,8 @@ class AppState extends ChangeNotifier {
 
   /// Toggles a session in the plan. On the ADD branch [type] records how the
   /// user is joining, [answers] carries participant question answers, and
-  /// [project] is a participant's solo/team answer. The
+  /// [project] is a participant's solo/team answer. When a team owner with
+  /// teammates removes the session, [newOwnerId] is who takes the team. The
   /// repository is the trusted enforcer of capacity + no-overlap (server-side for
   /// a live backend, in-memory for the sample one); this just mirrors the outcome
   /// into the UI cache.
@@ -235,12 +236,14 @@ class AppState extends ChangeNotifier {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
     ProjectChoice? project,
+    String? newOwnerId,
   }) async {
     final res = await scheduleRepository.toggle(
       session.id,
       type: type,
       answers: answers,
       project: project,
+      newOwnerId: newOwnerId,
     );
     switch (res.outcome) {
       case RegistrationOutcome.added:
@@ -277,17 +280,24 @@ class AppState extends ChangeNotifier {
       scheduleRepository.findTeam(session.id, code);
 
   /// Replaces the user's answers and project for a session they've already
-  /// joined as a participant.
+  /// joined as a participant. [newOwnerId] hands their team over when they own
+  /// it and are leaving it.
   Future<MyProject> updateMyRegistration(
     Session session, {
     required Map<String, String> answers,
     required ProjectChoice project,
+    String? newOwnerId,
   }) =>
       scheduleRepository.updateMyRegistration(
         session.id,
         answers: answers,
         project: project,
+        newOwnerId: newOwnerId,
       );
+
+  /// Makes teammate [newOwnerId] the owner of the user's team in [session].
+  Future<void> transferTeamOwnership(Session session, String newOwnerId) =>
+      scheduleRepository.transferTeamOwnership(session.id, newOwnerId);
 
   /// Admin self-manage: adds or removes the current admin as a manager of
   /// [session]. Mirrors the server outcome into the local assignments cache.

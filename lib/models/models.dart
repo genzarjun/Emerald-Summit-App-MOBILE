@@ -223,6 +223,26 @@ class ProjectChoice {
       };
 }
 
+/// The default team size limit for a session (editors can change it).
+const int kDefaultMaxTeamSize = 4;
+
+/// One person on a team, as their teammates see them.
+class TeamMember {
+  const TeamMember({required this.id, required this.name, this.isOwner = false});
+
+  final String id;
+  final String name;
+
+  /// The team's owner — its creator until they hand it over.
+  final bool isOwner;
+
+  factory TeamMember.fromMap(Map<String, dynamic> map) => TeamMember(
+        id: map['id'].toString(),
+        name: (map['name'] ?? '') as String,
+        isOwner: (map['is_owner'] ?? false) as bool,
+      );
+}
+
 /// The signed-in participant's project for one session — what the session page
 /// shows them (and the team code they share with teammates).
 class MyProject {
@@ -231,6 +251,8 @@ class MyProject {
     required this.projectName,
     this.teamCode,
     this.members = const [],
+    this.isOwner = false,
+    this.maxTeamSize = kDefaultMaxTeamSize,
   });
 
   /// True for a team project, false for solo.
@@ -238,8 +260,29 @@ class MyProject {
   final String projectName;
   final String? teamCode;
 
-  /// Everyone on the team (including the caller), by display name.
-  final List<String> members;
+  /// Everyone on the team (including the caller), in the order they joined.
+  final List<TeamMember> members;
+
+  /// True when the caller owns their team. An owner leaving a team that still
+  /// has other members must pick a new owner first.
+  final bool isOwner;
+
+  /// The session's team size limit.
+  final int maxTeamSize;
+
+  /// The owner's display name, if known.
+  String? get ownerName {
+    for (final m in members) {
+      if (m.isOwner) return m.name;
+    }
+    return null;
+  }
+
+  /// True when leaving would need a new owner: the caller owns a team that
+  /// still has someone else on it.
+  bool get mustHandOff => isTeam && isOwner && members.length > 1;
+
+  bool get isFull => members.length >= maxTeamSize;
 
   /// Parses the `fetch_my_project` result. Null when the user isn't registered
   /// or registered before the team question existed (no answer yet).
@@ -247,25 +290,38 @@ class MyProject {
     if (row == null) return null;
     final mode = row['mode'] as String?;
     if (mode != 'solo' && mode != 'team') return null;
+    final details = row['member_details'] as List?;
     return MyProject(
       isTeam: mode == 'team',
       projectName: (row['project_name'] ?? '') as String,
       teamCode: row['team_code'] as String?,
-      members: [
-        for (final m in (row['members'] as List?) ?? const []) '$m',
-      ],
+      isOwner: (row['is_owner'] ?? false) as bool,
+      maxTeamSize:
+          (row['max_team_size'] as num?)?.toInt() ?? kDefaultMaxTeamSize,
+      // `member_details` arrives with the ownership migration; before it, only
+      // names are available.
+      members: details != null
+          ? [
+              for (final m in details)
+                if (m is Map) TeamMember.fromMap(m.cast<String, dynamic>()),
+            ]
+          : [
+              for (final m in (row['members'] as List?) ?? const [])
+                TeamMember(id: '', name: '$m'),
+            ],
     );
   }
 }
 
 /// Result of looking up a team code before joining.
-enum TeamLookupOutcome { found, notFound, wrongSession }
+enum TeamLookupOutcome { found, full, notFound, wrongSession }
 
 class TeamLookup {
   const TeamLookup(
     this.outcome, {
     this.projectName,
     this.memberCount = 0,
+    this.maxTeamSize = kDefaultMaxTeamSize,
     this.sessionTitle,
   });
 
@@ -274,6 +330,7 @@ class TeamLookup {
   /// The team's project, for the "Is your project name …?" confirmation.
   final String? projectName;
   final int memberCount;
+  final int maxTeamSize;
 
   /// For [TeamLookupOutcome.wrongSession]: the session the code belongs to.
   final String? sessionTitle;
@@ -281,6 +338,9 @@ class TeamLookup {
   /// The user-facing reason a code can't be used, or null when [found].
   String? get problem => switch (outcome) {
         TeamLookupOutcome.found => null,
+        TeamLookupOutcome.full =>
+          '"${projectName ?? 'That team'}" is full ($memberCount of '
+              '$maxTeamSize members).',
         TeamLookupOutcome.notFound =>
           "We couldn't find a team with that code. Check it with your teammate.",
         TeamLookupOutcome.wrongSession => sessionTitle == null
@@ -319,6 +379,7 @@ class Session {
     this.heroImageUrl,
     this.pageBlocks = const [],
     this.participantQuestions = const [],
+    this.maxTeamSize = kDefaultMaxTeamSize,
   });
 
   /// Builds a [Session] from a `sessions_with_counts` view row. The view carries
@@ -345,6 +406,8 @@ class Session {
         pageBlocks: SessionPageBlock.parse(row['page_blocks']),
         participantQuestions:
             SessionQuestion.parse(row['participant_questions']),
+        maxTeamSize:
+            (row['max_team_size'] as num?)?.toInt() ?? kDefaultMaxTeamSize,
       );
 
   final String id;
@@ -377,6 +440,9 @@ class Session {
   /// Ordered questions a participant must answer when adding this session as a
   /// participant (empty = no questions; participating registers directly).
   final List<SessionQuestion> participantQuestions;
+
+  /// The most people one team may have in this session (set by its editors).
+  final int maxTeamSize;
 
   bool get isFull => enrolled >= capacity;
   int get seatsLeft => capacity - enrolled;
@@ -613,6 +679,7 @@ class RosterEntry {
     this.projectName,
     this.teamId,
     this.teamCode,
+    this.isTeamOwner = false,
   });
 
   final String userId;
@@ -639,6 +706,9 @@ class RosterEntry {
   final String? teamId;
   final String? teamCode;
 
+  /// True for the owner of their team.
+  final bool isTeamOwner;
+
   factory RosterEntry.fromMap(Map<String, dynamic> row) {
     final mode = row['project_mode'] as String?;
     return RosterEntry(
@@ -657,6 +727,7 @@ class RosterEntry {
       projectName: row['project_name'] as String?,
       teamId: row['team_id']?.toString(),
       teamCode: row['team_code'] as String?,
+      isTeamOwner: (row['is_team_owner'] ?? false) as bool,
     );
   }
 
@@ -693,6 +764,7 @@ class RosterEntry {
         projectName: projectName,
         teamId: teamId,
         teamCode: teamCode,
+        isTeamOwner: isTeamOwner,
       );
 }
 
