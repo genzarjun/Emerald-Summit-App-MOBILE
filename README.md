@@ -114,8 +114,11 @@ Home header** (Uber-style), not a bottom-bar tab.
     sends the remaining members *"X left your team"*; an owner's removal sends
     the other members *"X was removed from your team"*; and whoever becomes
     owner (hand-off, transfer, or the backstop) gets *"You're now the owner"*.
-    No notices fire while a session is being deleted, or when the last member
-    leaves. **Edit my registration** lets them switch solo ↔
+    No team notices fire while a session is being deleted, or when the last
+    member leaves. Instead, **deleting a session** (directly, or by deleting
+    its discipline) sends everyone who had it on their schedule — registrants
+    and its assigned volunteers, except whoever deleted it — a personal
+    *"Session cancelled"* notice naming the session and its time. **Edit my registration** lets them switch solo ↔
     team, create/join another team, rename their team's project, or revise
     answers. An **owner who leaves** their team (going solo, switching teams, or
     removing the session) while teammates remain must first **pick a new
@@ -534,7 +537,8 @@ test/widget_test.dart       Widget tests
     [team_size_limits.sql](supabase/team_size_limits.sql),
     [project_prompt_setup.sql](supabase/project_prompt_setup.sql),
     [team_members_setup.sql](supabase/team_members_setup.sql),
-    [team_leave_notices.sql](supabase/team_leave_notices.sql)
+    [team_leave_notices.sql](supabase/team_leave_notices.sql),
+    [session_cancel_notices.sql](supabase/session_cancel_notices.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /

@@ -213,9 +213,14 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     now the owner"* to whoever takes over a team. Silent while a session is
     being deleted or when the last member leaves. Notices set `created_by` only
     to the acting user, so account deletions are never blocked. Safe to re-run.
-33. `supabase/session_delete_admin_only.sql` — splits the sessions write
+34. `supabase/session_delete_admin_only.sql` — splits the sessions write
     policy so **only admins can delete sessions**; session-editing volunteers
     keep insert + update. Safe to re-run.
+35. `supabase/session_cancel_notices.sql` — a `before delete` trigger on
+    `sessions` that sends everyone who had the session on their schedule
+    (registrants + its assigned volunteers, minus whoever deleted it) a personal
+    *"Session cancelled"* announcement with its title and time. Also fires for
+    sessions removed by deleting their discipline. Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
