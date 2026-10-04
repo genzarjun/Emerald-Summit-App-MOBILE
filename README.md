@@ -989,7 +989,7 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   (Profile pass, front-desk scanner, live stats + realtime sync) is unit-tested
   and its SQL ([qr_checkin_setup.sql](supabase/qr_checkin_setup.sql)) is **run
   on the dev project**. It hasn't been live-tested on devices yet; it ships in
-  TestFlight build 1.0.0+8. Run the SQL files
+  TestFlight build 1.0.0+10. Run the SQL files
   in [SUPABASE.md](SUPABASE.md) + deploy the Edge Functions to activate on a
   fresh project.)*
 - ✅ **Archie AI assistant** — a Claude-backed chat tab (live-data grounding +
