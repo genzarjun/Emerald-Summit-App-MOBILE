@@ -9,28 +9,23 @@ class EmeraldTheme {
   static const Color ink = Color(0xFF16211C); // Text
   static const Color mist = Color(0xFFEEF5F1); // Surfaces
 
-  // Dark-mode counterparts: an evergreen night — green-led, but lifted off
-  // black and kept low-chroma so surfaces read as depth rather than a wall of
-  // green. Emerald (softened to mint) carries actions and selection; the
-  // logo's navy is a small second accent (supporting roles, the hero's far
-  // corner, Archie's chat bubbles), never the canvas.
+  // Dark-mode counterparts: a true-black canvas with green boxes on it —
+  // cards, fills and the Home header are distinctly emerald-tinted so they
+  // stand out against the black. Emerald (softened to mint) carries actions
+  // and selection; the logo's navy is a small second accent (supporting
+  // roles, Archie's chat bubbles).
   static const Color mint = Color(0xFF5FCB9C); // Primary actions (dark)
-  static const Color night = Color(0xFF0E1A17); // Scaffold (dark)
-  static const Color nightSurface = Color(0xFF152420); // Cards (dark)
-  static const Color nightMist = Color(0xFF1B2E28); // Fills, pills (dark)
-  static const Color nightBorder = Color(0xFF2A4038);
+  static const Color night = Color(0xFF000000); // Scaffold (dark)
+  static const Color nightSurface = Color(0xFF10261E); // Cards (dark)
+  static const Color nightMist = Color(0xFF153126); // Fills, pills (dark)
+  static const Color nightBorder = Color(0xFF24493A);
   static const Color nightText = Color(0xFFE6F0EC);
   static const Color nightTextDim = Color(0xFF9DB3AB);
-  static const Color nightAppBar = Color(0xFF13221E);
-  static const Color nightEmeraldContainer = Color(0xFF17483A);
+  static const Color nightAppBar = night;
+  static const Color nightEmeraldContainer = Color(0xFF17513F);
   static const Color nightBlue = Color(0xFFA3BEF2); // Navy accent, lifted
   static const Color nightBlueContainer = Color(0xFF213A63);
-  // Home hero header (dark): emerald, deepening into a navy corner.
-  static const List<Color> nightHero = [
-    Color(0xFF0F5E47),
-    Color(0xFF0D4237),
-    Color(0xFF173560),
-  ];
+  static const Color nightHero = Color(0xFF0F4D3A); // Home header (dark)
 
   static ThemeData light() {
     final base = ColorScheme.fromSeed(
@@ -87,7 +82,7 @@ class EmeraldTheme {
       surfaceContainerLowest: night,
       surfaceContainerLow: nightSurface,
       surfaceContainer: nightMist,
-      surfaceContainerHigh: const Color(0xFF223630),
+      surfaceContainerHigh: const Color(0xFF1B3B2F),
       surfaceContainerHighest: nightBorder,
       outline: const Color(0xFF627D73),
       outlineVariant: nightBorder,

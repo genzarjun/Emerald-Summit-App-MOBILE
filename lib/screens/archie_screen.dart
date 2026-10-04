@@ -14,9 +14,9 @@ import '../theme.dart';
 
 const _archieAsset = 'assets/branding/archie.png';
 
-/// Archie's own palette, Gemini-style: an evergreen night with an emerald
-/// glow and navy chat bubbles in dark mode (the app's dark theme, a shade
-/// deeper) and a soft mint-white in light mode. [of] picks the one matching the app's current theme.
+/// Archie's own palette, Gemini-style: black with a faint emerald glow,
+/// green cards and navy chat bubbles in dark mode (matching the app's dark
+/// theme) and a soft mint-white in light mode. [of] picks the one matching the app's current theme.
 class _ArchieColors {
   const _ArchieColors({
     required this.brightness,
@@ -60,16 +60,16 @@ class _ArchieColors {
 
   static const dark = _ArchieColors(
     brightness: Brightness.dark,
-    background: Color(0xFF0B1613),
+    background: Color(0xFF000000),
     glow: Color(0xFF0E7A57),
     surface: EmeraldTheme.nightSurface,
-    surfaceHigh: Color(0xFF1E322B),
+    surfaceHigh: Color(0xFF1B3B2F),
     border: EmeraldTheme.nightBorder,
     text: EmeraldTheme.nightText,
     textStrong: Colors.white,
     textDim: EmeraldTheme.nightTextDim,
     mint: EmeraldTheme.mint,
-    onMint: Color(0xFF0B1613),
+    onMint: Color(0xFF000000),
     userBubble: Color(0xFF26457E),
     error: Color(0xFFF2A39B),
     greeting: [Color(0xFF9BF6CB), Color(0xFF3CC48A)],

@@ -119,13 +119,9 @@ class _HeaderState extends State<_Header> {
     return Container(
       padding: EdgeInsets.fromLTRB(20, topInset + 16, 20, 28),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: Theme.of(context).brightness == Brightness.dark
-              ? EmeraldTheme.nightHero
-              : const [EmeraldTheme.emerald, EmeraldTheme.deepEmerald],
-        ),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? EmeraldTheme.nightHero
+            : EmeraldTheme.emerald,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),

@@ -275,8 +275,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   rendering, **source chips** for the web pages it cited, copy, retry, and New
   chat. The header has **Your chats** (history) flush right; **New chat**
   slides in beside it only once a conversation exists. It follows the app's
-  **appearance**: an evergreen night with an emerald glow and navy chat
-  bubbles in dark mode (the app's dark theme, a shade deeper), a soft mint-white in light
+  **appearance**: black with a faint emerald glow, green cards and navy chat
+  bubbles in dark mode (matching the app's dark theme), a soft mint-white in light
   mode (`_ArchieColors.dark` / `.light`), and the bottom bar takes Archie's
   backdrop while the tab is open.
   - **Saved chats.** Each finished question + answer is saved to the user's
@@ -429,20 +429,24 @@ The native iOS launch storyboard and Android launch background are set to the
 same deep emerald (`#02100B`) so cold start flows into the burst with no white
 flash.
 
-**Theming (light & dark).** The app has a light theme and a green-led
-"evergreen night" dark theme: low-chroma green surfaces lifted off black,
-emerald (softened to mint) for actions and selection, and the logo's navy as a
-small second accent (`nightBlue` for secondary/tertiary roles, the hero's far
-corner, Archie's chat bubbles) — green stays primary, without being a wall of
-green ([lib/theme.dart](lib/theme.dart)); the user picks **Light, Dark,
+**Design context.** [PRODUCT.md](PRODUCT.md) records the product truth that
+design work (the `/impeccable` skill) builds on: student attendees first, the
+student-run / hands-on / expert-feedback positioning, and the binding brand
+commitments (dragon logo; emerald primary, navy only as a small accent).
+
+**Theming (light & dark).** The app has a light theme and a green-led dark
+theme: a true-black background with distinctly green boxes on it (cards,
+fills, the nav bar, the Home header), emerald (softened to mint) for actions
+and selection, and the logo's navy as a small second accent (`nightBlue` for
+secondary/tertiary roles, Archie's chat bubbles) ([lib/theme.dart](lib/theme.dart)); the user picks **Light, Dark,
 or System** in Profile → Settings. The choice is a per-device preference kept
 in `shared_preferences` ([lib/theme_setting.dart](lib/theme_setting.dart)),
 not on the account, and is loaded before `runApp` so there's no flash.
 Convention: widgets read `Theme.of(context).colorScheme` roles instead of the
 raw `EmeraldTheme` constants — `primary` (emerald / mint in dark),
 `secondary` (deepEmerald), `onSurface` (ink), `surfaceContainer` (mist) — so
-they follow the mode. The Home hero band is emerald in light mode and
-an emerald gradient deepening into a navy corner in dark (`EmeraldTheme.nightHero`); the launch
+they follow the mode. The Home hero band is solid (no gradient): emerald in
+light mode, deep green in dark (`EmeraldTheme.nightHero`); the launch
 splash keeps its fixed brand colors in both modes.
 
 **Accounts & sign-in** (live when Supabase is configured):
