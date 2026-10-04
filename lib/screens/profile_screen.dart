@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../backend/service_locator.dart';
-import '../theme.dart';
+import '../theme_setting.dart';
 import 'archie_insights_screen.dart';
 import 'auth/onboarding_screen.dart';
 import 'front_desk_screen.dart';
@@ -76,7 +76,7 @@ class _ContactCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: EmeraldTheme.mist,
+                          color: theme.colorScheme.surfaceContainer,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(appState.userRole,
@@ -136,6 +136,7 @@ class _VisibilityCard extends StatelessWidget {
                   value: appState.notificationsEnabled,
                   onChanged: appState.setNotifications,
                 ),
+                const _AppearanceTile(),
                 if (appState.isVolunteer)
                   ListTile(
                     leading: Icon(Icons.event_available_outlined,
@@ -243,6 +244,49 @@ class _VisibilityCard extends StatelessWidget {
       // Profile route lingers on top showing demo defaults ("Alex Rivera").
       navigator.popUntil((route) => route.isFirst);
     }
+  }
+}
+
+/// Light / Dark / System picker. Saved on this device ([themeSetting]).
+class _AppearanceTile extends StatelessWidget {
+  const _AppearanceTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeSetting,
+      builder: (context, mode, _) => ListTile(
+        title: const Text('Appearance'),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<ThemeMode>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode_outlined),
+                  label: Text('Light'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_outlined),
+                  label: Text('Dark'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: Icon(Icons.brightness_auto_outlined),
+                  label: Text('System'),
+                ),
+              ],
+              selected: {mode},
+              onSelectionChanged: (s) => themeSetting.set(s.first),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

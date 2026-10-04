@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../backend/service_locator.dart';
-import '../theme.dart';
 import '../models/models.dart';
 import 'announcement_compose_screen.dart';
 
@@ -177,7 +176,7 @@ class _SourceBanner extends StatelessWidget {
     final color = live ? theme.colorScheme.primary : theme.colorScheme.tertiary;
     return Container(
       width: double.infinity,
-      color: EmeraldTheme.mist,
+      color: theme.colorScheme.surfaceContainer,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
@@ -365,7 +364,7 @@ class _AnnouncementCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: EmeraldTheme.mist,
+                    color: theme.colorScheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(item.audience,

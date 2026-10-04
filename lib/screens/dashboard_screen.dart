@@ -416,7 +416,7 @@ class _SlidePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: EmeraldTheme.mist,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       alignment: Alignment.center,
       child: icon == null
           ? const SizedBox(
@@ -424,7 +424,11 @@ class _SlidePlaceholder extends StatelessWidget {
               height: 26,
               child: CircularProgressIndicator(strokeWidth: 2.5),
             )
-          : Icon(icon, color: EmeraldTheme.emerald.withValues(alpha: .5)),
+          : Icon(
+              icon,
+              color: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: .5),
+            ),
     );
   }
 }
@@ -517,6 +521,7 @@ class _QuoteCardState extends State<_QuoteCard>
     final today = DateTime.now();
     final dayOfYear = today.difference(DateTime(today.year, 1, 1)).inDays;
     final q = _quotes[dayOfYear % _quotes.length];
+    final scheme = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -543,30 +548,28 @@ class _QuoteCardState extends State<_QuoteCard>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                EmeraldTheme.emerald.withValues(alpha: .10),
-                EmeraldTheme.emerald.withValues(alpha: .03),
+                scheme.primary.withValues(alpha: .10),
+                scheme.primary.withValues(alpha: .03),
               ],
             ),
-            border: Border.all(
-              color: EmeraldTheme.emerald.withValues(alpha: .18),
-            ),
+            border: Border.all(color: scheme.primary.withValues(alpha: .18)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
                 Icons.format_quote,
-                color: EmeraldTheme.emerald.withValues(alpha: .7),
+                color: scheme.primary.withValues(alpha: .7),
                 size: 28,
               ),
               const SizedBox(height: 6),
               Text(
                 q.quote,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16.5,
                   height: 1.35,
                   fontWeight: FontWeight.w600,
-                  color: EmeraldTheme.ink,
+                  color: scheme.onSurface,
                 ),
               ),
               const SizedBox(height: 10),
@@ -574,7 +577,7 @@ class _QuoteCardState extends State<_QuoteCard>
                 '— ${q.author}',
                 style: TextStyle(
                   fontSize: 13,
-                  color: EmeraldTheme.ink.withValues(alpha: .6),
+                  color: scheme.onSurface.withValues(alpha: .6),
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -640,7 +643,7 @@ class _NextSessionCard extends StatelessWidget {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: EmeraldTheme.emerald.withValues(alpha: .12),
+                      color: theme.colorScheme.primary.withValues(alpha: .12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -648,7 +651,7 @@ class _NextSessionCard extends StatelessWidget {
                         Text(
                           session.timeLabel.split(' – ').first,
                           style: theme.textTheme.titleMedium?.copyWith(
-                            color: EmeraldTheme.emerald,
+                            color: theme.colorScheme.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -706,12 +709,13 @@ class _PlanNudge extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: EmeraldTheme.emerald.withValues(alpha: .12),
+              color: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: .12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.event_available,
-              color: EmeraldTheme.emerald,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
           const SizedBox(width: 14),
@@ -873,12 +877,12 @@ class _ActionTile extends StatelessWidget {
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(
-                      color: EmeraldTheme.emerald.withValues(alpha: .12),
+                      color: theme.colorScheme.primary.withValues(alpha: .12),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
                       action.icon,
-                      color: EmeraldTheme.emerald,
+                      color: theme.colorScheme.primary,
                       size: 24,
                     ),
                   ),
@@ -1010,7 +1014,7 @@ class _DisciplineChip extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: EmeraldTheme.mist,
+                  backgroundColor: theme.colorScheme.surfaceContainer,
                   child: Icon(
                     discipline.icon,
                     color: theme.colorScheme.primary,
@@ -1080,10 +1084,10 @@ class _LatestNews extends StatelessWidget {
                     Row(
                       children: [
                         if (a.pinned) ...[
-                          const Icon(
+                          Icon(
                             Icons.push_pin,
                             size: 14,
-                            color: EmeraldTheme.emerald,
+                            color: theme.colorScheme.primary,
                           ),
                           const SizedBox(width: 6),
                         ],
@@ -1169,7 +1173,10 @@ class _LinksCard extends StatelessWidget {
                 for (var i = 0; i < _links.length; i++) ...[
                   if (i > 0) const Divider(height: 1),
                   ListTile(
-                    leading: Icon(_links[i].icon, color: EmeraldTheme.emerald),
+                    leading: Icon(
+                      _links[i].icon,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     title: Text(_links[i].label),
                     trailing: const Icon(Icons.open_in_new, size: 18),
                     onTap: () => _open(context, _links[i].url),
@@ -1200,7 +1207,8 @@ class _Footer extends StatelessWidget {
           SampleData.eventName,
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            color: EmeraldTheme.ink.withValues(alpha: .7),
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: .7),
           ),
         ),
         const SizedBox(height: 2),
@@ -1208,7 +1216,8 @@ class _Footer extends StatelessWidget {
           'STEAM, together. Lead, together. Build, together.',
           style: TextStyle(
             fontSize: 12,
-            color: EmeraldTheme.ink.withValues(alpha: .5),
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: .5),
           ),
         ),
       ],
@@ -1290,14 +1299,14 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: EmeraldTheme.emerald),
+        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: EmeraldTheme.ink,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],

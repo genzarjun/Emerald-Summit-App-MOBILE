@@ -156,8 +156,7 @@ class _DisciplineEditorScreenState extends State<DisciplineEditorScreen> {
                       ? const SizedBox(
                           height: 18,
                           width: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.add),
                   label: const Text('Create discipline'),

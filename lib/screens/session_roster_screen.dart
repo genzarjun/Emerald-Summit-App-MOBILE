@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../backend/service_locator.dart';
 import '../models/models.dart';
-import '../theme.dart';
 
 /// Standalone attendance screen — a thin wrapper around [SessionRosterView] used
 /// when a volunteer opens a managed session from "Sessions I'm managing"
@@ -388,7 +387,7 @@ class _GroupHeader extends StatelessWidget {
       width: double.infinity,
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-      color: EmeraldTheme.mist,
+      color: theme.colorScheme.surfaceContainer,
       child: Row(
         children: [
           Icon(group.icon, size: 20, color: theme.colorScheme.primary),
@@ -400,7 +399,7 @@ class _GroupHeader extends StatelessWidget {
                 Text(
                   group.title,
                   style: theme.textTheme.titleSmall?.copyWith(
-                    color: EmeraldTheme.ink,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 Text(
@@ -409,14 +408,14 @@ class _GroupHeader extends StatelessWidget {
                     '$present/${group.members.length} present',
                   ].join(' · '),
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: EmeraldTheme.deepEmerald,
+                    color: theme.colorScheme.secondary,
                   ),
                 ),
                 if (group.owner != null)
                   Text(
                     'Owner: ${group.owner}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: EmeraldTheme.deepEmerald,
+                      color: theme.colorScheme.secondary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

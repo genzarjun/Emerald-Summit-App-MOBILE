@@ -53,6 +53,9 @@ class ProfileField {
     required this.key,
     required this.label,
     this.hint,
+    this.hints = const [],
+    this.helper,
+    this.lines = 1,
     this.required = false,
     this.keyboardType = TextInputType.text,
   });
@@ -60,6 +63,17 @@ class ProfileField {
   final String key;
   final String label;
   final String? hint;
+
+  /// Example answers the field's placeholder rotates through. Takes precedence
+  /// over [hint] when non-empty.
+  final List<String> hints;
+
+  /// Small note shown under the field (e.g. how the answer will be used).
+  final String? helper;
+
+  /// Visible text lines; > 1 lets a sentence-length answer (and its example)
+  /// wrap instead of scrolling sideways.
+  final int lines;
   final bool required;
   final TextInputType keyboardType;
 }
@@ -99,68 +113,62 @@ extension SummitRoleX on SummitRole {
 
   /// Role-specific onboarding questions, asked after name + role.
   ///
-  /// The design intent (per spec): ask volunteers for full contact details since
-  /// they're staffing the event, but keep experts light — we don't want to
-  /// over-collect from busy speakers. Admins need nothing extra.
+  /// Kept deliberately minimal: we only collect what the summit actually uses.
+  /// Volunteers give a number for day-of coordination; experts give a one-line
+  /// bio (and optionally a number we'll only use day-of); parents/spectators
+  /// and admins need nothing extra.
   ///
   /// TODO(volunteer-subtypes): tailor these per [VolunteerSubtype] once the
   /// subtype is known at onboarding (deferred — the subtype currently arrives
   /// from the sheet after sign-up).
   List<ProfileField> get onboardingFields => switch (this) {
         SummitRole.participant => const [
-            ProfileField(key: 'school', label: 'School', hint: 'e.g. Emerald High'),
-            ProfileField(key: 'grade', label: 'Grade', hint: 'e.g. 11'),
             ProfileField(
-                key: 'dietary',
-                label: 'Dietary needs (optional)',
-                hint: 'e.g. vegetarian, nut allergy'),
+                key: 'school',
+                label: 'School',
+                required: true,
+                hint: 'e.g. Emerald High'),
+            ProfileField(
+                key: 'grade', label: 'Grade', required: true, hint: 'e.g. 11'),
+            ProfileField(
+                key: 'phone',
+                label: 'Mobile number (optional)',
+                keyboardType: TextInputType.phone),
           ],
         SummitRole.volunteer => const [
-            ProfileField(key: 'school', label: 'School', hint: 'e.g. Emerald High'),
-            ProfileField(key: 'grade', label: 'Grade', hint: 'e.g. 11'),
             ProfileField(
                 key: 'phone',
                 label: 'Mobile number',
                 required: true,
                 hint: 'For day-of coordination',
                 keyboardType: TextInputType.phone),
-            ProfileField(
-                key: 'emergency_contact',
-                label: 'Emergency contact name',
-                required: true),
-            ProfileField(
-                key: 'emergency_phone',
-                label: 'Emergency contact number',
-                required: true,
-                keyboardType: TextInputType.phone),
-            ProfileField(
-                key: 'dietary',
-                label: 'Dietary needs (optional)',
-                hint: 'e.g. vegetarian, nut allergy'),
           ],
         SummitRole.expert => const [
-            ProfileField(
-                key: 'organization',
-                label: 'Organization',
-                required: true,
-                hint: 'Company, lab, or school'),
             ProfileField(
                 key: 'expertise',
                 label: 'Area of expertise',
                 required: true,
                 hint: 'e.g. Robotics, Bioengineering'),
-          ],
-        SummitRole.parentSpectator => const [
+            ProfileField(
+                key: 'bio',
+                label: 'One-line bio',
+                required: true,
+                lines: 2,
+                hints: [
+                  'I am a freelance graphic designer who builds brand identities for startups',
+                  'I am a robotics engineer who designs warehouse automation systems',
+                  'I am a biology researcher studying how coral reefs recover from bleaching',
+                  'I am a software developer who builds apps for local nonprofits',
+                  'I am a civil engineer who plans bike-friendly city streets',
+                ]),
             ProfileField(
                 key: 'phone',
-                label: 'Mobile number',
-                required: true,
+                label: 'Mobile number (optional)',
+                helper:
+                    'Only used to reach you on the day of the summit if necessary.',
                 keyboardType: TextInputType.phone),
-            ProfileField(
-                key: 'student_name',
-                label: "Student's name",
-                required: true),
           ],
+        SummitRole.parentSpectator => const [],
         SummitRole.admin => const [],
       };
 
@@ -241,7 +249,7 @@ class UserProfile {
         managedDisciplines.contains(disciplineId);
   }
 
-  /// Role-specific answers (phone, school, org…) → `profiles.details` jsonb.
+  /// Role-specific answers (phone, school, bio…) → `profiles.details` jsonb.
   final Map<String, dynamic> details;
 
   factory UserProfile.fromMap(Map<String, dynamic> row) => UserProfile(

@@ -239,7 +239,7 @@ Home header** (Uber-style), not a bottom-bar tab.
   ([lib/screens/archie_screen.dart](lib/screens/archie_screen.dart)), a dragon
   mascot in shades (`assets/branding/archie.png`), replacing the old Resources
   tab. Modeled on FTC Bonfire's **Sparky** (FTCScoutingConsole/Server, kept only
-  as reference): a Gemini-style dark screen with a *"Hi {name}, what's the
+  as reference): a Gemini-style screen with a *"Hi {name}, what's the
   move?"* greeting and three tappable **conversation starters** (one tailored
   to the user's schedule, one evergreen, one about a random discipline — edit
   them in `_starters()`), a pill composer with
@@ -250,8 +250,10 @@ Home header** (Uber-style), not a bottom-bar tab.
   while it types), markdown
   rendering, **source chips** for the web pages it cited, copy, retry, and New
   chat. The header has **Your chats** (history) flush right; **New chat**
-  slides in beside it only once a conversation exists. The bottom bar turns
-  dark while the tab is open.
+  slides in beside it only once a conversation exists. It follows the app's
+  **appearance**: a deep emerald night in dark mode, a soft mint-white in light
+  mode (`_ArchieColors.dark` / `.light`), and the bottom bar takes Archie's
+  backdrop while the tab is open.
   - **Saved chats.** Each finished question + answer is saved to the user's
     account ([archie_history_setup.sql](supabase/archie_history_setup.sql));
     the header's **history** button opens *Your chats* to reopen or delete
@@ -352,7 +354,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   opened from the Home **Campus map** / **Resources** tiles.
 - **Profile** (reached from the Home-header avatar) — contact card with role
   badge (volunteers also show their **subtype** and the discipline(s) they
-  manage), notifications toggle, and role-gated shortcuts: **My sessions**
+  manage), notifications toggle, an **Appearance** picker (Light / Dark /
+  System, saved per device — see Theming below), and role-gated shortcuts: **My sessions**
   (a volunteer's assigned sessions → roster + attendance), **Front desk
   check-in** (for front-desk-flagged volunteers/admins), **Manage rooms**
   (admins). Plus **Change role** (re-runs the gated role picker), sign-out, and
@@ -368,6 +371,17 @@ burst; tap to skip. The brand mark is rebuilt in Flutter as a `CustomPainter`
 The native iOS launch storyboard and Android launch background are set to the
 same deep emerald (`#02100B`) so cold start flows into the burst with no white
 flash.
+
+**Theming (light & dark).** The app has a light theme and an emerald-night
+dark theme ([lib/theme.dart](lib/theme.dart)); the user picks **Light, Dark,
+or System** in Profile → Settings. The choice is a per-device preference kept
+in `shared_preferences` ([lib/theme_setting.dart](lib/theme_setting.dart)),
+not on the account, and is loaded before `runApp` so there's no flash.
+Convention: widgets read `Theme.of(context).colorScheme` roles instead of the
+raw `EmeraldTheme` constants — `primary` (emerald / mint in dark),
+`secondary` (deepEmerald), `onSurface` (ink), `surfaceContainer` (mist) — so
+they follow the mode. The Home hero band and the launch splash keep their
+fixed brand colors in both modes.
 
 **Accounts & sign-in** (live when Supabase is configured):
 - **Passwordless email OTP.** A user enters their email, gets a numeric code,
@@ -424,7 +438,8 @@ Brand colors and type follow spec section 03 (Emerald `#0C7A55`, Deep Emerald
 ```
 lib/
   main.dart                 App entry + MaterialApp/theme + in-app banner host
-  theme.dart                Brand palette & Material 3 theme
+  theme.dart                Brand palette & Material 3 light/dark themes
+  theme_setting.dart        Light / Dark / System choice, saved on device
   app_state.dart            Catalog, schedule, announcements, profile, roles (talks only to backend/)
   app_navigation.dart       Global selected-tab notifier + tab-index constants (banner/dashboard → tabs)
   models/models.dart        Discipline, Session, Announcement, GalleryPhoto, ResourceDoc, disciplineIcon()

@@ -9,6 +9,17 @@ class EmeraldTheme {
   static const Color ink = Color(0xFF16211C); // Text
   static const Color mist = Color(0xFFEEF5F1); // Surfaces
 
+  // Dark-mode counterparts: the deep emerald night of the launch splash and
+  // Archie, with a mint accent that stays readable on it.
+  static const Color mint = Color(0xFF5BE0A4); // Primary actions (dark)
+  static const Color night = Color(0xFF0B1612); // Scaffold (dark)
+  static const Color nightSurface = Color(0xFF13211B); // Cards (dark)
+  static const Color nightMist = Color(0xFF1B2D25); // Fills, pills (dark)
+  static const Color nightBorder = Color(0xFF26392F);
+  static const Color nightText = Color(0xFFE6F0EA);
+  static const Color nightTextDim = Color(0xFF93AA9E);
+  static const Color nightAppBar = Color(0xFF0E3326);
+
   static ThemeData light() {
     final base = ColorScheme.fromSeed(
       seedColor: emerald,
@@ -24,33 +35,67 @@ class EmeraldTheme {
       surfaceContainerLow: mist,
       surfaceContainer: mist,
     );
-    return _build(scheme, mist);
+    return _build(
+      scheme,
+      scaffold: mist,
+      appBar: scheme.primary,
+      onAppBar: scheme.onPrimary,
+    );
   }
 
   static ThemeData dark() {
-    final scheme = ColorScheme.fromSeed(
+    final base = ColorScheme.fromSeed(
       seedColor: emerald,
       brightness: Brightness.dark,
     );
-    return _build(scheme, scheme.surface);
+    // Widgets read these roles instead of the raw constants above, so each
+    // one maps to its light-mode twin: primary ↔ emerald, secondary ↔
+    // deepEmerald, onSurface ↔ ink, surfaceContainer ↔ mist.
+    final scheme = base.copyWith(
+      primary: mint,
+      onPrimary: night,
+      primaryContainer: const Color(0xFF0F4A35),
+      onPrimaryContainer: const Color(0xFFB9F6D5),
+      secondary: const Color(0xFF9BE8C4),
+      onSecondary: night,
+      surface: nightSurface,
+      onSurface: nightText,
+      onSurfaceVariant: nightTextDim,
+      surfaceContainerLowest: night,
+      surfaceContainerLow: nightSurface,
+      surfaceContainer: nightMist,
+      surfaceContainerHigh: const Color(0xFF213429),
+      surfaceContainerHighest: nightBorder,
+      outline: const Color(0xFF4A6357),
+      outlineVariant: nightBorder,
+    );
+    return _build(
+      scheme,
+      scaffold: night,
+      appBar: nightAppBar,
+      onAppBar: nightText,
+    );
   }
 
-  static ThemeData _build(ColorScheme scheme, Color scaffold) {
+  static ThemeData _build(
+    ColorScheme scheme, {
+    required Color scaffold,
+    required Color appBar,
+    required Color onAppBar,
+  }) {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: scaffold,
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
+        backgroundColor: appBar,
+        foregroundColor: onAppBar,
         centerTitle: false,
         elevation: 0,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: scheme.brightness == Brightness.light
-            ? Colors.white
-            : scheme.surfaceContainerHighest,
+        color: scheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .5)),

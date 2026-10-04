@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
-import '../theme.dart';
 import 'session_editor_screen.dart';
 import 'session_registration_screen.dart';
 import 'session_roster_screen.dart';
@@ -823,7 +822,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: EmeraldTheme.mist,
+                    color: theme.colorScheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -1334,7 +1333,7 @@ class _ProjectCard extends StatelessWidget {
                         m.isOwner ? Icons.star_rounded : Icons.person_outline,
                         size: 18,
                         color: m.isOwner
-                            ? EmeraldTheme.emerald
+                            ? theme.colorScheme.primary
                             : theme.colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 8),
@@ -1411,7 +1410,7 @@ class _TeamCodeChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
       decoration: BoxDecoration(
-        color: EmeraldTheme.mist,
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -1420,7 +1419,7 @@ class _TeamCodeChip extends StatelessWidget {
           SelectableText(
             code,
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: EmeraldTheme.deepEmerald,
+              color: theme.colorScheme.secondary,
               fontWeight: FontWeight.w700,
               letterSpacing: 2,
             ),
@@ -1429,7 +1428,7 @@ class _TeamCodeChip extends StatelessWidget {
           IconButton(
             tooltip: 'Copy code',
             icon: const Icon(Icons.copy, size: 20),
-            color: EmeraldTheme.deepEmerald,
+            color: theme.colorScheme.secondary,
             onPressed: () async {
               final messenger = ScaffoldMessenger.maybeOf(context);
               await Clipboard.setData(ClipboardData(text: code));

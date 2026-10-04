@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import '../../app_state.dart';
 import '../../backend/backend.dart';
 import '../../backend/service_locator.dart';
-import '../../theme.dart';
 
 /// Passwordless email sign-in (email one-time code, via the backend seam).
 ///
@@ -152,7 +151,7 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: EmeraldTheme.mist,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -302,7 +301,7 @@ class _ButtonSpinner extends StatelessWidget {
     return const SizedBox(
       height: 20,
       width: 20,
-      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+      child: CircularProgressIndicator(strokeWidth: 2),
     );
   }
 }

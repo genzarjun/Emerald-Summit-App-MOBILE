@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../theme.dart';
 
 /// One banner's content.
 class BannerMessage {
@@ -117,7 +116,7 @@ class _BannerCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: EmeraldTheme.mist,
+                  backgroundColor: theme.colorScheme.surfaceContainer,
                   child: Icon(Icons.campaign,
                       size: 20, color: theme.colorScheme.primary),
                 ),

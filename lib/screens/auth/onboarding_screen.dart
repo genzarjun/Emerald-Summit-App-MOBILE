@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app_state.dart';
@@ -10,8 +12,7 @@ import '../../models/user_profile.dart';
 /// Two steps:
 ///   1. Name + role.
 ///   2. Role-specific details — the questions come from the chosen role
-///      (see [SummitRoleX.onboardingFields]), so a volunteer is asked for full
-///      contact info while an expert is asked only the essentials.
+///      (see [SummitRoleX.onboardingFields]); some roles have none.
 ///
 /// Gated roles (volunteer/admin) are verified against the synced allowlist before
 /// the user can continue past step 1.
@@ -37,6 +38,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Advances every few seconds so fields with several example [ProfileField.hints]
+  /// cycle through them.
+  int _hintTick = 0;
+  Timer? _hintTimer;
+
   /// True when an already-onboarded user is here to change their role, rather
   /// than a first-time sign-up. Enables a close button and re-titles the screen.
   bool get _editing => appState.isOnboarded;
@@ -48,10 +54,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _nameController.text = appState.profile?.fullName ?? '';
     _role = appState.profile?.role ?? SummitRole.participant;
     _syncFieldControllers();
+    _hintTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (_step == 1 && _role.onboardingFields.any((f) => f.hints.isNotEmpty)) {
+        setState(() => _hintTick++);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _hintTimer?.cancel();
     _nameController.dispose();
     for (final c in _fieldControllers.values) {
       c.dispose();
@@ -319,9 +331,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _fieldControllers[field.key],
             enabled: !_busy,
             keyboardType: field.keyboardType,
+            minLines: field.lines,
+            maxLines: field.lines,
+            textInputAction: TextInputAction.next,
             decoration: InputDecoration(
               labelText: field.label,
-              hintText: field.hint,
+              hintText: field.hints.isEmpty ? field.hint : null,
+              hint: field.hints.isEmpty
+                  ? null
+                  : AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      child: Text(
+                        field.hints[_hintTick % field.hints.length],
+                        key: ValueKey(_hintTick % field.hints.length),
+                        maxLines: field.lines,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+              // Keep the label up so rotating examples show before focus.
+              floatingLabelBehavior: field.hints.isEmpty
+                  ? null
+                  : FloatingLabelBehavior.always,
+              helperText: field.helper,
+              helperMaxLines: 2,
               border: const OutlineInputBorder(),
             ),
           ),
@@ -340,8 +374,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ? const SizedBox(
                   height: 20,
                   width: 20,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : Text(_editing ? 'Save role' : 'Finish & enter the app'),
         ),

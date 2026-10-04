@@ -14,18 +14,93 @@ import '../theme.dart';
 
 const _archieAsset = 'assets/branding/archie.png';
 
-/// Archie's own dark palette — the tab is always dark (Gemini-style), rooted in
-/// the same deep emerald as the launch splash.
+/// Archie's own palette, Gemini-style: a deep emerald night in dark mode
+/// (rooted in the same emerald as the launch splash) and a soft mint-white in
+/// light mode. [of] picks the one matching the app's current theme.
 class _ArchieColors {
-  static const background = Color(0xFF02100B);
-  static const glow = Color(0xFF0C7A55);
-  static const surface = Color(0xFF13211B);
-  static const surfaceHigh = Color(0xFF1B2D25);
-  static const border = Color(0xFF26392F);
-  static const text = Color(0xFFE6F0EA);
-  static const textDim = Color(0xFF93AA9E);
-  static const mint = Color(0xFF5BE0A4);
-  static const userBubble = Color(0xFF0E6B4B);
+  const _ArchieColors({
+    required this.brightness,
+    required this.background,
+    required this.glow,
+    required this.surface,
+    required this.surfaceHigh,
+    required this.border,
+    required this.text,
+    required this.textStrong,
+    required this.textDim,
+    required this.mint,
+    required this.onMint,
+    required this.userBubble,
+    required this.error,
+    required this.greeting,
+    required this.shadow,
+  });
+
+  final Brightness brightness;
+  final Color background;
+  final Color glow;
+  final Color surface;
+  final Color surfaceHigh;
+  final Color border;
+  final Color text;
+
+  /// Bold text in answers — a touch brighter/darker than [text].
+  final Color textStrong;
+  final Color textDim;
+
+  /// The accent: links, progress, the send button.
+  final Color mint;
+  final Color onMint;
+  final Color userBubble;
+  final Color error;
+
+  /// The gradient the user's name is painted in on the welcome screen.
+  final List<Color> greeting;
+  final Color shadow;
+
+  static const dark = _ArchieColors(
+    brightness: Brightness.dark,
+    background: Color(0xFF02100B),
+    glow: Color(0xFF0C7A55),
+    surface: Color(0xFF13211B),
+    surfaceHigh: Color(0xFF1B2D25),
+    border: Color(0xFF26392F),
+    text: Color(0xFFE6F0EA),
+    textStrong: Colors.white,
+    textDim: Color(0xFF93AA9E),
+    mint: Color(0xFF5BE0A4),
+    onMint: Color(0xFF02100B),
+    userBubble: Color(0xFF0E6B4B),
+    error: Color(0xFFF2A39B),
+    greeting: [Color(0xFF9BF6CB), Color(0xFF3CC48A)],
+    shadow: Color(0x59000000),
+  );
+
+  static const light = _ArchieColors(
+    brightness: Brightness.light,
+    background: Color(0xFFF3F8F5),
+    glow: Color(0xFF8FDDB8),
+    surface: Colors.white,
+    surfaceHigh: Color(0xFFE4F0E9),
+    border: Color(0xFFD2E3D9),
+    text: EmeraldTheme.ink,
+    textStrong: Color(0xFF0A1410),
+    textDim: Color(0xFF5A7065),
+    mint: EmeraldTheme.emerald,
+    onMint: Colors.white,
+    userBubble: EmeraldTheme.emerald,
+    error: Color(0xFFB3261E),
+    greeting: [Color(0xFF1FA572), EmeraldTheme.deepEmerald],
+    shadow: Color(0x1A0A5F43),
+  );
+
+  static _ArchieColors of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
+
+  /// Status-bar icons that read on [background].
+  SystemUiOverlayStyle get overlayStyle => brightness == Brightness.dark
+      ? SystemUiOverlayStyle.light
+      : SystemUiOverlayStyle.dark;
 }
 
 /// "Archie" tab — the in-app AI assistant (dragon mascot in shades).
@@ -45,45 +120,44 @@ class ArchieScreen extends StatefulWidget {
   @override
   State<ArchieScreen> createState() => _ArchieScreenState();
 
-  static ThemeData _archieTheme() {
+  static ThemeData _archieTheme(_ArchieColors c) {
     final scheme =
         ColorScheme.fromSeed(
           seedColor: EmeraldTheme.emerald,
-          brightness: Brightness.dark,
+          brightness: c.brightness,
         ).copyWith(
-          primary: _ArchieColors.mint,
-          onPrimary: _ArchieColors.background,
-          surface: _ArchieColors.background,
-          onSurface: _ArchieColors.text,
+          primary: c.mint,
+          onPrimary: c.onMint,
+          surface: c.background,
+          onSurface: c.text,
         );
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: _ArchieColors.background,
-      textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: _ArchieColors.mint,
-        selectionHandleColor: _ArchieColors.mint,
+      scaffoldBackgroundColor: c.background,
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: c.mint,
+        selectionHandleColor: c.mint,
       ),
     );
   }
 
   /// [base] with the bottom navigation bar restyled to sit flush under
-  /// Archie's dark screen. [RootNav] applies it while this tab is selected.
+  /// Archie's screen. [RootNav] applies it while this tab is selected.
   static ThemeData navBarTheme(ThemeData base) {
+    final c = base.brightness == Brightness.dark
+        ? _ArchieColors.dark
+        : _ArchieColors.light;
     final labels = base.navigationBarTheme.labelTextStyle;
     return base.copyWith(
       navigationBarTheme: base.navigationBarTheme.copyWith(
-        backgroundColor: _ArchieColors.background,
+        backgroundColor: c.background,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: _ArchieColors.surfaceHigh,
-        iconTheme: const WidgetStatePropertyAll(
-          IconThemeData(color: _ArchieColors.textDim),
-        ),
+        indicatorColor: c.surfaceHigh,
+        iconTheme: WidgetStatePropertyAll(IconThemeData(color: c.textDim)),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => (labels?.resolve(states) ?? const TextStyle()).copyWith(
-            color: states.contains(WidgetState.selected)
-                ? _ArchieColors.text
-                : _ArchieColors.textDim,
+            color: states.contains(WidgetState.selected) ? c.text : c.textDim,
           ),
         ),
       ),
@@ -339,15 +413,16 @@ class _ArchieScreenState extends State<ArchieScreen>
   void _showHistory() {
     HapticFeedback.selectionClick();
     _focus.unfocus();
+    final c = _ArchieColors.of(context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _ArchieColors.surface,
+      backgroundColor: c.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) => Theme(
-        data: ArchieScreen._archieTheme(),
+        data: ArchieScreen._archieTheme(c),
         child: _HistorySheet(
           currentChatId: _conversation.id,
           onOpen: (chat) {
@@ -464,12 +539,14 @@ class _ArchieScreenState extends State<ArchieScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Follows the app's Light / Dark / System appearance.
+    final c = _ArchieColors.of(context);
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: c.overlayStyle,
       child: Theme(
-        data: ArchieScreen._archieTheme(),
+        data: ArchieScreen._archieTheme(c),
         child: Scaffold(
-          backgroundColor: _ArchieColors.background,
+          backgroundColor: c.background,
           // The RootNav scaffold already lifts its body above the keyboard.
           resizeToAvoidBottomInset: false,
           body: Stack(
@@ -657,15 +734,13 @@ class _GlowBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: RadialGradient(
           center: const Alignment(0, 0.9),
           radius: 1.25,
-          colors: [
-            _ArchieColors.glow.withValues(alpha: .30),
-            _ArchieColors.background,
-          ],
+          colors: [c.glow.withValues(alpha: .30), c.background],
         ),
       ),
     );
@@ -685,6 +760,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return SizedBox(
       height: 56,
       child: Padding(
@@ -693,10 +769,10 @@ class _Header extends StatelessWidget {
           children: [
             const ArchieAvatar(size: 32),
             const SizedBox(width: 10),
-            const Text(
+            Text(
               'Archie',
               style: TextStyle(
-                color: _ArchieColors.text,
+                color: c.text,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
@@ -705,7 +781,7 @@ class _Header extends StatelessWidget {
             IconButton(
               tooltip: 'Your chats',
               onPressed: onHistory,
-              icon: const Icon(Icons.history, color: _ArchieColors.text),
+              icon: Icon(Icons.history, color: c.text),
             ),
             // Takes no space when hidden, so History sits flush right on the
             // welcome screen; it slides over when New chat appears.
@@ -716,10 +792,7 @@ class _Header extends StatelessWidget {
                   ? IconButton(
                       tooltip: 'New chat',
                       onPressed: onNewChat,
-                      icon: const Icon(
-                        Icons.add_comment_outlined,
-                        color: _ArchieColors.text,
-                      ),
+                      icon: Icon(Icons.add_comment_outlined, color: c.text),
                     )
                   : const SizedBox.shrink(),
             ),
@@ -752,6 +825,7 @@ class _Composer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     final canSend = !busy && controller.text.trim().isNotEmpty;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
@@ -761,12 +835,12 @@ class _Composer extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(20, 4, 6, 4),
             decoration: BoxDecoration(
-              color: _ArchieColors.surface,
+              color: c.surface,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: _ArchieColors.border),
+              border: Border.all(color: c.border),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: .35),
+                  color: c.shadow,
                   blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
@@ -786,18 +860,12 @@ class _Composer extends StatelessWidget {
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => onSend(),
-                      style: const TextStyle(
-                        color: _ArchieColors.text,
-                        fontSize: 16.5,
-                      ),
+                      style: TextStyle(color: c.text, fontSize: 16.5),
                       decoration: InputDecoration(
                         hintText: questionsLeft <= 3
                             ? 'Ask Archie · $questionsLeft left in this chat'
                             : 'Ask Archie',
-                        hintStyle: const TextStyle(
-                          color: _ArchieColors.textDim,
-                          fontSize: 16.5,
-                        ),
+                        hintStyle: TextStyle(color: c.textDim, fontSize: 16.5),
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(
@@ -817,20 +885,16 @@ class _Composer extends StatelessWidget {
                           key: const ValueKey('stop'),
                           tooltip: 'Stop',
                           icon: Icons.stop_rounded,
-                          background: _ArchieColors.text,
-                          foreground: _ArchieColors.background,
+                          background: c.text,
+                          foreground: c.background,
                           onPressed: onStop,
                         )
                       : _RoundButton(
                           key: const ValueKey('send'),
                           tooltip: 'Send',
                           icon: Icons.arrow_upward_rounded,
-                          background: canSend
-                              ? _ArchieColors.mint
-                              : _ArchieColors.surfaceHigh,
-                          foreground: canSend
-                              ? _ArchieColors.background
-                              : _ArchieColors.textDim,
+                          background: canSend ? c.mint : c.surfaceHigh,
+                          foreground: canSend ? c.background : c.textDim,
                           onPressed: canSend ? onSend : null,
                         ),
                 ),
@@ -891,11 +955,12 @@ class _PrivacyNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
+    final c = _ArchieColors.of(context);
+    return Text(
       'Archie can make mistakes. Chats are saved to your account and '
       'reviewed anonymously to improve Archie.',
       textAlign: TextAlign.center,
-      style: TextStyle(color: _ArchieColors.textDim, fontSize: 11, height: 1.3),
+      style: TextStyle(color: c.textDim, fontSize: 11, height: 1.3),
     );
   }
 }
@@ -908,33 +973,30 @@ class _ChatFullNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       child: Container(
         padding: const EdgeInsets.fromLTRB(18, 14, 10, 14),
         decoration: BoxDecoration(
-          color: _ArchieColors.surface,
+          color: c.surface,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: _ArchieColors.border),
+          border: Border.all(color: c.border),
         ),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'This conversation is too long. Please start a new chat.',
-                style: TextStyle(
-                  color: _ArchieColors.text,
-                  fontSize: 14.5,
-                  height: 1.35,
-                ),
+                style: TextStyle(color: c.text, fontSize: 14.5, height: 1.35),
               ),
             ),
             const SizedBox(width: 10),
             FilledButton.icon(
               style: FilledButton.styleFrom(
                 minimumSize: const Size(0, 42),
-                backgroundColor: _ArchieColors.mint,
-                foregroundColor: _ArchieColors.background,
+                backgroundColor: c.mint,
+                foregroundColor: c.background,
               ),
               onPressed: onNewChat,
               icon: const Icon(Icons.add_comment_outlined, size: 18),
@@ -986,10 +1048,11 @@ class _HistorySheetState extends State<_HistorySheet> {
   }
 
   Future<void> _delete(ArchieChatSummary chat) async {
+    final c = _ArchieColors.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: _ArchieColors.surfaceHigh,
+        backgroundColor: c.surfaceHigh,
         title: const Text('Delete this chat?'),
         content: Text('"${chat.title}" will be permanently deleted.'),
         actions: [
@@ -999,9 +1062,7 @@ class _HistorySheetState extends State<_HistorySheet> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFF2A39B),
-            ),
+            style: TextButton.styleFrom(foregroundColor: c.error),
             child: const Text('Delete'),
           ),
         ],
@@ -1024,6 +1085,7 @@ class _HistorySheetState extends State<_HistorySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     final chats = _chats;
     return SafeArea(
       child: ConstrainedBox(
@@ -1040,7 +1102,7 @@ class _HistorySheetState extends State<_HistorySheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: _ArchieColors.border,
+                  color: c.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1049,11 +1111,11 @@ class _HistorySheetState extends State<_HistorySheet> {
               padding: const EdgeInsets.fromLTRB(20, 14, 12, 4),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Your chats',
                       style: TextStyle(
-                        color: _ArchieColors.text,
+                        color: c.text,
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1067,27 +1129,23 @@ class _HistorySheetState extends State<_HistorySheet> {
                 ],
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
                 'Archie keeps your $kArchieMaxSavedChats most recent chats — '
                 'starting another removes the oldest. Organizers review '
                 'questions and answers anonymously (never your name) to '
                 'improve Archie.',
-                style: TextStyle(
-                  color: _ArchieColors.textDim,
-                  fontSize: 12.5,
-                  height: 1.4,
-                ),
+                style: TextStyle(color: c.textDim, fontSize: 12.5, height: 1.4),
               ),
             ),
             if (_failed)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
                   "Couldn't load your chats.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: _ArchieColors.textDim),
+                  style: TextStyle(color: c.textDim),
                 ),
               )
             else if (chats == null)
@@ -1096,13 +1154,13 @@ class _HistorySheetState extends State<_HistorySheet> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (chats.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(24, 24, 24, 32),
                 child: Text(
                   'No saved chats yet. Ask Archie something and it will '
                   'show up here.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: _ArchieColors.textDim),
+                  style: TextStyle(color: c.textDim),
                 ),
               )
             else
@@ -1118,30 +1176,22 @@ class _HistorySheetState extends State<_HistorySheet> {
                       contentPadding: const EdgeInsets.only(left: 20, right: 8),
                       leading: Icon(
                         current ? Icons.chat_bubble : Icons.chat_bubble_outline,
-                        color: current
-                            ? _ArchieColors.mint
-                            : _ArchieColors.textDim,
+                        color: current ? c.mint : c.textDim,
                         size: 20,
                       ),
                       title: Text(
                         chat.title.isEmpty ? 'Untitled chat' : chat.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _ArchieColors.text),
+                        style: TextStyle(color: c.text),
                       ),
                       subtitle: Text(
                         _relativeTime(chat.updatedAt),
-                        style: const TextStyle(
-                          color: _ArchieColors.textDim,
-                          fontSize: 12.5,
-                        ),
+                        style: TextStyle(color: c.textDim, fontSize: 12.5),
                       ),
                       trailing: IconButton(
                         tooltip: 'Delete chat',
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: _ArchieColors.textDim,
-                        ),
+                        icon: Icon(Icons.delete_outline, color: c.textDim),
                         onPressed: () => _delete(chat),
                       ),
                       onTap: () => widget.onOpen(chat),
@@ -1231,6 +1281,8 @@ class _WelcomeState extends State<_Welcome> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final name = widget.firstName.isEmpty ? 'there' : widget.firstName;
+    final c = _ArchieColors.of(context);
+    final greetingStyle = _greetingStyle.copyWith(color: c.text);
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -1267,38 +1319,31 @@ class _WelcomeState extends State<_Welcome> with TickerProviderStateMixin {
                         baseline: TextBaseline.alphabetic,
                         child: ShaderMask(
                           blendMode: BlendMode.srcIn,
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Color(0xFF9BF6CB), Color(0xFF3CC48A)],
-                          ).createShader(bounds),
-                          child: Text(name, style: _greetingStyle),
+                          shaderCallback: (bounds) =>
+                              LinearGradient(colors: c.greeting)
+                                  .createShader(bounds),
+                          child: Text(name, style: greetingStyle),
                         ),
                       ),
                       const TextSpan(text: ",\nwhat's the move?"),
                     ],
                   ),
                   textAlign: TextAlign.center,
-                  style: _greetingStyle,
+                  style: greetingStyle,
                 ),
               ),
               const SizedBox(height: 10),
               _entrance(
                 .2,
                 .6,
-                const Text(
+                Text(
                   'Ask me anything about Emerald Summit or Emerald High.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _ArchieColors.textDim,
-                    fontSize: 14.5,
-                  ),
+                  style: TextStyle(color: c.textDim, fontSize: 14.5),
                 ),
               ),
               const SizedBox(height: 20),
-              _entrance(
-                .25,
-                .65,
-                const Divider(color: _ArchieColors.border, height: 1),
-              ),
+              _entrance(.25, .65, Divider(color: c.border, height: 1)),
               const SizedBox(height: 18),
               for (final (i, s) in widget.starters.indexed)
                 _entrance(
@@ -1320,7 +1365,6 @@ class _WelcomeState extends State<_Welcome> with TickerProviderStateMixin {
   }
 
   static const _greetingStyle = TextStyle(
-    color: _ArchieColors.text,
     fontSize: 28,
     height: 1.25,
     fontWeight: FontWeight.w300,
@@ -1336,30 +1380,27 @@ class _StarterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return Material(
-      color: _ArchieColors.surface,
+      color: c.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: _ArchieColors.border),
+        side: BorderSide(color: c.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        splashColor: _ArchieColors.mint.withValues(alpha: .12),
+        splashColor: c.mint.withValues(alpha: .12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Icon(starter.icon, size: 20, color: _ArchieColors.mint),
+              Icon(starter.icon, size: 20, color: c.mint),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
                   starter.text,
-                  style: const TextStyle(
-                    color: _ArchieColors.text,
-                    fontSize: 15,
-                    height: 1.35,
-                  ),
+                  style: TextStyle(color: c.text, fontSize: 15, height: 1.35),
                 ),
               ),
             ],
@@ -1380,6 +1421,7 @@ class _UserBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
@@ -1388,8 +1430,8 @@ class _UserBubble extends StatelessWidget {
         ),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-          decoration: const BoxDecoration(
-            color: _ArchieColors.userBubble,
+          decoration: BoxDecoration(
+            color: c.userBubble,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(6),
@@ -1426,6 +1468,7 @@ class _ArchieReply extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     final m = message;
     final shown = m.text.substring(0, m.revealed);
     return Row(
@@ -1454,12 +1497,12 @@ class _ArchieReply extends StatelessWidget {
                   onRetry: m.stopped ? null : onRetry,
                 ),
               if (m.settled && !m.failed && m.stopped)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 6),
                   child: Text(
                     'Stopped',
                     style: TextStyle(
-                      color: _ArchieColors.textDim,
+                      color: c.textDim,
                       fontSize: 12,
                       fontStyle: FontStyle.italic,
                     ),
@@ -1473,7 +1516,7 @@ class _ArchieReply extends StatelessWidget {
                     tooltip: 'Copy',
                     visualDensity: VisualDensity.compact,
                     iconSize: 18,
-                    color: _ArchieColors.textDim,
+                    color: c.textDim,
                     icon: const Icon(Icons.copy_rounded),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: m.text));
@@ -1496,40 +1539,37 @@ class _ArchieReply extends StatelessWidget {
   }
 
   static MarkdownStyleSheet _markdownStyle(BuildContext context) {
-    const body = TextStyle(
-      color: _ArchieColors.text,
-      fontSize: 15.5,
-      height: 1.5,
-    );
+    final c = _ArchieColors.of(context);
+    final body = TextStyle(color: c.text, fontSize: 15.5, height: 1.5);
     return MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
       p: body,
       listBullet: body,
-      strong: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+      strong: TextStyle(fontWeight: FontWeight.w700, color: c.textStrong),
       em: const TextStyle(fontStyle: FontStyle.italic),
-      a: const TextStyle(
-        color: _ArchieColors.mint,
+      a: TextStyle(
+        color: c.mint,
         decoration: TextDecoration.underline,
-        decorationColor: _ArchieColors.mint,
+        decorationColor: c.mint,
       ),
       h1: body.copyWith(fontSize: 19, fontWeight: FontWeight.w700),
       h2: body.copyWith(fontSize: 17.5, fontWeight: FontWeight.w700),
       h3: body.copyWith(fontSize: 16.5, fontWeight: FontWeight.w600),
       blockSpacing: 10,
-      code: const TextStyle(
+      code: TextStyle(
         fontFamily: 'monospace',
         fontSize: 14,
-        color: _ArchieColors.mint,
-        backgroundColor: _ArchieColors.surfaceHigh,
+        color: c.mint,
+        backgroundColor: c.surfaceHigh,
       ),
       codeblockDecoration: BoxDecoration(
-        color: _ArchieColors.surfaceHigh,
+        color: c.surfaceHigh,
         borderRadius: BorderRadius.circular(10),
       ),
-      blockquoteDecoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: _ArchieColors.border, width: 3)),
+      blockquoteDecoration: BoxDecoration(
+        border: Border(left: BorderSide(color: c.border, width: 3)),
       ),
-      horizontalRuleDecoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: _ArchieColors.border)),
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(top: BorderSide(color: c.border)),
       ),
     );
   }
@@ -1552,6 +1592,7 @@ class _StepsState extends State<_Steps> {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     final steps = widget.steps;
     if (widget.working) {
       return Padding(
@@ -1568,8 +1609,8 @@ class _StepsState extends State<_Steps> {
                   key: ValueKey(steps.length),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _ArchieColors.mint,
+                  style: TextStyle(
+                    color: c.mint,
                     fontSize: 14,
                     fontStyle: FontStyle.italic,
                   ),
@@ -1604,16 +1645,12 @@ class _StepsState extends State<_Steps> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.travel_explore,
-                    size: 15,
-                    color: _ArchieColors.textDim,
-                  ),
+                  Icon(Icons.travel_explore, size: 15, color: c.textDim),
                   const SizedBox(width: 6),
                   Text(
                     summary[0].toUpperCase() + summary.substring(1),
-                    style: const TextStyle(
-                      color: _ArchieColors.textDim,
+                    style: TextStyle(
+                      color: c.textDim,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1621,7 +1658,7 @@ class _StepsState extends State<_Steps> {
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
                     size: 18,
-                    color: _ArchieColors.textDim,
+                    color: c.textDim,
                   ),
                 ],
               ),
@@ -1635,9 +1672,9 @@ class _StepsState extends State<_Steps> {
                 : Container(
                     margin: const EdgeInsets.only(top: 4, left: 6),
                     padding: const EdgeInsets.only(left: 12),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(
-                        left: BorderSide(color: _ArchieColors.border, width: 2),
+                        left: BorderSide(color: c.border, width: 2),
                       ),
                     ),
                     child: Column(
@@ -1649,20 +1686,20 @@ class _StepsState extends State<_Steps> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Padding(
+                                Padding(
                                   padding: EdgeInsets.only(top: 2),
                                   child: Icon(
                                     Icons.check_circle,
                                     size: 13,
-                                    color: _ArchieColors.mint,
+                                    color: c.mint,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     s,
-                                    style: const TextStyle(
-                                      color: _ArchieColors.textDim,
+                                    style: TextStyle(
+                                      color: c.textDim,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -1702,6 +1739,7 @@ class _PulsingDotsState extends State<_PulsingDots>
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return AnimatedBuilder(
       animation: _c,
       builder: (context, _) => Row(
@@ -1716,10 +1754,7 @@ class _PulsingDotsState extends State<_PulsingDots>
                     .7 *
                         (.5 +
                             .5 * math.sin((_c.value - i * .18) * 2 * math.pi)),
-                child: const CircleAvatar(
-                  radius: 3.5,
-                  backgroundColor: _ArchieColors.mint,
-                ),
+                child: CircleAvatar(radius: 3.5, backgroundColor: c.mint),
               ),
             ),
         ],
@@ -1734,15 +1769,16 @@ class _Sources extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Sources',
             style: TextStyle(
-              color: _ArchieColors.textDim,
+              color: c.textDim,
               fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: .4,
@@ -1755,7 +1791,7 @@ class _Sources extends StatelessWidget {
             children: [
               for (final s in sources)
                 Material(
-                  color: _ArchieColors.surfaceHigh,
+                  color: c.surfaceHigh,
                   borderRadius: BorderRadius.circular(20),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(20),
@@ -1768,11 +1804,7 @@ class _Sources extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.public,
-                            size: 14,
-                            color: _ArchieColors.mint,
-                          ),
+                          Icon(Icons.public, size: 14, color: c.mint),
                           const SizedBox(width: 6),
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 190),
@@ -1780,10 +1812,7 @@ class _Sources extends StatelessWidget {
                               s.title.isEmpty ? _host(s.url) : s.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _ArchieColors.text,
-                                fontSize: 12.5,
-                              ),
+                              style: TextStyle(color: c.text, fontSize: 12.5),
                             ),
                           ),
                         ],
@@ -1810,20 +1839,17 @@ class _ErrorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, size: 18, color: Color(0xFFF2A39B)),
+          Icon(Icons.error_outline, size: 18, color: c.error),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: Color(0xFFF2A39B),
-                fontSize: 14,
-                height: 1.35,
-              ),
+              style: TextStyle(color: c.error, fontSize: 14, height: 1.35),
             ),
           ),
           if (onRetry != null)
@@ -1859,6 +1885,7 @@ class ArchieAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = _ArchieColors.of(context);
     return Container(
       width: size,
       height: size,
@@ -1871,7 +1898,7 @@ class ArchieAvatar extends StatelessWidget {
         boxShadow: [
           if (glow)
             BoxShadow(
-              color: _ArchieColors.mint.withValues(alpha: .35),
+              color: c.mint.withValues(alpha: .35),
               blurRadius: size * .45,
               spreadRadius: size * .04,
             ),

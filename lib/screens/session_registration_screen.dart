@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/models.dart';
-import '../theme.dart';
 
 /// What the registration form hands back: the participant's project answer plus
 /// their answers to the session's own questions (question id → answer).
@@ -603,7 +602,7 @@ class _Note extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: EmeraldTheme.mist,
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -615,7 +614,7 @@ class _Note extends StatelessWidget {
             child: Text(
               text,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: EmeraldTheme.ink,
+                color: theme.colorScheme.onSurface,
               ),
             ),
           ),

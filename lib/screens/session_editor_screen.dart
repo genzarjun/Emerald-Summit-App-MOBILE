@@ -565,10 +565,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                       ? const SizedBox(
                           height: 18,
                           width: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.save),
                   label: Text(_isEditing ? 'Save changes' : 'Create session'),

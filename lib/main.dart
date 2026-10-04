@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_state.dart';
 import 'backend/service_locator.dart';
 import 'theme.dart';
+import 'theme_setting.dart';
 import 'widgets/in_app_banner.dart';
 import 'screens/auth/auth_gate.dart';
 import 'screens/root_nav.dart';
@@ -14,6 +15,9 @@ Future<void> main() async {
   // Pick and initialize the backend (live if configured, else in-memory sample).
   // This is the whole app's single backend touch-point.
   await configureBackend();
+
+  // The saved Light / Dark / System choice, so the first frame is in it.
+  await themeSetting.load();
 
   if (!backendInfo.isLive) {
     // Sample mode goes straight to the app (no auth gate), so prime the catalog
@@ -34,12 +38,20 @@ class EmeraldSummitApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilds only when the Appearance setting changes.
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeSetting,
+      builder: (context, themeMode, _) => _app(themeMode),
+    );
+  }
+
+  Widget _app(ThemeMode themeMode) {
     return MaterialApp(
       title: 'Emerald Summit',
       debugShowCheckedModeBanner: false,
       theme: EmeraldTheme.light(),
       darkTheme: EmeraldTheme.dark(),
-      themeMode: ThemeMode.light,
+      themeMode: themeMode,
       builder: (context, child) {
         final mq = MediaQuery.of(context);
         return MediaQuery(

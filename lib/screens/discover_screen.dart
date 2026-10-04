@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/models.dart';
-import '../theme.dart';
 import 'discipline_editor_screen.dart';
 import 'discipline_screen.dart';
 
@@ -143,7 +142,7 @@ class _DisciplineCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               CircleAvatar(
-                backgroundColor: EmeraldTheme.mist,
+                backgroundColor: theme.colorScheme.surfaceContainer,
                 child: Icon(discipline.icon, color: theme.colorScheme.primary),
               ),
               const SizedBox(height: 12),

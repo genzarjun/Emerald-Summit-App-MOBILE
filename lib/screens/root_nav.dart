@@ -36,7 +36,7 @@ class RootNav extends StatelessWidget {
         bottomNavigationBar: ListenableBuilder(
           listenable: appState,
           builder: (context, _) => Theme(
-            // Archie's tab is dark; darken the bar with it.
+            // Archie's tab has its own backdrop; match the bar to it.
             data: index == kArchieTabIndex
                 ? ArchieScreen.navBarTheme(Theme.of(context))
                 : Theme.of(context),
