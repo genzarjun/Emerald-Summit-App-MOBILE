@@ -745,11 +745,24 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         children: [
           Text('Default questions (set by the app)',
               style: theme.textTheme.labelMedium),
-          if (soloOnly)
-            item(DefaultQuestions.projectName,
-                'Always asked. This session is solo only, so participants '
-                "aren't asked about teams.")
-          else ...[
+          if (soloOnly) ...[
+            item(DefaultQuestions.projectName, 'Always asked.'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.block, size: 16, color: theme.colorScheme.error),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Teams aren't allowed for this session.",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
             item(DefaultQuestions.soloOrTeam,
                 'Always asked. Answer: Solo or Team.'),
             item(DefaultQuestions.projectName,
