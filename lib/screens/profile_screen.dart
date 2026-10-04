@@ -259,33 +259,71 @@ class _AppearanceTile extends StatelessWidget {
         title: const Text('Appearance'),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8, bottom: 4),
-          child: SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<ThemeMode>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  icon: Icon(Icons.light_mode_outlined),
-                  label: Text('Light'),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Equal-width segments get narrow on small phones with large
+              // text. When a segment can't hold icon + "System" on one line,
+              // drop the icons so all three labels stay the same size.
+              final scale = MediaQuery.textScalerOf(context).scale(1);
+              final showIcons = constraints.maxWidth / 3 >= 44 + 46 * scale;
+              return SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<ThemeMode>(
+                  showSelectedIcon: false,
+                  // Trim padding so labels fit; _SegmentLabel keeps them on one
+                  // line (shrinking as a last resort) instead of wrapping.
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    padding: WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+                  segments: [
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      icon: showIcons
+                          ? const Icon(Icons.light_mode_outlined)
+                          : null,
+                      label: const _SegmentLabel('Light'),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      icon: showIcons
+                          ? const Icon(Icons.dark_mode_outlined)
+                          : null,
+                      label: const _SegmentLabel('Dark'),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      icon: showIcons
+                          ? const Icon(Icons.brightness_auto_outlined)
+                          : null,
+                      label: const _SegmentLabel('System'),
+                    ),
+                  ],
+                  selected: {mode},
+                  onSelectionChanged: (s) => themeSetting.set(s.first),
                 ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  icon: Icon(Icons.dark_mode_outlined),
-                  label: Text('Dark'),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  icon: Icon(Icons.brightness_auto_outlined),
-                  label: Text('System'),
-                ),
-              ],
-              selected: {mode},
-              onSelectionChanged: (s) => themeSetting.set(s.first),
-            ),
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Single-line segment label that scales down rather than wrapping.
+class _SegmentLabel extends StatelessWidget {
+  const _SegmentLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(text, maxLines: 1, softWrap: false),
     );
   }
 }

@@ -147,9 +147,17 @@ Home header** (Uber-style), not a bottom-bar tab.
     who's listed first and tagged "Team owner"), each solo participant
     gets their own header, then anyone who hasn't shared a project yet, then
     spectators.
-  - **Experts** (same gate as Participants — admins + assigned volunteers) — the
-    people who joined this session as **experts** ("serving as an expert"), with
-    the same attendance toggles.
+  - **Experts** (same gate as Participants — admins, assigned volunteers, and
+    the session's editors) — the people who joined this session as **experts**
+    ("serving as an expert"), with the same attendance toggles.
+  - On both tabs, **tapping a person opens their profile** in a sheet
+    ([roster_person_sheet.dart](lib/widgets/roster_person_sheet.dart)): role,
+    email + mobile (tap to email / call), their onboarding answers (school,
+    grade, expertise, bio…), and their registration here (attendance,
+    project/team, answers). The attendance switch sits at the row's trailing
+    edge so tapping the row doesn't toggle it. Needs
+    `roster_profile_details.sql`; before it's run the sheet says profile
+    details aren't available yet.
   - **Volunteers** (admins) — assign/unassign volunteers.
   A plain participant sees only the Session tab. Admins and EAF ambassadors who
   can edit the session's discipline get **Edit** controls (an AppBar pencil + an
@@ -355,7 +363,8 @@ Home header** (Uber-style), not a bottom-bar tab.
 - **Profile** (reached from the Home-header avatar) — contact card with role
   badge (volunteers also show their **subtype** and the discipline(s) they
   manage), notifications toggle, an **Appearance** picker (Light / Dark /
-  System, saved per device — see Theming below), and role-gated shortcuts: **My sessions**
+  System, saved per device — see Theming below; on narrow screens or large
+  text it drops the icons and keeps labels on one line), and role-gated shortcuts: **My sessions**
   (a volunteer's assigned sessions → roster + attendance), **Front desk
   check-in** (for front-desk-flagged volunteers/admins), **Manage rooms**
   (admins). Plus **Change role** (re-runs the gated role picker), sign-out, and
@@ -419,7 +428,8 @@ fixed brand colors in both modes.
   example bios) and an optional mobile, noted as used only to reach them
   day-of; parents/spectators and admins give nothing extra. Every phone field
   notes the number isn't shown publicly (true: `profiles` RLS is own-row
-  only). Fields are
+  only; the one other reader is the organizers of sessions the person
+  registered for, via the roster profile sheet). Fields are
   declared per role in [lib/models/user_profile.dart](lib/models/user_profile.dart),
   so the sign-up flow customizes itself. A volunteer's **subtype** (EAF
   ambassador / parent / student) and permissions come from the sheet, not the
@@ -459,6 +469,7 @@ lib/
   data/sample_data.dart     Static seed content used by the sample backend + resources hub
   widgets/in_app_banner.dart  Instagram-style in-app banner (controller + host)
   widgets/summit_logo.dart    Brand mark rebuilt as a CustomPainter (no asset)
+  widgets/roster_person_sheet.dart  Organizer-only profile sheet opened from a roster row
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
@@ -467,7 +478,7 @@ lib/
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
     discover_screen.dart    Disciplines grid (+ admin "New discipline")
     discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)
-    session_detail_screen.dart   Tabbed session page: Session/Participants/Volunteers (permission-gated)
+    session_detail_screen.dart   Tabbed session page: Session/Participants/Experts/Volunteers (permission-gated)
     session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown, hero/gallery, content blocks)
     session_volunteers_screen.dart  SessionVolunteersView — assign/unassign (Volunteers tab, admin)
     session_roster_screen.dart   SessionRosterView + wrapper — roster + attendance (Participants tab / My Assignments)
@@ -615,8 +626,9 @@ test/widget_test.dart       Widget tests
     [session_participation_setup.sql](supabase/session_participation_setup.sql)
   - `summit_checkins` + attendance RPCs — session rosters
     (`fetch_session_roster`, which also returns each registrant's
-    participation type, answers, project/team, and whether they own the team,
-    and is readable by assigned
+    participation type, answers, project/team, whether they own the team, and
+    — after [roster_profile_details.sql](supabase/roster_profile_details.sql) —
+    their `profiles.role` + `details` for the profile sheet; readable by assigned
     volunteers, admins, and the session's discipline editors /
     `mark_session_attendance`, gated by assignment) and
     the summit-wide front-desk directory (`fetch_attendee_directory` /
