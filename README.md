@@ -155,9 +155,10 @@ Home header** (Uber-style), not a bottom-bar tab.
     email + mobile (tap to email / call), their onboarding answers (school,
     grade, expertise, bio…), and their registration here (attendance,
     project/team, answers). The attendance switch sits at the row's trailing
-    edge so tapping the row doesn't toggle it. Needs
-    `roster_profile_details.sql`; before it's run the sheet says profile
-    details aren't available yet.
+    edge so tapping the row doesn't toggle it. Live on the dev project
+    ([roster_profile_details.sql](supabase/roster_profile_details.sql) has been
+    run); on a backend without it, the sheet says profile details aren't
+    available yet.
   - **Volunteers** (admins) — assign/unassign volunteers.
   A plain participant sees only the Session tab. Admins and EAF ambassadors who
   can edit the session's discipline get **Edit** controls (an AppBar pencil + an
@@ -627,8 +628,9 @@ test/widget_test.dart       Widget tests
   - `summit_checkins` + attendance RPCs — session rosters
     (`fetch_session_roster`, which also returns each registrant's
     participation type, answers, project/team, whether they own the team, and
-    — after [roster_profile_details.sql](supabase/roster_profile_details.sql) —
-    their `profiles.role` + `details` for the profile sheet; readable by assigned
+    their `profiles.role` + `details` for the profile sheet — added by
+    [roster_profile_details.sql](supabase/roster_profile_details.sql), run on
+    the dev project; readable by assigned
     volunteers, admins, and the session's discipline editors /
     `mark_session_attendance`, gated by assignment) and
     the summit-wide front-desk directory (`fetch_attendee_directory` /
