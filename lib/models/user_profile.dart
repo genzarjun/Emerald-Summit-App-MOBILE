@@ -121,6 +121,10 @@ extension SummitRoleX on SummitRole {
   /// TODO(volunteer-subtypes): tailor these per [VolunteerSubtype] once the
   /// subtype is known at onboarding (deferred — the subtype currently arrives
   /// from the sheet after sign-up).
+  /// Shown under every phone field. True because `profiles` RLS only lets a
+  /// user read their own row, and no roster/team RPC returns `details`.
+  static const _phonePrivacyNote = "Your number won't be shown publicly.";
+
   List<ProfileField> get onboardingFields => switch (this) {
         SummitRole.participant => const [
             ProfileField(
@@ -133,6 +137,7 @@ extension SummitRoleX on SummitRole {
             ProfileField(
                 key: 'phone',
                 label: 'Mobile number (optional)',
+                helper: _phonePrivacyNote,
                 keyboardType: TextInputType.phone),
           ],
         SummitRole.volunteer => const [
@@ -141,6 +146,7 @@ extension SummitRoleX on SummitRole {
                 label: 'Mobile number',
                 required: true,
                 hint: 'For day-of coordination',
+                helper: _phonePrivacyNote,
                 keyboardType: TextInputType.phone),
           ],
         SummitRole.expert => const [
@@ -164,8 +170,8 @@ extension SummitRoleX on SummitRole {
             ProfileField(
                 key: 'phone',
                 label: 'Mobile number (optional)',
-                helper:
-                    'Only used to reach you on the day of the summit if necessary.',
+                helper: 'Only used to reach you on the day of the summit if '
+                    'necessary. $_phonePrivacyNote',
                 keyboardType: TextInputType.phone),
           ],
         SummitRole.parentSpectator => const [],

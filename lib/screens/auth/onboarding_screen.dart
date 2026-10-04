@@ -355,7 +355,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ? null
                   : FloatingLabelBehavior.always,
               helperText: field.helper,
-              helperMaxLines: 2,
+              helperMaxLines: 3,
               border: const OutlineInputBorder(),
             ),
           ),

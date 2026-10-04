@@ -417,7 +417,9 @@ fixed brand colors in both modes.
   an optional mobile; volunteers give a mobile number only; experts give area
   of expertise + a required one-line bio (the placeholder cycles through
   example bios) and an optional mobile, noted as used only to reach them
-  day-of; parents/spectators and admins give nothing extra. Fields are
+  day-of; parents/spectators and admins give nothing extra. Every phone field
+  notes the number isn't shown publicly (true: `profiles` RLS is own-row
+  only). Fields are
   declared per role in [lib/models/user_profile.dart](lib/models/user_profile.dart),
   so the sign-up flow customizes itself. A volunteer's **subtype** (EAF
   ambassador / parent / student) and permissions come from the sheet, not the
