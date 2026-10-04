@@ -1277,7 +1277,9 @@ class _ProjectCard extends StatelessWidget {
             if (p.isTeam && p.members.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                'Members (${p.members.length} of ${p.maxTeamSize})',
+                p.teamsAllowed
+                    ? 'Members (${p.members.length} of ${p.maxTeamSize})'
+                    : 'Members (${p.members.length})',
                 style: theme.textTheme.labelLarge,
               ),
               const SizedBox(height: 4),
@@ -1323,7 +1325,7 @@ class _ProjectCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (!p.isTeam) ...[
+            if (!p.isTeam && p.teamsAllowed) ...[
               const SizedBox(height: 6),
               Text(
                 'Teaming up later? Edit your registration to create or join '

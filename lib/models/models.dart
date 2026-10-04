@@ -226,6 +226,12 @@ class ProjectChoice {
 /// The default team size limit for a session (editors can change it).
 const int kDefaultMaxTeamSize = 4;
 
+/// The largest team size limit an editor can choose.
+const int kLargestTeamSizeLimit = 8;
+
+/// The team size limit meaning "no teams allowed, only solos".
+const int kSoloOnlyTeamSize = 1;
+
 /// One person on a team, as their teammates see them.
 class TeamMember {
   const TeamMember({required this.id, required this.name, this.isOwner = false});
@@ -267,8 +273,11 @@ class MyProject {
   /// has other members must pick a new owner first.
   final bool isOwner;
 
-  /// The session's team size limit.
+  /// The session's team size limit ([kSoloOnlyTeamSize] = solo only).
   final int maxTeamSize;
+
+  /// False when the session is solo only.
+  bool get teamsAllowed => maxTeamSize >= 2;
 
   /// The owner's display name, if known.
   String? get ownerName {
@@ -282,7 +291,7 @@ class MyProject {
   /// still has someone else on it.
   bool get mustHandOff => isTeam && isOwner && members.length > 1;
 
-  bool get isFull => members.length >= maxTeamSize;
+  bool get isFull => teamsAllowed && members.length >= maxTeamSize;
 
   /// Parses the `fetch_my_project` result. Null when the user isn't registered
   /// or registered before the team question existed (no answer yet).
@@ -314,7 +323,7 @@ class MyProject {
 }
 
 /// Result of looking up a team code before joining.
-enum TeamLookupOutcome { found, full, notFound, wrongSession }
+enum TeamLookupOutcome { found, full, notFound, wrongSession, teamsNotAllowed }
 
 class TeamLookup {
   const TeamLookup(
@@ -341,6 +350,8 @@ class TeamLookup {
         TeamLookupOutcome.full =>
           '"${projectName ?? 'That team'}" is full ($memberCount of '
               '$maxTeamSize members).',
+        TeamLookupOutcome.teamsNotAllowed =>
+          "This session is solo only — teams aren't allowed.",
         TeamLookupOutcome.notFound =>
           "We couldn't find a team with that code. Check it with your teammate.",
         TeamLookupOutcome.wrongSession => sessionTitle == null
@@ -441,8 +452,12 @@ class Session {
   /// participant (empty = no questions; participating registers directly).
   final List<SessionQuestion> participantQuestions;
 
-  /// The most people one team may have in this session (set by its editors).
+  /// The most people one team may have in this session (set by its editors);
+  /// [kSoloOnlyTeamSize] means no teams, only solos.
   final int maxTeamSize;
+
+  /// False when the session is solo only.
+  bool get teamsAllowed => maxTeamSize >= 2;
 
   bool get isFull => enrolled >= capacity;
   int get seatsLeft => capacity - enrolled;

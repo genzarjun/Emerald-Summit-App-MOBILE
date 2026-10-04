@@ -56,6 +56,7 @@ String? projectProblemMessage(String? outcome) => switch (outcome) {
         "That team doesn't exist anymore. Check the code with your teammate.",
       'team_wrong_session' => 'That team code is for a different session.',
       'team_full' => 'That team is already full.',
+      'teams_not_allowed' => "This session is solo only — teams aren't allowed.",
       'project_name_required' => 'Please enter your project name.',
       'choose_new_owner' =>
         'You own this team. Choose a teammate to take over before you leave.',

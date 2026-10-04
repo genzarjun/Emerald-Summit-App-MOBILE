@@ -176,7 +176,7 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     project parameters). Safe to re-run.
 29. `supabase/teams_ownership_setup.sql` — **team owners + size limits**:
     `teams.owner_id` (backfilled from the creator), `sessions.max_team_size`
-    (default 4, 2–50; **rebuilds `sessions_with_counts`** so it's exposed), an
+    (default 4; **rebuilds `sessions_with_counts`** so it's exposed), an
     internal `team_hand_off` helper, the `transfer_team_ownership` RPC, and new
     versions of `find_team`, `register_for_session`, `update_my_registration`
     (both gain `p_new_owner_id`; the old signatures are dropped),
@@ -185,6 +185,13 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     current app: until then, saving a session in the editor fails (it writes
     `max_team_size`), and owner hand-off, team-full checks, and the roster's
     owner marker don't work.** Safe to re-run.
+30. `supabase/team_size_limits.sql` — narrows `sessions.max_team_size` to
+    **1–8** (1 = **solo only**, no teams; anything above 8 is clamped to 8) and
+    redefines `find_team`, `register_for_session`, and `update_my_registration`
+    (same signatures) to refuse creating or joining a team in a solo-only
+    session (`teams_not_allowed`). People already on a team keep it. **Run
+    before shipping the current app** — without it, saving "No teams allowed"
+    in the editor fails the old 2–50 check. Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

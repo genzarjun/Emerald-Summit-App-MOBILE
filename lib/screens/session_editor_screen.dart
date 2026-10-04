@@ -30,7 +30,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   late final TextEditingController _end;
   late final TextEditingController _capacity;
   late final TextEditingController _description;
-  late final TextEditingController _maxTeamSize;
+
+  /// Team size limit: 2–[kLargestTeamSizeLimit], or [kSoloOnlyTeamSize] for a
+  /// solo-only session.
+  late int _maxTeamSize;
 
   bool _busy = false;
   String? _error;
@@ -67,9 +70,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     _end = TextEditingController(text: s?.end ?? '');
     _capacity = TextEditingController(text: s != null ? '${s.capacity}' : '');
     _description = TextEditingController(text: s?.description ?? '');
-    _maxTeamSize = TextEditingController(
-      text: '${s?.maxTeamSize ?? kDefaultMaxTeamSize}',
-    );
+    _maxTeamSize = (s?.maxTeamSize ?? kDefaultMaxTeamSize)
+        .clamp(kSoloOnlyTeamSize, kLargestTeamSizeLimit);
     _heroImageUrl = s?.heroImageUrl;
     for (final block in s?.pageBlocks ?? const <SessionPageBlock>[]) {
       _blocks.add(_BlockControllers(title: block.title, body: block.body));
@@ -108,7 +110,6 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       _end,
       _capacity,
       _description,
-      _maxTeamSize,
     ]) {
       c.dispose();
     }
@@ -236,11 +237,6 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       setState(() => _error = 'Capacity must be a positive number.');
       return;
     }
-    final maxTeamSize = int.tryParse(_maxTeamSize.text.trim());
-    if (maxTeamSize == null || maxTeamSize < 2 || maxTeamSize > 50) {
-      setState(() => _error = 'Team size limit must be between 2 and 50.');
-      return;
-    }
 
     setState(() {
       _busy = true;
@@ -264,7 +260,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       'start_time': start,
       'end_time': end,
       'capacity': capacity,
-      'max_team_size': maxTeamSize,
+      'max_team_size': _maxTeamSize,
       'description': _description.text.trim(),
       'hero_image_url': _heroImageUrl,
       'page_blocks': [
@@ -715,6 +711,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   /// so editors know what's already asked (and don't duplicate it).
   Widget _defaultQuestions(ThemeData theme) {
     final prefix = teamCodePrefix(widget.discipline.id, widget.discipline.name);
+    final soloOnly = _maxTeamSize < 2;
     final muted = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
@@ -748,26 +745,50 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         children: [
           Text('Default questions (set by the app)',
               style: theme.textTheme.labelMedium),
-          item(DefaultQuestions.soloOrTeam,
-              'Always asked. Answer: Solo or Team.'),
-          item(DefaultQuestions.projectName,
-              'Asked of solo participants and of whoever creates a team.'),
-          item(DefaultQuestions.teamCode,
-              'Asked when joining a team. Codes for this discipline look like '
-              '${prefix}1234; the joiner confirms the team\'s project name.'),
+          if (soloOnly)
+            item(DefaultQuestions.projectName,
+                'Always asked. This session is solo only, so participants '
+                "aren't asked about teams.")
+          else ...[
+            item(DefaultQuestions.soloOrTeam,
+                'Always asked. Answer: Solo or Team.'),
+            item(DefaultQuestions.projectName,
+                'Asked of solo participants and of whoever creates a team.'),
+            item(DefaultQuestions.teamCode,
+                'Asked when joining a team. Codes for this discipline look '
+                'like ${prefix}1234; the joiner confirms the team\'s project '
+                'name.'),
+          ],
           const SizedBox(height: 16),
-          TextField(
-            controller: _maxTeamSize,
-            enabled: !_busy,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Team size limit',
-              helperText: 'Most people allowed on one team (2–50). Lowering '
-                  "it doesn't remove anyone; full teams just stop accepting "
-                  'new members.',
+          DropdownButtonFormField<int>(
+            initialValue: _maxTeamSize,
+            decoration: InputDecoration(
+              labelText: 'Teams',
+              helperText: soloOnly
+                  ? 'No new teams can be created or joined. Anyone already on '
+                      'a team keeps it.'
+                  : "Most people allowed on one team. Lowering it doesn't "
+                      'remove anyone; full teams just stop taking new members.',
               helperMaxLines: 3,
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
             ),
+            items: [
+              const DropdownMenuItem(
+                value: kSoloOnlyTeamSize,
+                child: Text('No teams allowed — solo only'),
+              ),
+              for (var n = 2; n <= kLargestTeamSizeLimit; n++)
+                DropdownMenuItem(
+                  value: n,
+                  child: Text(
+                    'Teams of up to $n'
+                    '${n == kDefaultMaxTeamSize ? ' (default)' : ''}',
+                  ),
+                ),
+            ],
+            onChanged: _busy
+                ? null
+                : (v) => setState(() => _maxTeamSize = v ?? _maxTeamSize),
           ),
         ],
       ),

@@ -347,7 +347,8 @@ class _RosterGroup {
       isProject: true,
       isTeam: true,
       detail: 'Team ${first.teamCode ?? ''} · '
-          '${members.length}/$maxTeamSize members',
+          '${maxTeamSize >= 2 ? '${members.length}/$maxTeamSize' : members.length} '
+          'member${members.length == 1 && maxTeamSize < 2 ? '' : 's'}',
       owner: owner == null
           ? null
           : (owner.name.isEmpty ? owner.email : owner.name),

@@ -185,6 +185,8 @@ class SupabaseScheduleRepository implements ScheduleRepository {
           maxTeamSize: (map['max_team_size'] as num?)?.toInt() ??
               kDefaultMaxTeamSize,
         ),
+      'teams_not_allowed' =>
+        const TeamLookup(TeamLookupOutcome.teamsNotAllowed),
       'wrong_session' => TeamLookup(
           TeamLookupOutcome.wrongSession,
           sessionTitle: map['session_title'] as String?,

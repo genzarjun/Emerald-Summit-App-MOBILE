@@ -11,6 +11,44 @@ import 'package:emerald_summit/backend/sample/sample_repositories.dart';
 import 'package:emerald_summit/backend/sample/sample_store.dart';
 import 'package:emerald_summit/models/models.dart';
 
+/// [s] with its team size limit replaced (Session has no copyWith).
+Session withTeamSize(Session s, int maxTeamSize) => Session(
+      id: s.id,
+      disciplineId: s.disciplineId,
+      title: s.title,
+      disciplineName: s.disciplineName,
+      track: s.track,
+      room: s.room,
+      roomId: s.roomId,
+      expertName: s.expertName,
+      start: s.start,
+      end: s.end,
+      capacity: s.capacity,
+      enrolled: s.enrolled,
+      description: s.description,
+      participantQuestions: s.participantQuestions,
+      maxTeamSize: maxTeamSize,
+    );
+
+/// Replaces [session] in the sample catalog with a copy of team size [size].
+Session setTeamSize(SampleStore store, Session session, int size) {
+  final updated = withTeamSize(session, size);
+  for (var i = 0; i < store.disciplines.length; i++) {
+    final d = store.disciplines[i];
+    if (d.id != session.disciplineId) continue;
+    store.disciplines[i] = Discipline(
+      id: d.id,
+      name: d.name,
+      tagline: d.tagline,
+      icon: d.icon,
+      sessions: [
+        for (final x in d.sessions) x.id == session.id ? updated : x,
+      ],
+    );
+  }
+  return updated;
+}
+
 void main() {
   group('team codes', () {
     test('summit disciplines get their pinned prefixes', () {
@@ -92,6 +130,8 @@ void main() {
     test('sessions default to a team size of 4', () {
       expect(Session.fromMap({'id': 's'}).maxTeamSize, 4);
       expect(Session.fromMap({'id': 's', 'max_team_size': 3}).maxTeamSize, 3);
+      expect(Session.fromMap({'id': 's', 'max_team_size': 1}).teamsAllowed,
+          isFalse);
     });
   });
 
@@ -262,6 +302,44 @@ void main() {
       expect(res.outcome, RegistrationOutcome.invalidProject);
     });
 
+    test('a solo-only session refuses new teams', () async {
+      setTeamSize(store, session, kSoloOnlyTeamSize);
+      final created = await repo.toggle(
+        session.id,
+        project: const ProjectChoice.createTeam('Solar Rover'),
+      );
+      expect(created.outcome, RegistrationOutcome.invalidProject);
+      expect(created.message, contains('solo only'));
+
+      final solo = await repo.toggle(
+        session.id,
+        project: const ProjectChoice.solo('Kite'),
+      );
+      expect(solo.outcome, RegistrationOutcome.added);
+    });
+
+    test('turning teams off keeps existing teams but blocks joins', () async {
+      final code = await teamWith({'u2': 'Ana'});
+      setTeamSize(store, session, kSoloOnlyTeamSize);
+
+      expect((await repo.findTeam(session.id, code)).outcome,
+          TeamLookupOutcome.teamsNotAllowed);
+      // Staying on the team (and renaming it) still works.
+      final stayed = await repo.updateMyRegistration(session.id,
+          answers: const {},
+          project: const ProjectChoice.stayOnTeam('Solar Rover 2'));
+      expect(stayed.isTeam, isTrue);
+      expect(stayed.teamsAllowed, isFalse);
+      // But a new team can't be started.
+      await expectLater(
+        repo.updateMyRegistration(session.id,
+            answers: const {},
+            project: const ProjectChoice.createTeam('Other'),
+            newOwnerId: 'u2'),
+        throwsA(isA<TeamCodeException>()),
+      );
+    });
+
     test('unregistering removes the project', () async {
       await repo.toggle(
         session.id,
@@ -330,6 +408,25 @@ void main() {
       await tester.pumpAndSettle();
       expect(results.single!.project.action, ProjectAction.solo);
       expect(results.single!.project.projectName, 'Kite');
+    });
+
+    testWidgets('a solo-only session only asks for the project name',
+        (tester) async {
+      final session = withTeamSize(appState.allSessions.first, 1);
+      final results = await open(tester, session);
+      expect(find.text(DefaultQuestions.soloOrTeam), findsNothing);
+      expect(find.textContaining('solo only'), findsOneWidget);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, DefaultQuestions.projectName), 'Kite');
+      for (final q in session.participantQuestions) {
+        await tester.enterText(find.widgetWithText(TextField, q.prompt), 'x');
+      }
+      await tester.scrollUntilVisible(find.text('Confirm & add'), 200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('Confirm & add'));
+      await tester.pumpAndSettle();
+      expect(results.single!.project.action, ProjectAction.solo);
     });
 
     testWidgets('joining asks to confirm the project name', (tester) async {

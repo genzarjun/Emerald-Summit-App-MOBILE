@@ -90,8 +90,10 @@ Home header** (Uber-style), not a bottom-bar tab.
     share, shown in a copyable dialog and on the session page) or **Join** (enter
     a teammate's code → the app asks *"Is your project name X?"* → Yes registers
     them under that team). Each team has an **owner** — its creator until they
-    hand it over — and a **size limit** the session's editors set (default
-    **4**); a full team can't be joined. Team codes are the discipline's two-letter prefix +
+    hand it over — and a **size limit** the session's editors set (2–8,
+    default **4**); a full team can't be joined. Editors can instead make a
+    session **solo only** ("No teams allowed"): the form then skips the
+    solo/team question and just asks for the project name. Team codes are the discipline's two-letter prefix +
     digits — **TV** TechVerse, **VV** VentureVerse, **BS** BioSphere, **NS**
     NovaSphere, **CV** CivicVerse, **IX** ImagineX (other disciplines use the
     capitals of their name) — e.g. `TV4821`, and only work for the session they
@@ -139,8 +141,11 @@ Home header** (Uber-style), not a bottom-bar tab.
   hero photo, gallery, content sections, and the **participant questions** asked
   of anyone who joins as a participant — shown below the app's **default
   questions** (solo/team, project name, team code), which editors can see but
-  not edit, plus the session's **team size limit** (2–50, default 4; lowering
-  it never removes anyone, it only stops full teams taking new members). Photos are **uploaded in-app**
+  not edit, plus a **Teams** dropdown: *Teams of up to 2–8* (default 4) or
+  *No teams allowed — solo only*. Lowering the limit or turning teams off
+  never removes anyone — full teams just stop taking members, and people
+  already on a team in a now-solo-only session can keep it or go solo, but no
+  team can be created or joined. Photos are **uploaded in-app**
   (`image_picker`) into a per-session folder in the public `session_photos`
   Storage bucket; hero/gallery editing needs the session id, so on a brand-new
   session you save first, then reopen to add photos. The editor still ties a
@@ -486,12 +491,15 @@ test/widget_test.dart       Widget tests
     refuse `choose_new_owner` when an owner with teammates leaves without a
     `p_new_owner_id`), `transfer_team_ownership`, and `fetch_my_project` (the
     caller's project, code, owner flag, size limit, and teammates). The size
-    limit lives on `sessions.max_team_size` (default 4, 2–50). A trigger
+    limit lives on `sessions.max_team_size` (1–8, default 4; **1 = solo
+    only**, where creating/joining a team is refused with `teams_not_allowed`
+    and `find_team` reports it). A trigger
     deletes a team when its last registration leaves, and — as a backstop for
     account deletion — promotes the earliest-joined member if the owner
     vanishes without a hand-off.
     [teams_setup.sql](supabase/teams_setup.sql),
-    [teams_ownership_setup.sql](supabase/teams_ownership_setup.sql)
+    [teams_ownership_setup.sql](supabase/teams_ownership_setup.sql),
+    [team_size_limits.sql](supabase/team_size_limits.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /

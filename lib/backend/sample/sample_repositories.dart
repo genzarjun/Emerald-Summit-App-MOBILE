@@ -149,6 +149,7 @@ class SampleScheduleRepository implements ScheduleRepository {
     }
     final max = _store.sessionById(sessionId)?.maxTeamSize ??
         kDefaultMaxTeamSize;
+    if (max < 2) return const TeamLookup(TeamLookupOutcome.teamsNotAllowed);
     return TeamLookup(
       team.members.length >= max
           ? TeamLookupOutcome.full
@@ -292,6 +293,7 @@ class SampleScheduleRepository implements ScheduleRepository {
           projectName: name,
         );
       case ProjectAction.createTeam:
+        if (!session.teamsAllowed) throw _soloOnly;
         if (name.isEmpty) {
           throw const TeamCodeException('Please enter your project name.');
         }
@@ -321,6 +323,9 @@ class SampleScheduleRepository implements ScheduleRepository {
           throw const TeamCodeException(
               'That team code is for a different session.');
         }
+        if (!team.members.containsKey(_demoUserId) && !session.teamsAllowed) {
+          throw _soloOnly;
+        }
         if (!team.members.containsKey(_demoUserId) &&
             team.members.length >= session.maxTeamSize) {
           throw const TeamCodeException('That team is already full.');
@@ -349,6 +354,9 @@ class SampleScheduleRepository implements ScheduleRepository {
       isTeamOwner: team.ownerId == e.userId,
     );
   }
+
+  static const _soloOnly =
+      TeamCodeException("This session is solo only — teams aren't allowed.");
 
   /// Stable id for the demo user's own roster entry in sample mode.
   static const String _demoUserId = 'demo-user';

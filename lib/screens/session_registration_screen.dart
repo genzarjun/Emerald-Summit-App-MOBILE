@@ -66,6 +66,13 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
 
   bool get _onTeamNow => widget.initialProject?.isTeam ?? false;
 
+  /// The session's editors turned teams off.
+  bool get _soloOnly => !widget.session.teamsAllowed;
+
+  /// Solo-only sessions skip the solo/team question — unless the user is
+  /// already on a team from before teams were turned off, who may keep it.
+  bool get _askSoloOrTeam => !_soloOnly || _onTeamNow;
+
   /// True when saving would take an owner (with teammates) off their team, so
   /// they'll be asked to choose a new owner.
   bool get _willHandOff {
@@ -81,15 +88,15 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
   }
 
   String get _prefix => teamCodePrefix(
-        widget.session.disciplineId,
-        widget.session.disciplineName,
-      );
+    widget.session.disciplineId,
+    widget.session.disciplineName,
+  );
 
   @override
   void initState() {
     super.initState();
     final p = widget.initialProject;
-    _isTeam = p?.isTeam;
+    _isTeam = p?.isTeam ?? (_soloOnly ? false : null);
     if (_onTeamNow) _teamAction = ProjectAction.stayOnTeam;
     _soloName = TextEditingController(
       text: p != null && !p.isTeam ? p.projectName : '',
@@ -154,7 +161,8 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
               const TextSpan(text: '?'),
               if (lookup.memberCount > 0)
                 TextSpan(
-                  text: '\n\nTeam $code already has ${lookup.memberCount} '
+                  text:
+                      '\n\nTeam $code already has ${lookup.memberCount} '
                       'member${lookup.memberCount == 1 ? '' : 's'}.',
                 ),
             ],
@@ -176,8 +184,10 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
     if (yes == true) {
       setState(() => _confirmedTeam = (code: code, projectName: name));
     } else {
-      setState(() => _codeError =
-          'Double-check the code with your teammate and try again.');
+      setState(
+        () => _codeError =
+            'Double-check the code with your teammate and try again.',
+      );
     }
   }
 
@@ -185,8 +195,11 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
     setState(() => _error = null);
     ProjectChoice project;
     if (_isTeam == null) {
-      setState(() => _error = 'Choose whether you\'re participating solo or '
-          'as a team.');
+      setState(
+        () => _error =
+            'Choose whether you\'re participating solo or '
+            'as a team.',
+      );
       return;
     }
     if (_isTeam == false) {
@@ -211,8 +224,10 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
         case ProjectAction.joinTeam:
           final team = _confirmedTeam;
           if (team == null) {
-            setState(() => _error =
-                'Enter your team code and tap "Find team" to confirm it.');
+            setState(
+              () => _error =
+                  'Enter your team code and tap "Find team" to confirm it.',
+            );
             return;
           }
           project = ProjectChoice.joinTeam(team.code);
@@ -233,9 +248,8 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
       }
       answers[q.id] = text;
     }
-    Navigator.of(context).pop(
-      RegistrationFormResult(project: project, answers: answers),
-    );
+    Navigator.of(context)
+        .pop(RegistrationFormResult(project: project, answers: answers));
   }
 
   @override
@@ -259,42 +273,59 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Text(DefaultQuestions.soloOrTeam,
-                style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<bool>(
-                emptySelectionAllowed: true,
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                    value: false,
-                    icon: Icon(Icons.person_outline),
-                    label: Text('Solo'),
-                  ),
-                  ButtonSegment(
-                    value: true,
-                    icon: Icon(Icons.groups_outlined),
-                    label: Text('Team'),
-                  ),
-                ],
-                selected: {?_isTeam},
-                onSelectionChanged: (sel) => setState(() {
-                  _isTeam = sel.isEmpty ? _isTeam : sel.first;
-                  _error = null;
-                }),
+            if (!_askSoloOrTeam) ...[
+              const _Note(
+                text:
+                    'This session is solo only — every participant works on '
+                    'their own project.',
               ),
-            ),
-            const SizedBox(height: 12),
-            _Note(text: DefaultQuestions.unsureNote),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
+            ] else ...[
+              Text(
+                DefaultQuestions.soloOrTeam,
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<bool>(
+                  emptySelectionAllowed: true,
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: false,
+                      icon: Icon(Icons.person_outline),
+                      label: Text('Solo'),
+                    ),
+                    ButtonSegment(
+                      value: true,
+                      icon: Icon(Icons.groups_outlined),
+                      label: Text('Team'),
+                    ),
+                  ],
+                  selected: {?_isTeam},
+                  onSelectionChanged: (sel) => setState(() {
+                    _isTeam = sel.isEmpty ? _isTeam : sel.first;
+                    _error = null;
+                  }),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _Note(
+                text: _soloOnly
+                    ? 'This session is now solo only. You can stay on your '
+                          "team or go solo, but teams can't be created or joined."
+                    : DefaultQuestions.unsureNote,
+              ),
+              const SizedBox(height: 20),
+            ],
             if (_isTeam == false) _soloSection(theme),
             if (_isTeam == true) _teamSection(theme),
             if (_willHandOff) ...[
               const SizedBox(height: 14),
               _Note(
-                text: 'You own "${widget.initialProject!.projectName}". '
+                text:
+                    'You own "${widget.initialProject!.projectName}". '
                     "After you save, you'll pick the teammate who takes it "
                     'over.',
               ),
@@ -370,16 +401,18 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
                   value: ProjectAction.stayOnTeam,
                   label: Text('My team'),
                 ),
-              const ButtonSegment(
-                value: ProjectAction.createTeam,
-                icon: Icon(Icons.add),
-                label: Text('Create'),
-              ),
-              const ButtonSegment(
-                value: ProjectAction.joinTeam,
-                icon: Icon(Icons.login),
-                label: Text('Join'),
-              ),
+              if (!_soloOnly) ...const [
+                ButtonSegment(
+                  value: ProjectAction.createTeam,
+                  icon: Icon(Icons.add),
+                  label: Text('Create'),
+                ),
+                ButtonSegment(
+                  value: ProjectAction.joinTeam,
+                  icon: Icon(Icons.login),
+                  label: Text('Join'),
+                ),
+              ],
             ],
             selected: {?_teamAction},
             onSelectionChanged: (sel) => setState(() {
@@ -394,12 +427,12 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
           ProjectAction.createTeam => _createSection(theme),
           ProjectAction.joinTeam => _joinSection(theme),
           _ => Text(
-              'Starting a team? Create it and share the code. Have a code '
-              'from a teammate? Join their team.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            'Starting a team? Create it and share the code. Have a code '
+            'from a teammate? Join their team.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
         },
       ],
     );
@@ -421,10 +454,7 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
         ),
         if (p.teamCode != null) ...[
           const SizedBox(height: 12),
-          Text(
-            'Team code: ${p.teamCode}',
-            style: theme.textTheme.bodyMedium,
-          ),
+          Text('Team code: ${p.teamCode}', style: theme.textTheme.bodyMedium),
         ],
       ],
     );
@@ -467,8 +497,10 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
         ),
         child: Row(
           children: [
-            Icon(Icons.verified_outlined,
-                color: theme.colorScheme.onPrimaryContainer),
+            Icon(
+              Icons.verified_outlined,
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
