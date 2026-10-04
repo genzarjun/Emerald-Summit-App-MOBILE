@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../backend/backend.dart';
 import '../backend/service_locator.dart';
@@ -93,6 +95,12 @@ class _ExchangeCardState extends State<_ExchangeCard> {
     final when =
         '${local.formatShortMonthDay(e.askedAt)}, '
         '${local.formatTimeOfDay(TimeOfDay.fromDateTime(e.askedAt))}';
+    final answer = MarkdownBody(
+      data: e.answer,
+      styleSheet: MarkdownStyleSheet.fromTheme(theme)
+          .copyWith(p: theme.textTheme.bodyMedium, blockSpacing: 8),
+      onTapLink: (_, href, _) => _openLink(context, href),
+    );
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -112,20 +120,12 @@ class _ExchangeCardState extends State<_ExchangeCard> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      e.question,
-                      style: theme.textTheme.titleSmall,
-                    ),
+                    child: Text(e.question, style: theme.textTheme.titleSmall),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              Text(
-                e.answer,
-                maxLines: _expanded ? null : 4,
-                overflow: _expanded ? null : TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium,
-              ),
+              _expanded ? answer : _Collapsed(child: answer),
               const SizedBox(height: 10),
               Text(
                 [
@@ -141,6 +141,54 @@ class _ExchangeCardState extends State<_ExchangeCard> {
         ),
       ),
     );
+  }
+}
+
+/// Shows roughly the first four lines of [child], fading out the bottom
+/// edge when there's more below.
+class _Collapsed extends StatelessWidget {
+  const _Collapsed({required this.child});
+  final Widget child;
+
+  static const _maxHeight = 88.0;
+  static const _fade = 24.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: _maxHeight),
+      child: ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (bounds) {
+          // Shorter than the cap means nothing is hidden — no fade.
+          if (bounds.height < _maxHeight) {
+            return const LinearGradient(colors: [Colors.black, Colors.black])
+                .createShader(bounds);
+          }
+          return LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: const [Colors.black, Colors.transparent],
+            stops: [1 - _fade / bounds.height, 1],
+          ).createShader(bounds);
+        },
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _openLink(BuildContext context, String? href) async {
+  final uri = href == null ? null : Uri.tryParse(href);
+  if (uri == null) return;
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Couldn't open that link.")));
   }
 }
 
