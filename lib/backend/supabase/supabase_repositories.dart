@@ -53,8 +53,9 @@ class SupabaseCatalogRepository implements CatalogRepository {
   }
 }
 
-/// Create/update/delete sessions. Writes are gated by RLS to admins and
-/// volunteers who can edit sessions and are scoped to the session's discipline.
+/// Create/update/delete sessions. Creates and edits are gated by RLS to admins
+/// and volunteers who can edit sessions and are scoped to the session's
+/// discipline; deletes are admin-only.
 class SupabaseContentRepository implements ContentRepository {
   SupabaseContentRepository(this._client);
 

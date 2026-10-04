@@ -142,11 +142,23 @@ create policy "Admins write disciplines"
   with check (public.is_admin());
 grant insert, update, delete on public.disciplines to authenticated;
 
--- Admins (any) or mentors scoped to the discipline manage its sessions.
+-- Admins (any) or mentors scoped to the discipline create + edit its sessions;
+-- only admins delete them (see session_delete_admin_only.sql).
 drop policy if exists "Managers write sessions" on public.sessions;
-create policy "Managers write sessions"
-  on public.sessions for all
+drop policy if exists "Managers insert sessions" on public.sessions;
+drop policy if exists "Managers update sessions" on public.sessions;
+drop policy if exists "Admins delete sessions" on public.sessions;
+create policy "Managers insert sessions"
+  on public.sessions for insert
+  to authenticated
+  with check (public.can_manage_discipline(discipline_id));
+create policy "Managers update sessions"
+  on public.sessions for update
   to authenticated
   using (public.can_manage_discipline(discipline_id))
   with check (public.can_manage_discipline(discipline_id));
+create policy "Admins delete sessions"
+  on public.sessions for delete
+  to authenticated
+  using (public.is_admin());
 grant insert, update, delete on public.sessions to authenticated;

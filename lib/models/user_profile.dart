@@ -208,7 +208,7 @@ class UserProfile {
 
   /// Fine-grained capabilities, all **server-owned** (set by the enforcement
   /// trigger from the Google Sheet; never written back by the app):
-  ///   * [canEditSessions]      — create/edit/delete sessions in
+  ///   * [canEditSessions]      — create/edit (not delete) sessions in
   ///     [managedDisciplines] (EAF ambassadors by default).
   ///   * [canPostAnnouncements] — post announcements to a managed discipline.
   ///   * [canCheckInFrontDesk]  — mark any attendee arrived at the front desk.

@@ -136,6 +136,7 @@ abstract interface class ContentRepository {
 
   Future<void> updateSession(String id, Map<String, dynamic> data);
 
+  /// Admin-only (enforced by the backend).
   Future<void> deleteSession(String id);
 
   /// How many people registered for [sessionId] would have a schedule clash if

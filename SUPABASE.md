@@ -206,6 +206,9 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     + a `before` trigger stop removed people rejoining; `find_team` reports
     `removed`. Team notices leave `announcements.session_id` null so
     volunteer-unassign cleanup never deletes them. Safe to re-run.
+33. `supabase/session_delete_admin_only.sql` — splits the sessions write
+    policy so **only admins can delete sessions**; session-editing volunteers
+    keep insert + update. Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

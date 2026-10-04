@@ -168,6 +168,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   without leaving the page. Admins also get **New discipline** and **New
   session**, and a **delete** button on a discipline's page (removes the
   discipline plus all its sessions, registrations and teams via FK cascade).
+  **Only admins can delete sessions** — ambassadors can create and edit but
+  get no delete button, and the `sessions` DELETE policy is admin-only.
   **Deleting a session or a discipline requires typing its exact name**
   (case-sensitive) before the red Delete button enables — a shared
   `confirmByTypingName` dialog, so a big delete can't happen from a stray tap. Assigning a volunteer to a session is overlap-guarded server-side
@@ -474,7 +476,8 @@ test/widget_test.dart       Widget tests
   - `disciplines` — the catalog categories (public read; **admin** write).
     [disciplines_setup.sql](supabase/disciplines_setup.sql)
   - `sessions` — activities under a discipline (public read; **admin, or a
-    volunteer who can edit sessions and is scoped to the discipline**, write).
+    volunteer who can edit sessions and is scoped to the discipline**, insert +
+    update; **admin-only** delete).
     `enrolled` is never stored — the `sessions_with_counts` **view** derives it
     live from `registrations` and adds the discipline name. Gains a `room_id`
     (→ `rooms`) in the volunteers upgrade, and `hero_image_url` + `page_blocks`

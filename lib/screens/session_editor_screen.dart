@@ -478,7 +478,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit session' : 'New session'),
         actions: [
-          if (_isEditing)
+          // Only admins delete sessions (backend-enforced too).
+          if (_isEditing && appState.isAdmin)
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Delete',
