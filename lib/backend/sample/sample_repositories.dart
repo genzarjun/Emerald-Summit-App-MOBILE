@@ -79,6 +79,9 @@ class SampleScheduleRepository implements ScheduleRepository {
           ?.removeWhere((e) => e.userId == _demoUserId);
       return const RegistrationResult(RegistrationOutcome.removed);
     }
+    if (type == ParticipationType.participant && session.participationClosed) {
+      return const RegistrationResult(RegistrationOutcome.participationClosed);
+    }
     if (session.isFull) {
       return const RegistrationResult(RegistrationOutcome.full);
     }

@@ -154,6 +154,8 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     return switch (raw) {
       'removed' => const RegistrationResult(RegistrationOutcome.removed),
       'full' => const RegistrationResult(RegistrationOutcome.full),
+      'participation_closed' =>
+        const RegistrationResult(RegistrationOutcome.participationClosed),
       'conflict' => RegistrationResult(
           RegistrationOutcome.conflict, map['conflicting_title'] as String?),
       _ => RegistrationResult.added(teamCode: map['team_code'] as String?),

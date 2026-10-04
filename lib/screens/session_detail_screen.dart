@@ -230,7 +230,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     final modes = appState.myAddModes;
     // A single non-manage option (shouldn't happen for these roles, but be safe)
     // still deserves the chooser so the user knows what they're agreeing to.
-    final mode = await _pickAddMode(modes);
+    final mode = await _pickAddMode(s, modes);
     if (mode == null || !mounted) return;
 
     if (mode == AddMode.manage) {
@@ -255,10 +255,12 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
   }
 
   /// Shows the role-appropriate mode chooser. Returns the chosen [AddMode], or
-  /// null if dismissed.
-  Future<AddMode?> _pickAddMode(List<AddMode> modes) {
+  /// null if dismissed. Past [s]'s participant deadline, Participate is shown
+  /// but disabled, so people see why they can only spectate.
+  Future<AddMode?> _pickAddMode(Session s, List<AddMode> modes) {
     final theme = Theme.of(context);
     final isVolunteer = appState.isVolunteer;
+    final deadline = s.participantDeadline;
     return showModalBottomSheet<AddMode>(
       context: context,
       showDragHandle: true,
@@ -272,12 +274,27 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               child: Text('Add to my day', style: theme.textTheme.titleLarge),
             ),
             for (final m in modes)
-              ListTile(
-                leading: Icon(m.icon, color: theme.colorScheme.primary),
-                title: Text(m.title),
-                subtitle: Text(m.blurb),
-                onTap: () => Navigator.of(ctx).pop(m),
-              ),
+              if (m == AddMode.participate && s.participationClosed)
+                ListTile(
+                  enabled: false,
+                  leading: Icon(m.icon),
+                  title: Text(m.title),
+                  subtitle: Text(
+                    'Registration to participate closed on '
+                    '${formatDeadline(deadline!)}.',
+                  ),
+                )
+              else
+                ListTile(
+                  leading: Icon(m.icon, color: theme.colorScheme.primary),
+                  title: Text(m.title),
+                  subtitle: Text(
+                    m == AddMode.participate && deadline != null
+                        ? '${m.blurb} Closes ${formatDeadline(deadline)}.'
+                        : m.blurb,
+                  ),
+                  onTap: () => Navigator.of(ctx).pop(m),
+                ),
             if (isVolunteer)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
@@ -654,6 +671,15 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
           'This overlaps with "${result.conflictingTitle}", which is '
               'already on your schedule. Remove that one first to add this.',
         );
+      case AddOutcome.participationClosed:
+        final deadline = s.participantDeadline;
+        final when =
+            deadline == null ? '' : ' on ${formatDeadline(deadline)}';
+        _showBlockedDialog(
+          'Participant registration closed',
+          'Registration to participate closed$when. You can still add this '
+              'session as a spectator while seats are left.',
+        );
     }
   }
 
@@ -714,6 +740,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
         );
       case AddOutcome.full:
       case AddOutcome.invalidProject:
+      case AddOutcome.participationClosed:
         break; // not applicable to managing
     }
   }
@@ -788,6 +815,14 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                     ? 'Full (${current.enrolled}/${current.capacity})'
                     : '${current.seatsLeft} of ${current.capacity} seats left',
               ),
+              if (current.participantDeadline != null || widget.canEdit) ...[
+                const SizedBox(height: 12),
+                _ParticipantDeadlineCard(
+                  session: current,
+                  registered: registered || managing,
+                  canEdit: widget.canEdit,
+                ),
+              ],
               const SizedBox(height: 20),
               Text('About this session', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
@@ -1146,6 +1181,98 @@ class _InfoRow extends StatelessWidget {
           Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 12),
           Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Spells out the session's participant deadline: when registering to
+/// participate closes (or that it has), and that spectating stays open while
+/// seats are left. Editors also see it when no deadline is set, with a pointer
+/// to where they set one.
+class _ParticipantDeadlineCard extends StatelessWidget {
+  const _ParticipantDeadlineCard({
+    required this.session,
+    required this.registered,
+    required this.canEdit,
+  });
+
+  final Session session;
+
+  /// Whether the viewer already has this session on their day.
+  final bool registered;
+  final bool canEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final deadline = session.participantDeadline;
+    final editorNote = canEdit ? ' You can change this in the editor.' : '';
+    final seats = session.seatsLeft;
+    final afterClose = session.isFull
+        ? 'The session is also full, so there are no spots left to spectate.'
+        : registered && !canEdit
+            ? 'People who registered before then keep their spot.'
+            : 'You can still register to spectate — $seats '
+                'spot${seats == 1 ? '' : 's'} left.';
+
+    final (IconData icon, String title, String body, Color bg, Color fg) =
+        switch (deadline) {
+      null => (
+          Icons.event_note_outlined,
+          'No participant deadline',
+          'People can register to participate any time while seats are left. '
+              'Set a deadline in the editor to close participant registration '
+              'at a specific date and time.',
+          scheme.surfaceContainerHighest,
+          scheme.onSurfaceVariant,
+        ),
+      final d when session.participationClosed => (
+          Icons.event_busy,
+          'Participant registration closed',
+          'It closed on ${formatDeadline(d)}. $afterClose$editorNote',
+          scheme.errorContainer,
+          scheme.onErrorContainer,
+        ),
+      final d => (
+          Icons.how_to_reg_outlined,
+          'Register to participate by ${formatDeadline(d)}',
+          'After that, nobody can register to participate, but people can '
+              'still register to spectate while seats are left.$editorNote',
+          scheme.primaryContainer,
+          scheme.onPrimaryContainer,
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: fg),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(color: fg),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: theme.textTheme.bodySmall?.copyWith(color: fg),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

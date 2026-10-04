@@ -130,7 +130,18 @@ Home header** (Uber-style), not a bottom-bar tab.
     type + answers + project and
     still enforces no double-booking (time-conflict dialog) and capacity caps
     (every registration type counts toward capacity), so they can't be bypassed
-    from the client. Admin self-manage uses the `set_session_manage` RPC. At
+    from the client. A session can have a **participant deadline** (a date +
+    time its editors set): after it, `register_for_session` refuses new
+    participants (`participation_closed`), while spectating (and serving as an
+    expert) stays open as long as seats are left. People who registered before
+    the deadline keep their spot and can still edit their registration. The
+    page makes this plain with a card under the session info — *"Register to
+    participate by Fri, Jan 15 at 3:00 PM"* while open, a red *"Participant
+    registration closed"* (with spectator spots left, or that the session is
+    full) afterwards — and the Add-to-my-day chooser greys out **Participate**
+    with the closing time. Editors also see a *"No participant deadline"* card
+    when none is set. The discipline's session list shows *"N seats left ·
+    spectators only"* once it has closed. Admin self-manage uses the `set_session_manage` RPC. At
     the bottom, a **"Sessions similar to this"** horizontal rail suggests other
     sessions in the same discipline the user could still add — only ones with
     seats left that **fit an open slot** on their schedule (no time overlap with
@@ -177,7 +188,10 @@ Home header** (Uber-style), not a bottom-bar tab.
   team can be created or joined. The editor says so: picking a setting that
   affects existing teams (turning teams off, or a limit below a current team's
   size) shows an inline warning with the number of teams, and saving asks to
-  confirm. Photos are **uploaded in-app**
+  confirm. A **Deadline to register as a participant** picker (date, then
+  time; clearable; local time, stored as `sessions.participant_deadline`)
+  sets when participant registration closes, and warns when the chosen time
+  has already passed. Photos are **uploaded in-app**
   (`image_picker`) into a per-session folder in the public `session_photos`
   Storage bucket; hero/gallery editing needs the session id, so on a brand-new
   session you save first, then reopen to add photos. The editor still ties a
@@ -582,7 +596,9 @@ test/widget_test.dart       Widget tests
     only**, where creating/joining a team is refused with `teams_not_allowed`
     and `find_team` reports it). `sessions.project_prompt` holds a session's
     rewording of the project question (null = default); answers are still
-    stored as the project name. `remove_team_member` (owner only) takes someone
+    stored as the project name. `sessions.participant_deadline` (timestamptz,
+    null = none) closes participant registration; `register_for_session`
+    returns `participation_closed` for a participant after it. `remove_team_member` (owner only) takes someone
     off the team and records them in `teams.removed_user_ids`; a trigger on
     `registrations` refuses their rejoining (error `removed_from_team`, also
     reported by `find_team` as `removed`). Triggers post the team notices
@@ -594,6 +610,7 @@ test/widget_test.dart       Widget tests
     [teams_ownership_setup.sql](supabase/teams_ownership_setup.sql),
     [team_size_limits.sql](supabase/team_size_limits.sql),
     [project_prompt_setup.sql](supabase/project_prompt_setup.sql),
+    [participant_deadline.sql](supabase/participant_deadline.sql),
     [team_members_setup.sql](supabase/team_members_setup.sql),
     [team_leave_notices.sql](supabase/team_leave_notices.sql),
     [session_cancel_notices.sql](supabase/session_cancel_notices.sql)

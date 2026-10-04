@@ -44,6 +44,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   /// wording; blank or the default text saves as "use the default".
   late final TextEditingController _projectPrompt;
 
+  /// When registering to participate closes (local time); null = no deadline.
+  DateTime? _participantDeadline;
+
   /// The session's existing teams (team id → member count), from its roster,
   /// so the editor can warn before a team setting change affects them.
   Map<String, int> _teamSizes = const {};
@@ -92,6 +95,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     );
     _maxTeamSize = (s?.maxTeamSize ?? kDefaultMaxTeamSize)
         .clamp(kSoloOnlyTeamSize, kLargestTeamSizeLimit);
+    _participantDeadline = s?.participantDeadline;
     _heroImageUrl = s?.heroImageUrl;
     for (final block in s?.pageBlocks ?? const <SessionPageBlock>[]) {
       _blocks.add(_BlockControllers(title: block.title, body: block.body));
@@ -327,6 +331,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       'end_time': end,
       'capacity': capacity,
       'max_team_size': _maxTeamSize,
+      'participant_deadline': _participantDeadline?.toUtc().toIso8601String(),
       'project_prompt': switch (_projectPrompt.text.trim()) {
         '' || DefaultQuestions.projectName => null,
         final custom => custom,
@@ -544,6 +549,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                   'Capacity',
                   keyboardType: TextInputType.number,
                 ),
+                _deadlineField(theme),
                 _field(_description, 'Description', maxLines: 4),
                 const SizedBox(height: 8),
                 const Divider(),
@@ -573,6 +579,125 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Picks the participant deadline: a date, then a time on that date.
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final current = _participantDeadline;
+    final initial = current ?? now;
+    final date = await showDatePicker(
+      context: context,
+      helpText: 'Participant registration closes on',
+      initialDate: initial,
+      firstDate: DateTime(
+        (current != null && current.isBefore(now) ? current : now).year - 1,
+      ),
+      lastDate: DateTime(now.year + 3, 12, 31),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      helpText: 'Closes at',
+      initialTime: current != null
+          ? TimeOfDay.fromDateTime(current)
+          : const TimeOfDay(hour: 23, minute: 59),
+    );
+    if (time == null || !mounted) return;
+    setState(
+      () => _participantDeadline = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      ),
+    );
+  }
+
+  Widget _deadlineField(ThemeData theme) {
+    final deadline = _participantDeadline;
+    final passed = deadline != null && !DateTime.now().isBefore(deadline);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.event_busy_outlined,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Deadline to register as a participant',
+                    style: theme.textTheme.labelLarge,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'After this date and time, nobody can register to participate. '
+              'People can still register to spectate while seats are left. '
+              'Anyone already participating keeps their spot.',
+              style: muted,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _pickDeadline,
+                    icon: const Icon(Icons.event),
+                    label: Text(
+                      deadline == null
+                          ? 'Set a deadline'
+                          : formatDeadline(deadline),
+                    ),
+                  ),
+                ),
+                if (deadline != null)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Remove deadline',
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _participantDeadline = null),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              deadline == null
+                  ? 'No deadline — people can register to participate any time '
+                      'while seats are left.'
+                  : passed
+                      ? 'This deadline has passed: participant registration is '
+                          'closed. Only spectators can register now.'
+                      : 'Participant registration is open until then.',
+              style: passed
+                  ? theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    )
+                  : muted,
+            ),
+          ],
         ),
       ),
     );

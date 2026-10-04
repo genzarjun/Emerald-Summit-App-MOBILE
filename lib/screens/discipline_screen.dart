@@ -133,7 +133,9 @@ class _SessionTile extends StatelessWidget {
               Text(
                 session.isFull
                     ? 'Full · waitlist only'
-                    : '${session.seatsLeft} seats left',
+                    : session.participationClosed
+                        ? '${session.seatsLeft} seats left · spectators only'
+                        : '${session.seatsLeft} seats left',
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: session.isFull
                       ? theme.colorScheme.error

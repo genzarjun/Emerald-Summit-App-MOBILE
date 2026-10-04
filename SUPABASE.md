@@ -243,6 +243,15 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     Until it's run, the sheet says profile details aren't available yet.
     Safe to re-run.
 
+39. `supabase/participant_deadline.sql` — adds `sessions.participant_deadline`
+    (timestamptz, null = no deadline), **rebuilds `sessions_with_counts`** to
+    expose it, and redefines `register_for_session` (same signature) to refuse
+    new **participants** after the deadline (`participation_closed`).
+    Spectators and experts still register while seats are left; existing
+    participants keep their spot. **Run before shipping the current app** —
+    without it, saving a session in the editor fails (it writes
+    `participant_deadline`). Safe to re-run.
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

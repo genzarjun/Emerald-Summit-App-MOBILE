@@ -20,8 +20,16 @@ import '../models/user_profile.dart';
 
 /// Outcome of toggling a session in the personal schedule. Mirrors the states
 /// the server-side enforcer can return (capacity + no time overlap, plus a
-/// project/team answer it couldn't accept).
-enum RegistrationOutcome { added, removed, full, conflict, invalidProject }
+/// project/team answer it couldn't accept, and participating after the
+/// session's participant deadline).
+enum RegistrationOutcome {
+  added,
+  removed,
+  full,
+  conflict,
+  invalidProject,
+  participationClosed,
+}
 
 /// Result of a schedule toggle. [conflictingTitle] is set only for
 /// [RegistrationOutcome.conflict]; [message] only for

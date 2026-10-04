@@ -414,6 +414,22 @@ String? to24HourTime(String input, {required bool pm}) {
   return '${h24.toString().padLeft(2, '0')}:$m';
 }
 
+/// A date and time like "Fri, Jan 15 at 3:00 PM" (local time), adding the year
+/// when it isn't the current one.
+String formatDeadline(DateTime d) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final year = d.year == DateTime.now().year ? '' : ', ${d.year}';
+  final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  final m = d.minute.toString().padLeft(2, '0');
+  final period = d.hour >= 12 ? 'PM' : 'AM';
+  return '${days[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}$year '
+      'at $h:$m $period';
+}
+
 /// A single session/activity a participant can add to their day plan.
 class Session {
   const Session({
@@ -436,6 +452,7 @@ class Session {
     this.participantQuestions = const [],
     this.maxTeamSize = kDefaultMaxTeamSize,
     this.customProjectPrompt,
+    this.participantDeadline,
   });
 
   /// Builds a [Session] from a `sessions_with_counts` view row. The view carries
@@ -466,6 +483,10 @@ class Session {
             (row['max_team_size'] as num?)?.toInt() ?? kDefaultMaxTeamSize,
         customProjectPrompt: switch ((row['project_prompt'] as String?)?.trim()) {
           final String p when p.isNotEmpty => p,
+          _ => null,
+        },
+        participantDeadline: switch (row['participant_deadline']) {
+          final String d => DateTime.tryParse(d)?.toLocal(),
           _ => null,
         },
       );
@@ -515,6 +536,16 @@ class Session {
   /// How the built-in project question reads for this session.
   String get projectPrompt =>
       customProjectPrompt ?? DefaultQuestions.projectName;
+
+  /// When registering to participate closes (local time), or null for no
+  /// deadline. After it, people can still spectate while seats are left.
+  final DateTime? participantDeadline;
+
+  /// True once the participant deadline has passed.
+  bool get participationClosed {
+    final deadline = participantDeadline;
+    return deadline != null && !DateTime.now().isBefore(deadline);
+  }
 
   bool get isFull => enrolled >= capacity;
   int get seatsLeft => capacity - enrolled;

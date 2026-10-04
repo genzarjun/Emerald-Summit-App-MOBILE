@@ -11,8 +11,16 @@ import 'widgets/in_app_banner.dart';
 
 /// Result of trying to add a session to the day plan (app/UI-facing).
 /// [invalidProject] means the project/team answer was rejected (e.g. the team
-/// code stopped working) and nothing changed.
-enum AddOutcome { added, removed, conflict, full, invalidProject }
+/// code stopped working) and nothing changed. [participationClosed] means the
+/// session's participant deadline has passed (spectating may still work).
+enum AddOutcome {
+  added,
+  removed,
+  conflict,
+  full,
+  invalidProject,
+  participationClosed,
+}
 
 /// A way a user can add a session to their day, offered in the "Add to my day"
 /// chooser. Which of these appear depends on the user's role (see
@@ -257,6 +265,7 @@ class AppState extends ChangeNotifier {
       case RegistrationOutcome.full:
       case RegistrationOutcome.conflict:
       case RegistrationOutcome.invalidProject:
+      case RegistrationOutcome.participationClosed:
         break; // nothing changed
     }
     return AddResult(
@@ -329,6 +338,8 @@ class AppState extends ChangeNotifier {
         RegistrationOutcome.full => AddOutcome.full,
         RegistrationOutcome.conflict => AddOutcome.conflict,
         RegistrationOutcome.invalidProject => AddOutcome.invalidProject,
+        RegistrationOutcome.participationClosed =>
+          AddOutcome.participationClosed,
       };
 
   // ---- Content management (mentors/admins) ---------------------------------
