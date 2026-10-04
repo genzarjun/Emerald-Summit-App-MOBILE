@@ -413,8 +413,11 @@ fixed brand colors in both modes.
   **role-specific** details. The five roles are **participant**, **expert**,
   **parent / spectator** (open to anyone — the last covers non-participating
   middle-schoolers), and the two gated roles **volunteer** and **admin**.
-  Volunteers get the full contact/emergency-contact questionnaire; experts are
-  kept light (org + expertise only); admins need nothing extra. Fields are
+  Collection is kept minimal: participants give school + grade (required) and
+  an optional mobile; volunteers give a mobile number only; experts give area
+  of expertise + a required one-line bio (the placeholder cycles through
+  example bios) and an optional mobile, noted as used only to reach them
+  day-of; parents/spectators and admins give nothing extra. Fields are
   declared per role in [lib/models/user_profile.dart](lib/models/user_profile.dart),
   so the sign-up flow customizes itself. A volunteer's **subtype** (EAF
   ambassador / parent / student) and permissions come from the sheet, not the
