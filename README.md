@@ -761,8 +761,8 @@ test/widget_test.dart       Widget tests
     (front-desk read policy), and
     limits the directory + scans to **onboarded** accounts (a blank profile row
     exists for anyone who merely requested a sign-in code).
-    [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql) — **not yet run on
-    the dev project**
+    [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql) (run on the dev
+    project)
   - `announcements` gains `created_by` + `discipline_id`, **admin** write
     policies, and **Realtime**. [announcements_write_setup.sql](supabase/announcements_write_setup.sql)
     Later gains `target_user_id` for **personal** announcements (RLS: a targeted
@@ -986,8 +986,10 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   announcements** (composer limited to the managed discipline, post allowed by
   RLS); and the sign-out-to-sign-in fix. Front-desk check-in and per-session
   attendance marking are implemented but not yet live-tested. **QR check-in**
-  (Profile pass + front-desk scanner) is code-complete and unit-tested but not
-  yet live-tested; it needs [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql). Run the SQL files
+  (Profile pass, front-desk scanner, live stats + realtime sync) is unit-tested
+  and its SQL ([qr_checkin_setup.sql](supabase/qr_checkin_setup.sql)) is **run
+  on the dev project**. It hasn't been live-tested on devices yet; it ships in
+  TestFlight build 1.0.0+8. Run the SQL files
   in [SUPABASE.md](SUPABASE.md) + deploy the Edge Functions to activate on a
   fresh project.)*
 - ✅ **Archie AI assistant** — a Claude-backed chat tab (live-data grounding +
