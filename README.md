@@ -195,7 +195,11 @@ Home header** (Uber-style), not a bottom-bar tab.
   schedule clash — save anyway?"* (via the `session_time_conflicts` RPC), and on
   save each affected person gets a personal announcement + banner telling them
   the session moved and now overlaps another of theirs
-  (`notify_session_time_conflicts`). *(Track and sponsor are no longer editable
+  (`notify_session_time_conflicts`). Editors type times in **12-hour form with
+  an AM/PM toggle** (a typed "pm" also works); the app converts them to the
+  24-hour `HH:mm` stored in `start_time`/`end_time` (`to24HourTime` /
+  `to12HourTime` in `models.dart`), and the end must be after the start.
+  *(Track and sponsor are no longer editable
   fields — a "track" is just a session — but existing values are preserved.)*
 - **News** — the announcements feed (pinned items, audience tags). Reads live
   from Supabase and stays **live via Realtime** — a new announcement appears the

@@ -382,6 +382,38 @@ class TeamCodeException implements Exception {
   String toString() => message;
 }
 
+/// Splits a stored 24-hour `HH:mm` time into what the session editor shows:
+/// the 12-hour clock text (`h:mm`) and whether it's PM. Tolerates a trailing
+/// seconds part (`HH:mm:ss`).
+(String, bool) to12HourTime(String hhmm) {
+  final parts = hhmm.split(':');
+  final h = int.tryParse(parts[0]) ?? 0;
+  final m = parts.length > 1 ? parts[1].padLeft(2, '0') : '00';
+  final h12 = h % 12 == 0 ? 12 : h % 12;
+  return ('$h12:$m', h >= 12);
+}
+
+/// Converts a typed 12-hour time (`10:30`, `9`, `10:30 pm`) plus the AM/PM
+/// choice into the 24-hour `HH:mm` the backend stores, or null when [input]
+/// isn't a valid 12-hour time. An "am"/"pm" typed into [input] wins over [pm].
+String? to24HourTime(String input, {required bool pm}) {
+  final match = RegExp(
+    r'^(\d{1,2})(?::([0-5]\d))?\s*(?:([ap])\.?\s*m?\.?)?$',
+    caseSensitive: false,
+  ).firstMatch(input.trim());
+  if (match == null) return null;
+  final h = int.parse(match[1]!);
+  if (h < 1 || h > 12) return null;
+  final m = match[2] ?? '00';
+  final isPm = switch (match[3]?.toLowerCase()) {
+    'a' => false,
+    'p' => true,
+    _ => pm,
+  };
+  final h24 = h % 12 + (isPm ? 12 : 0);
+  return '${h24.toString().padLeft(2, '0')}:$m';
+}
+
 /// A single session/activity a participant can add to their day plan.
 class Session {
   const Session({

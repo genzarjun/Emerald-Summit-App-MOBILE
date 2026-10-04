@@ -27,8 +27,12 @@ class SessionEditorScreen extends StatefulWidget {
 class _SessionEditorScreenState extends State<SessionEditorScreen> {
   late final TextEditingController _title;
   late final TextEditingController _expert;
+  /// Start/end as typed in 12-hour form (`h:mm`), with their AM/PM choice.
+  /// Saved as 24-hour `HH:mm`, which conflict checks and sorting rely on.
   late final TextEditingController _start;
   late final TextEditingController _end;
+  late bool _startPm;
+  late bool _endPm;
   late final TextEditingController _capacity;
   late final TextEditingController _description;
 
@@ -75,8 +79,12 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     _title = TextEditingController(text: s?.title ?? '');
     _roomId = s?.roomId;
     _expert = TextEditingController(text: s?.expertName ?? '');
-    _start = TextEditingController(text: s?.start ?? '');
-    _end = TextEditingController(text: s?.end ?? '');
+    final (start, startPm) = s == null ? ('', false) : to12HourTime(s.start);
+    final (end, endPm) = s == null ? ('', false) : to12HourTime(s.end);
+    _start = TextEditingController(text: start);
+    _end = TextEditingController(text: end);
+    _startPm = startPm;
+    _endPm = endPm;
     _capacity = TextEditingController(text: s != null ? '${s.capacity}' : '');
     _description = TextEditingController(text: s?.description ?? '');
     _projectPrompt = TextEditingController(
@@ -271,20 +279,24 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     }
   }
 
-  static final _timeRe = RegExp(r'^([01]?\d|2[0-3]):[0-5]\d$');
-
   Future<void> _save() async {
     final title = _title.text.trim();
-    final start = _start.text.trim();
-    final end = _end.text.trim();
+    final start = to24HourTime(_start.text, pm: _startPm);
+    final end = to24HourTime(_end.text, pm: _endPm);
     final capacity = int.tryParse(_capacity.text.trim());
 
     if (title.isEmpty) {
       setState(() => _error = 'Title is required.');
       return;
     }
-    if (!_timeRe.hasMatch(start) || !_timeRe.hasMatch(end)) {
-      setState(() => _error = 'Use 24-hour times like 10:00 and 10:45.');
+    if (start == null || end == null) {
+      setState(
+        () => _error = 'Use times like 10:00 or 1:30, then pick AM or PM.',
+      );
+      return;
+    }
+    if (end.compareTo(start) <= 0) {
+      setState(() => _error = 'End time must be after the start time.');
       return;
     }
     if (capacity == null || capacity <= 0) {
@@ -347,9 +359,17 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         return;
       }
     }
+    // Compare in the same zero-padded form the editor saves, so an old
+    // "9:00" row resaved as "09:00" doesn't count as a time change.
+    String? normalized(String hhmm) {
+      final (time, pm) = to12HourTime(hhmm);
+      return to24HourTime(time, pm: pm);
+    }
+
     final timeChanged =
         _isEditing &&
-        (start != widget.session!.start || end != widget.session!.end);
+        (start != normalized(widget.session!.start) ||
+            end != normalized(widget.session!.end));
     if (timeChanged && id != null) {
       final affected = await appState.previewSessionTimeConflicts(
         id,
@@ -505,14 +525,19 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                 _field(_title, 'Title'),
                 _roomDropdown(),
                 _field(_expert, 'Expert / speaker'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _field(_start, 'Start (HH:mm)', hint: '10:00'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: _field(_end, 'End (HH:mm)', hint: '10:45')),
-                  ],
+                _timeField(
+                  _start,
+                  'Start time',
+                  hint: '10:00',
+                  pm: _startPm,
+                  onPmChanged: (pm) => setState(() => _startPm = pm),
+                ),
+                _timeField(
+                  _end,
+                  'End time',
+                  hint: '10:45',
+                  pm: _endPm,
+                  onPmChanged: (pm) => setState(() => _endPm = pm),
                 ),
                 _field(
                   _capacity,
@@ -1137,6 +1162,45 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// A 12-hour time box (`h:mm`) with an AM/PM toggle beside it.
+  Widget _timeField(
+    TextEditingController controller,
+    String label, {
+    required String hint,
+    required bool pm,
+    required ValueChanged<bool> onPmChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: !_busy,
+              keyboardType: TextInputType.datetime,
+              decoration: InputDecoration(
+                labelText: label,
+                hintText: hint,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: false, label: Text('AM')),
+              ButtonSegment(value: true, label: Text('PM')),
+            ],
+            selected: {pm},
+            onSelectionChanged: _busy ? null : (sel) => onPmChanged(sel.first),
+          ),
+        ],
+      ),
     );
   }
 
