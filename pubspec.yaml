@@ -56,6 +56,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
+  url_launcher_platform_interface: ^2.3.2
+  plugin_platform_interface: ^2.1.8
 
 # App launcher icon generation. Source is the Emerald Summit dragon logo
 # (assets/branding/logo.png, a 1024x1024 square master). Regenerate after

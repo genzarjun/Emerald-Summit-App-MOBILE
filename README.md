@@ -379,7 +379,13 @@ Home header** (Uber-style), not a bottom-bar tab.
   opened from the Home **Campus map** / **Resources** tiles.
 - **Profile** (reached from the Home-header avatar) — contact card with role
   badge (volunteers also show their **subtype** and the discipline(s) they
-  manage), notifications toggle, an **Appearance** picker (Light / Dark /
+  manage) and a pencil to **Edit profile**
+  ([edit_profile_screen.dart](lib/screens/edit_profile_screen.dart), also a
+  row under Settings): edit your name and your role's sign-up answers (phone,
+  school, grade, expertise, bio…), prefilled, with the same required rules
+  and notes as sign-up; answers from a previous role are kept, a cleared
+  optional field is removed, and email + role are shown read-only (role
+  changes stay under **Change role**), notifications toggle, an **Appearance** picker (Light / Dark /
   System, saved per device — see Theming below; on narrow screens or large
   text it drops the icons and keeps labels on one line), and role-gated shortcuts: **My sessions**
   (a volunteer's assigned sessions → roster + attendance), **Volunteer hub**
@@ -392,9 +398,13 @@ Home header** (Uber-style), not a bottom-bar tab.
 opened from a Home **Jump to** tile or Profile, for volunteers and admins:
 every *other* onboarded volunteer **and admin** (admins listed first) as a
 card with their initials and a **Student Volunteer** / **Parent Volunteer** /
-**EAF Ambassador** / **Admin** tag, with a search box and filter chips (All
-plus one per group, with counts). Tapping a card opens a sheet with their
-label and **mobile number** (copy, **Call**, **Text**). Data comes from the
+**EAF Ambassador** / **Admin** tag, grouped under section headers
+(*Admins · 2*, *Student Volunteers · 14*, …), with a search box and filter
+chips (All plus one per group, with counts). Tapping a card opens a sheet with their
+label and **mobile number** (copy, **Call**, **Text** — `tel:` / `sms:`
+links with the number stripped to digits; the Android manifest declares the
+`tel`/`sms`/`mailto` intent queries url_launcher recommends, and the iOS
+Simulator has no Phone app, so Call only works on a real device). Data comes from the
 `fetch_volunteer_hub` RPC ([volunteer_hub.sql](supabase/volunteer_hub.sql)),
 which only answers volunteers and admins and returns name + role + subtype +
 phone only (no email). Numbers show any time, not only on summit day; the
@@ -539,6 +549,7 @@ lib/
     archie_screen.dart      Archie AI assistant tab (welcome + starters, streamed chat, typing reveal)
     archie_insights_screen.dart  Admin: anonymous recent Archie questions + answers
     announcements_screen.dart, resources_screen.dart, profile_screen.dart
+    edit_profile_screen.dart     Edit your name + sign-up answers (from Profile)
   widgets/type_to_confirm_dialog.dart  confirmByTypingName — type-the-name confirm for deletes
 supabase/                   SQL migrations + Edge Functions (sync-allowlist, dev-login, archie-chat)
 test/widget_test.dart       Widget tests

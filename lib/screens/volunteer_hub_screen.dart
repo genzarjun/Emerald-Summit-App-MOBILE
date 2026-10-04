@@ -133,14 +133,28 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
             ),
           )
         else
-          for (final v in visible)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _VolunteerCard(
-                volunteer: v,
-                onTap: () => _showVolunteerSheet(context, v),
+          // One headed section per group (Admins, Student Volunteers, …) so
+          // who's who is clear at a glance, on top of each card's tag.
+          for (final g in _HubGroup.values)
+            if (visible.any((v) => _groupOf(v) == g)) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+                child: Text(
+                    '${g.plural} · '
+                    '${visible.where((v) => _groupOf(v) == g).length}',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(color: theme.colorScheme.primary)),
               ),
-            ),
+              for (final v in visible)
+                if (_groupOf(v) == g)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _VolunteerCard(
+                      volunteer: v,
+                      onTap: () => _showVolunteerSheet(context, v),
+                    ),
+                  ),
+            ],
       ],
     );
   }

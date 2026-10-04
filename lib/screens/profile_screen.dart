@@ -5,6 +5,7 @@ import '../backend/service_locator.dart';
 import '../theme_setting.dart';
 import 'archie_insights_screen.dart';
 import 'auth/onboarding_screen.dart';
+import 'edit_profile_screen.dart';
 import 'front_desk_screen.dart';
 import 'my_assignments_screen.dart';
 import 'rooms_manager_screen.dart';
@@ -99,6 +100,12 @@ class _ContactCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (appState.profile != null)
+                  IconButton(
+                    tooltip: 'Edit profile',
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _openEditProfile(context),
+                  ),
               ],
             ),
           ),
@@ -107,6 +114,10 @@ class _ContactCard extends StatelessWidget {
     );
   }
 }
+
+void _openEditProfile(BuildContext context) => Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const EditProfileScreen()),
+    );
 
 class _VisibilityCard extends StatelessWidget {
   const _VisibilityCard();
@@ -138,6 +149,15 @@ class _VisibilityCard extends StatelessWidget {
                   onChanged: appState.setNotifications,
                 ),
                 const _AppearanceTile(),
+                if (appState.profile != null)
+                  ListTile(
+                    leading: Icon(Icons.edit_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Edit profile'),
+                    subtitle: const Text('Your name and sign-up details'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _openEditProfile(context),
+                  ),
                 if (appState.isVolunteer)
                   ListTile(
                     leading: Icon(Icons.event_available_outlined,

@@ -888,14 +888,22 @@ class AppState extends ChangeNotifier {
 
   /// Saves [phone] into the signed-in profile's details (the prompt shown
   /// when [needsPhoneNumber]). Keeps every other answer as is.
-  Future<void> savePhoneNumber(String phone) async {
+  Future<void> savePhoneNumber(String phone) => updateProfileInfo(
+      fullName: profile!.fullName, details: {...profile!.details, 'phone': phone});
+
+  /// Saves an edited name + sign-up answers (Profile → Edit profile) without
+  /// touching the role. [details] replaces `profiles.details` wholesale.
+  Future<void> updateProfileInfo({
+    required String fullName,
+    required Map<String, dynamic> details,
+  }) async {
     final p = profile!;
     await completeOnboarding(UserProfile(
       id: p.id,
       email: p.email,
-      fullName: p.fullName,
+      fullName: fullName,
       role: p.role,
-      details: {...p.details, 'phone': phone},
+      details: details,
     ));
   }
 

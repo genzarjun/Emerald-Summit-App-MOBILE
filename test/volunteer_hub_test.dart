@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 import 'package:emerald_summit/app_state.dart';
 import 'package:emerald_summit/backend/service_locator.dart';
 import 'package:emerald_summit/models/user_profile.dart';
 import 'package:emerald_summit/screens/volunteer_hub_screen.dart';
 import 'package:emerald_summit/theme.dart';
+
+/// Records every URL the app asks the OS to open instead of opening it.
+class _FakeLauncher extends Fake
+    with MockPlatformInterfaceMixin
+    implements UrlLauncherPlatform {
+  final launched = <String>[];
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launched.add(url);
+    return true;
+  }
+}
 
 void main() {
   setUp(() async {
@@ -32,6 +47,10 @@ void main() {
     expect(find.text('Parent Volunteer'), findsOneWidget);
     expect(find.text('Sam Okafor'), findsOneWidget);
     expect(find.text('Admin'), findsOneWidget);
+    // Section headers.
+    expect(find.text('Student Volunteers · 1'), findsOneWidget);
+    expect(find.text('Parent Volunteers · 1'), findsOneWidget);
+    expect(find.text('Admins · 1'), findsOneWidget);
     // Numbers stay off the list until a card is opened.
     expect(find.text('(925) 555-0142'), findsNothing);
   });
@@ -100,5 +119,24 @@ void main() {
     appState.profile = UserProfile(
         id: 'p1', email: 'p@b.com', onboarded: true);
     expect(appState.needsPhoneNumber, isFalse);
+  });
+
+  testWidgets('Call and Text open the dialer and messages with the number',
+      (tester) async {
+    final launcher = _FakeLauncher();
+    final original = UrlLauncherPlatform.instance;
+    UrlLauncherPlatform.instance = launcher;
+    addTearDown(() => UrlLauncherPlatform.instance = original);
+
+    await pumpHub(tester);
+    await tester.tap(find.text('Maya Chen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Call'));
+    await tester.pump();
+    await tester.tap(find.text('Text'));
+    await tester.pump();
+
+    // '(925) 555-0142' is stripped to digits so every dialer accepts it.
+    expect(launcher.launched, ['tel:9255550142', 'sms:9255550142']);
   });
 }
