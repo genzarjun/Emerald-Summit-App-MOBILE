@@ -206,6 +206,13 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     + a `before` trigger stop removed people rejoining; `find_team` reports
     `removed`. Team notices leave `announcements.session_id` null so
     volunteer-unassign cleanup never deletes them. Safe to re-run.
+33. `supabase/team_leave_notices.sql` — more team notices, all via triggers
+    (no app change): *"X left your team"* to remaining members when someone
+    leaves (solo, switching teams, or unregistering); *"X was removed from your
+    team"* to the other members when the owner removes someone; and *"You're
+    now the owner"* to whoever takes over a team. Silent while a session is
+    being deleted or when the last member leaves. Notices set `created_by` only
+    to the acting user, so account deletions are never blocked. Safe to re-run.
 33. `supabase/session_delete_admin_only.sql` — splits the sessions write
     policy so **only admins can delete sessions**; session-editing volunteers
     keep insert + update. Safe to re-run.

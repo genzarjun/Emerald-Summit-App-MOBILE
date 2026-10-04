@@ -109,8 +109,13 @@ Home header** (Uber-style), not a bottom-bar tab.
     the team with no project answer (the page asks them to add their project
     details), is notified, and **can't rejoin that team** with its code. When
     someone **joins a team**, every other member gets a personal *"X joined
-    your team"* announcement + banner. Removing the session from your day also
-    takes you off your team (no notice to teammates). **Edit my registration** lets them switch solo ↔
+    your team"* announcement + banner. Leaving (going solo, switching teams,
+    or removing the session from your day, which also takes you off your team)
+    sends the remaining members *"X left your team"*; an owner's removal sends
+    the other members *"X was removed from your team"*; and whoever becomes
+    owner (hand-off, transfer, or the backstop) gets *"You're now the owner"*.
+    No notices fire while a session is being deleted, or when the last member
+    leaves. **Edit my registration** lets them switch solo ↔
     team, create/join another team, rename their team's project, or revise
     answers. An **owner who leaves** their team (going solo, switching teams, or
     removing the session) while teammates remain must first **pick a new
@@ -519,8 +524,8 @@ test/widget_test.dart       Widget tests
     stored as the project name. `remove_team_member` (owner only) takes someone
     off the team and records them in `teams.removed_user_ids`; a trigger on
     `registrations` refuses their rejoining (error `removed_from_team`, also
-    reported by `find_team` as `removed`), and another posts the *"joined your
-    team"* notices. A trigger
+    reported by `find_team` as `removed`). Triggers post the team notices
+    (joined / left / removed on `registrations`, new owner on `teams`). A trigger
     deletes a team when its last registration leaves, and — as a backstop for
     account deletion — promotes the earliest-joined member if the owner
     vanishes without a hand-off.
@@ -528,7 +533,8 @@ test/widget_test.dart       Widget tests
     [teams_ownership_setup.sql](supabase/teams_ownership_setup.sql),
     [team_size_limits.sql](supabase/team_size_limits.sql),
     [project_prompt_setup.sql](supabase/project_prompt_setup.sql),
-    [team_members_setup.sql](supabase/team_members_setup.sql)
+    [team_members_setup.sql](supabase/team_members_setup.sql),
+    [team_leave_notices.sql](supabase/team_leave_notices.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /
