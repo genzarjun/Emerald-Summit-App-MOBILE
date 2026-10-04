@@ -933,3 +933,72 @@ class Attendee {
         present: present ?? this.present,
       );
 }
+
+/// What a front-desk QR pass encodes: the attendee's user id, a bare UUID
+/// (the same payload as the website's QR pass). Returns the normalized id, or
+/// null when [raw] isn't one — a URL, a menu code, anything else — so the
+/// scanner can reject it without a round trip.
+String? parseCheckinPass(String? raw) {
+  final s = raw?.trim().toLowerCase() ?? '';
+  final uuid = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+  return uuid.hasMatch(s) ? s : null;
+}
+
+enum ScanCheckinOutcome { checkedIn, alreadyCheckedIn, notFound }
+
+/// The result of scanning an attendee's QR pass at the front desk.
+class ScanCheckinResult {
+  const ScanCheckinResult({
+    required this.outcome,
+    required this.attendeeId,
+    this.name = '',
+    this.email = '',
+    this.role = '',
+    this.checkedInAt,
+  });
+
+  final ScanCheckinOutcome outcome;
+  final String attendeeId;
+  final String name;
+  final String email;
+  final String role;
+
+  /// When they arrived: now for a fresh check-in, the original time when they
+  /// were already checked in.
+  final DateTime? checkedInAt;
+
+  factory ScanCheckinResult.fromMap(String attendeeId, Map<String, dynamic> row) {
+    final at = row['checked_in_at'];
+    return ScanCheckinResult(
+      outcome: row['attendee_found'] != true
+          ? ScanCheckinOutcome.notFound
+          : row['already_checked_in'] == true
+              ? ScanCheckinOutcome.alreadyCheckedIn
+              : ScanCheckinOutcome.checkedIn,
+      attendeeId: attendeeId,
+      name: (row['full_name'] ?? '') as String,
+      email: (row['email'] ?? '') as String,
+      role: (row['role'] ?? '') as String,
+      checkedInAt: at == null ? null : DateTime.parse(at as String).toLocal(),
+    );
+  }
+}
+
+/// The signed-in user's own front-desk status, shown on their QR pass.
+class MyCheckinStatus {
+  const MyCheckinStatus({required this.present, this.checkedInAt});
+
+  final bool present;
+  final DateTime? checkedInAt;
+
+  static const notArrived = MyCheckinStatus(present: false);
+
+  factory MyCheckinStatus.fromMap(Map<String, dynamic> row) {
+    final at = row['checked_in_at'];
+    return MyCheckinStatus(
+      present: row['present'] == true,
+      checkedInAt: at == null ? null : DateTime.parse(at as String).toLocal(),
+    );
+  }
+}

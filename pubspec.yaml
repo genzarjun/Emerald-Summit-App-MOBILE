@@ -44,6 +44,8 @@ dependencies:
   http: ^1.6.0
   flutter_markdown_plus: ^1.0.12
   shared_preferences: ^2.5.5
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.2
 
 dev_dependencies:
   flutter_test:

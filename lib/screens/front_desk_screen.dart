@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../backend/service_locator.dart';
 import '../models/models.dart';
+import 'front_desk_scanner_screen.dart';
 
 /// Front-desk (summit-wide) check-in. A volunteer with the front-desk capability
-/// can search every attendee and mark them as arrived. Independent of session
+/// scans attendees' QR passes ([FrontDeskScannerScreen]), or searches every
+/// attendee and marks them as arrived — the list is the fallback for anyone
+/// without their pass, and for fixing mistakes. Independent of session
 /// assignments; the capability is enforced server-side by every RPC here.
 class FrontDeskScreen extends StatefulWidget {
   const FrontDeskScreen({super.key});
@@ -75,6 +78,14 @@ class _FrontDeskScreenState extends State<FrontDeskScreen> {
     }
   }
 
+  Future<void> _openScanner() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const FrontDeskScannerScreen()),
+    );
+    // Pick up everyone the scanner checked in.
+    if (mounted) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -84,6 +95,19 @@ class _FrontDeskScreenState extends State<FrontDeskScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16)),
+                  onPressed: _openScanner,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Scan QR passes'),
+                ),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(

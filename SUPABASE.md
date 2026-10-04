@@ -268,6 +268,15 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     manage …"* when another organizer is added (admin assign or self-manage).
     Drops and recreates `fetch_session_volunteers`. Safe to re-run.
 
+42. `supabase/qr_checkin_setup.sql` — **QR front-desk check-in**. Adds
+    `scan_summit_checkin(p_attendee_id)` (front-desk volunteers / admins only):
+    checks the scanned attendee in atomically and reports *not found* /
+    *already checked in* (keeping the original arrival time) / *checked in*. Undo
+    reuses `mark_summit_checkin(id, false)`. Also adds `my_summit_checkin()`,
+    which returns only the caller's own `present` + `checked_in_at` for the
+    status line on their Profile QR pass. Needs `attendance_setup.sql` first.
+    Safe to re-run.
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

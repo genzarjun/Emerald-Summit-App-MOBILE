@@ -852,4 +852,26 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
       'p_present': present,
     });
   }
+
+  @override
+  Future<ScanCheckinResult> scanSummitCheckin(String attendeeId) async {
+    final res = await _client.rpc(
+      'scan_summit_checkin',
+      params: {'p_attendee_id': attendeeId},
+    );
+    final rows = res as List;
+    return rows.isEmpty
+        ? ScanCheckinResult(
+            outcome: ScanCheckinOutcome.notFound, attendeeId: attendeeId)
+        : ScanCheckinResult.fromMap(
+            attendeeId, (rows.first as Map).cast<String, dynamic>());
+  }
+
+  @override
+  Future<MyCheckinStatus> fetchMyCheckin() async {
+    final rows = await _client.rpc('my_summit_checkin') as List;
+    return rows.isEmpty
+        ? MyCheckinStatus.notArrived
+        : MyCheckinStatus.fromMap((rows.first as Map).cast<String, dynamic>());
+  }
 }

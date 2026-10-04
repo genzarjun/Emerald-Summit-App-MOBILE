@@ -81,6 +81,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Front-desk volunteers use the camera to scan attendees' QR check-in passes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Emerald Summit needs access to your photos so you can add photos to a session page.</string>
 </dict>

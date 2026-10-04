@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../theme_setting.dart';
+import '../widgets/checkin_pass_card.dart';
 import 'archie_insights_screen.dart';
 import 'auth/onboarding_screen.dart';
 import 'edit_profile_screen.dart';
@@ -29,6 +30,7 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: const [
           _ContactCard(),
+          _PassSection(),
           SizedBox(height: 16),
           _VisibilityCard(),
           SizedBox(height: 16),
@@ -109,6 +111,27 @@ class _ContactCard extends StatelessWidget {
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+}
+
+/// Every signed-in user's front-desk QR pass. Hidden in sample mode, where
+/// nobody is signed in and there's no id to encode.
+class _PassSection extends StatelessWidget {
+  const _PassSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final id = appState.profile?.id;
+        if (id == null || id.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: CheckinPassCard(key: ValueKey(id), userId: id),
         );
       },
     );

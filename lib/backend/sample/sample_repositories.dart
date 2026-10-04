@@ -736,7 +736,44 @@ class SampleAttendanceRepository implements AttendanceRepository {
   Future<void> markSummitCheckin(String attendeeId, bool present) async {
     final i = _store.attendees.indexWhere((a) => a.id == attendeeId);
     if (i >= 0) _store.attendees[i] = _store.attendees[i].copyWith(present: present);
+    if (!present) _store.checkedInAt.remove(attendeeId);
   }
+
+  @override
+  Future<ScanCheckinResult> scanSummitCheckin(String attendeeId) async {
+    final i = _store.attendees.indexWhere((a) => a.id == attendeeId);
+    if (i < 0) {
+      return ScanCheckinResult(
+          outcome: ScanCheckinOutcome.notFound, attendeeId: attendeeId);
+    }
+    final a = _store.attendees[i];
+    final arrivedAt = _store.checkedInAt[a.id];
+    if (a.present) {
+      return ScanCheckinResult(
+        outcome: ScanCheckinOutcome.alreadyCheckedIn,
+        attendeeId: a.id,
+        name: a.name,
+        email: a.email,
+        role: a.role,
+        checkedInAt: arrivedAt,
+      );
+    }
+    final now = DateTime.now();
+    _store.attendees[i] = a.copyWith(present: true);
+    _store.checkedInAt[a.id] = now;
+    return ScanCheckinResult(
+      outcome: ScanCheckinOutcome.checkedIn,
+      attendeeId: a.id,
+      name: a.name,
+      email: a.email,
+      role: a.role,
+      checkedInAt: now,
+    );
+  }
+
+  // Sample mode has nobody signed in, so there's no one to report on.
+  @override
+  Future<MyCheckinStatus> fetchMyCheckin() async => MyCheckinStatus.notArrived;
 }
 
 /// No-account auth for demo mode: nobody is ever signed in, and the OTP calls

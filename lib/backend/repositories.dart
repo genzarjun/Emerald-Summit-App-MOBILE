@@ -382,6 +382,14 @@ abstract interface class AttendanceRepository {
   Future<List<Attendee>> fetchAttendeeDirectory([String query]);
 
   Future<void> markSummitCheckin(String attendeeId, bool present);
+
+  /// Checks in the owner of a scanned QR pass. Never un-checks anyone: an
+  /// attendee who already arrived comes back as
+  /// [ScanCheckinOutcome.alreadyCheckedIn] with their original time.
+  Future<ScanCheckinResult> scanSummitCheckin(String attendeeId);
+
+  /// The signed-in user's own front-desk status (for their QR pass).
+  Future<MyCheckinStatus> fetchMyCheckin();
 }
 
 // ---- Archie (AI assistant) --------------------------------------------------

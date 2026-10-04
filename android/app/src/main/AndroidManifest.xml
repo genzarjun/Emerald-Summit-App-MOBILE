@@ -4,6 +4,11 @@
          why the app works when run from a dev machine but fails in a release APK
          with "Failed host lookup". -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Front-desk volunteers scan attendees' QR check-in passes. Asked for at
+         runtime, only when the scanner is opened. Not required hardware, so
+         camera-less devices can still install the app. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
         android:label="emerald_summit"
         android:name="${applicationName}"

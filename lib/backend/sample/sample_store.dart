@@ -71,6 +71,9 @@ class SampleStore {
   /// The summit-wide attendee directory for front-desk check-in.
   final List<Attendee> attendees = [];
 
+  /// attendeeId → when a QR scan checked them in.
+  final Map<String, DateTime> checkedInAt = {};
+
   /// Project teams, keyed by code (in-memory analogue of the `teams` table).
   final Map<String, SampleTeam> teams = {};
 
