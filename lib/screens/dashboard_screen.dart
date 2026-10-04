@@ -118,13 +118,15 @@ class _HeaderState extends State<_Header> {
   Widget _buildHeader(BuildContext context, double topInset, String firstName) {
     return Container(
       padding: EdgeInsets.fromLTRB(20, topInset + 16, 20, 28),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [EmeraldTheme.emerald, EmeraldTheme.deepEmerald],
+          colors: Theme.of(context).brightness == Brightness.dark
+              ? EmeraldTheme.nightHero
+              : const [EmeraldTheme.emerald, EmeraldTheme.deepEmerald],
         ),
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
         ),

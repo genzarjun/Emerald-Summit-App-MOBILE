@@ -14,9 +14,9 @@ import '../theme.dart';
 
 const _archieAsset = 'assets/branding/archie.png';
 
-/// Archie's own palette, Gemini-style: a deep emerald night in dark mode
-/// (rooted in the same emerald as the launch splash) and a soft mint-white in
-/// light mode. [of] picks the one matching the app's current theme.
+/// Archie's own palette, Gemini-style: an evergreen night with an emerald
+/// glow and navy chat bubbles in dark mode (the app's dark theme, a shade
+/// deeper) and a soft mint-white in light mode. [of] picks the one matching the app's current theme.
 class _ArchieColors {
   const _ArchieColors({
     required this.brightness,
@@ -60,17 +60,17 @@ class _ArchieColors {
 
   static const dark = _ArchieColors(
     brightness: Brightness.dark,
-    background: Color(0xFF02100B),
-    glow: Color(0xFF0C7A55),
-    surface: Color(0xFF13211B),
-    surfaceHigh: Color(0xFF1B2D25),
-    border: Color(0xFF26392F),
-    text: Color(0xFFE6F0EA),
+    background: Color(0xFF0B1613),
+    glow: Color(0xFF0E7A57),
+    surface: EmeraldTheme.nightSurface,
+    surfaceHigh: Color(0xFF1E322B),
+    border: EmeraldTheme.nightBorder,
+    text: EmeraldTheme.nightText,
     textStrong: Colors.white,
-    textDim: Color(0xFF93AA9E),
-    mint: Color(0xFF5BE0A4),
-    onMint: Color(0xFF02100B),
-    userBubble: Color(0xFF0E6B4B),
+    textDim: EmeraldTheme.nightTextDim,
+    mint: EmeraldTheme.mint,
+    onMint: Color(0xFF0B1613),
+    userBubble: Color(0xFF26457E),
     error: Color(0xFFF2A39B),
     greeting: [Color(0xFF9BF6CB), Color(0xFF3CC48A)],
     shadow: Color(0x59000000),
@@ -728,7 +728,7 @@ class _Starter {
 // Chrome: background, header, composer
 // ---------------------------------------------------------------------------
 
-/// Deep emerald with a soft glow rising from the bottom, à la Gemini.
+/// The night background with a soft glow rising from the bottom, à la Gemini.
 class _GlowBackground extends StatelessWidget {
   const _GlowBackground();
 

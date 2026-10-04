@@ -9,16 +9,28 @@ class EmeraldTheme {
   static const Color ink = Color(0xFF16211C); // Text
   static const Color mist = Color(0xFFEEF5F1); // Surfaces
 
-  // Dark-mode counterparts: the deep emerald night of the launch splash and
-  // Archie, with a mint accent that stays readable on it.
-  static const Color mint = Color(0xFF5BE0A4); // Primary actions (dark)
-  static const Color night = Color(0xFF0B1612); // Scaffold (dark)
-  static const Color nightSurface = Color(0xFF13211B); // Cards (dark)
-  static const Color nightMist = Color(0xFF1B2D25); // Fills, pills (dark)
-  static const Color nightBorder = Color(0xFF26392F);
-  static const Color nightText = Color(0xFFE6F0EA);
-  static const Color nightTextDim = Color(0xFF93AA9E);
-  static const Color nightAppBar = Color(0xFF0E3326);
+  // Dark-mode counterparts: an evergreen night — green-led, but lifted off
+  // black and kept low-chroma so surfaces read as depth rather than a wall of
+  // green. Emerald (softened to mint) carries actions and selection; the
+  // logo's navy is a small second accent (supporting roles, the hero's far
+  // corner, Archie's chat bubbles), never the canvas.
+  static const Color mint = Color(0xFF5FCB9C); // Primary actions (dark)
+  static const Color night = Color(0xFF0E1A17); // Scaffold (dark)
+  static const Color nightSurface = Color(0xFF152420); // Cards (dark)
+  static const Color nightMist = Color(0xFF1B2E28); // Fills, pills (dark)
+  static const Color nightBorder = Color(0xFF2A4038);
+  static const Color nightText = Color(0xFFE6F0EC);
+  static const Color nightTextDim = Color(0xFF9DB3AB);
+  static const Color nightAppBar = Color(0xFF13221E);
+  static const Color nightEmeraldContainer = Color(0xFF17483A);
+  static const Color nightBlue = Color(0xFFA3BEF2); // Navy accent, lifted
+  static const Color nightBlueContainer = Color(0xFF213A63);
+  // Home hero header (dark): emerald, deepening into a navy corner.
+  static const List<Color> nightHero = [
+    Color(0xFF0F5E47),
+    Color(0xFF0D4237),
+    Color(0xFF173560),
+  ];
 
   static ThemeData light() {
     final base = ColorScheme.fromSeed(
@@ -44,29 +56,40 @@ class EmeraldTheme {
   }
 
   static ThemeData dark() {
+    // The neutral variant keeps every role we don't override below (error
+    // containers, inverse surface, …) low-chroma instead of tinted green.
     final base = ColorScheme.fromSeed(
       seedColor: emerald,
       brightness: Brightness.dark,
+      dynamicSchemeVariant: DynamicSchemeVariant.neutral,
     );
     // Widgets read these roles instead of the raw constants above, so each
     // one maps to its light-mode twin: primary ↔ emerald, secondary ↔
-    // deepEmerald, onSurface ↔ ink, surfaceContainer ↔ mist.
+    // deepEmerald, onSurface ↔ ink, surfaceContainer ↔ mist. Selection
+    // (secondaryContainer: the nav-bar pill, "registered" banners) stays
+    // emerald; blue carries the supporting roles (secondary, tertiary).
     final scheme = base.copyWith(
       primary: mint,
       onPrimary: night,
-      primaryContainer: const Color(0xFF0F4A35),
-      onPrimaryContainer: const Color(0xFFB9F6D5),
-      secondary: const Color(0xFF9BE8C4),
+      primaryContainer: nightEmeraldContainer,
+      onPrimaryContainer: const Color(0xFFBDEFD7),
+      secondary: nightBlue,
       onSecondary: night,
+      secondaryContainer: nightEmeraldContainer,
+      onSecondaryContainer: const Color(0xFFBDEFD7),
+      tertiary: nightBlue,
+      onTertiary: night,
+      tertiaryContainer: nightBlueContainer,
+      onTertiaryContainer: const Color(0xFFD6E3FF),
       surface: nightSurface,
       onSurface: nightText,
       onSurfaceVariant: nightTextDim,
       surfaceContainerLowest: night,
       surfaceContainerLow: nightSurface,
       surfaceContainer: nightMist,
-      surfaceContainerHigh: const Color(0xFF213429),
+      surfaceContainerHigh: const Color(0xFF223630),
       surfaceContainerHighest: nightBorder,
-      outline: const Color(0xFF4A6357),
+      outline: const Color(0xFF627D73),
       outlineVariant: nightBorder,
     );
     return _build(
