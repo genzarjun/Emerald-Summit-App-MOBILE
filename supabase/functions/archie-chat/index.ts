@@ -9,9 +9,12 @@
 //      News feed, and the caller's own profile + schedule. Read with the
 //      CALLER'S JWT, so Row Level Security applies exactly as in the app (a
 //      user never sees another user's registrations or targeted announcements).
-//   2. OFFICIAL SITES — the summit / EHS Academic Foundation site and Emerald
+//   2. KNOWLEDGE BASE — supabase/archie/knowledge.md, the organizers' fact
+//      sheet, uploaded to the private Storage bucket "archie" and read here
+//      (cached ~5 min). Lets Archie answer common questions without the web.
+//   3. OFFICIAL SITES — the summit / EHS Academic Foundation site and Emerald
 //      High's site, read on demand with Claude's server-side web_fetch.
-//   3. THE OPEN WEB — Claude's server-side web_search, with citations.
+//   4. THE OPEN WEB — Claude's server-side web_search, with citations.
 //
 // Request  (POST, JSON):  { messages: [{ role: "user"|"assistant", content }] }
 //   The client resends the visible transcript each turn (text only).
@@ -70,17 +73,18 @@ Emerald Summit '27 is the Tri-Valley's student-run STEAM summit, hosted at Emera
 
 WHERE YOUR ANSWERS COME FROM (in priority order)
 1. LIVE APP DATA — provided below in the <app_data> sections. It is the source of truth for sessions, times, rooms, experts, seats left, announcements, and the user's own schedule. It is newer than anything on the web; when they disagree, trust the app data and say so.
-2. OFFICIAL SITES — fetch these with web_fetch when the question is about the summit or the school and the app data doesn't answer it:
+2. KNOWLEDGE BASE — provided below in <knowledge_base>, written and checked by the summit organizers. Use it for facts about the summit, the EHS Academic Foundation, Emerald High School, and Dublin Unified. If it answers the question, answer from it and don't search the web. (For sessions, times, rooms, and seats, the live app data wins.)
+3. OFFICIAL SITES — fetch these with web_fetch only when the app data and the knowledge base don't answer a question about the summit or the school:
    - Emerald Summit: https://sites.google.com/view/ehs-academic-foundation/programs/emerald-summit
    - EHS Academic Foundation: https://sites.google.com/view/ehs-academic-foundation
    - Emerald High School: https://ehs.dublinusd.org
    - Dublin Unified School District: https://www.dublinusd.org
-3. WEB SEARCH — for anything else in scope (directions, bell schedules, school news, background on a discipline's topic). Prefer official and reputable sources.
+4. WEB SEARCH — for anything else in scope that the sources above don't cover (directions, school news, background on a discipline's topic). Prefer official and reputable sources.
 
 GROUNDING RULES
-- Never invent sessions, times, rooms, names, prices, or policies. If neither the app data nor a source you found answers it, say you don't know and point the user to president@ehsacademics.org or the News tab.
-- When you use app data, say so naturally ("According to the summit schedule…", "In your schedule…").
-- For facts about the summit or Emerald High that the app data doesn't cover — dates, schedules, policies, what's allowed, required, or charged — check the official sites or search rather than answering from memory, even when you feel confident; these details change.
+- Never invent sessions, times, rooms, names, prices, or policies. If neither the app data, the knowledge base, nor a source you found answers it, say you don't know and point the user to president@ehsacademics.org or the News tab.
+- When you use app data or the knowledge base, say so naturally ("According to the summit schedule…", "In your schedule…", "According to the summit organizers…").
+- For facts about the summit or Emerald High that the app data and knowledge base don't cover — dates, schedules, policies, what's allowed, required, or charged — check the official sites or search rather than answering from memory, even when you feel confident; these details change.
 - When you use the web, rely on what the pages actually say; your citations are shown to the user as source links automatically, so you don't need to paste URLs.
 - Session times in the app data are 24-hour "HH:mm" on summit day; present them as 12-hour times (e.g. 2:30 PM).
 - You can't change anything in the app (register, cancel, post). Tell the user where to do it: Discover tab → a discipline → a session → "Add to my day"; the Schedule tab shows their day; News has announcements; the avatar on Home opens Profile.
@@ -135,13 +139,14 @@ Deno.serve(async (req) => {
     });
   }
 
-  const [catalog, personal] = await Promise.all([
+  const [knowledge, catalog, personal] = await Promise.all([
+    loadKnowledge(),
     loadCatalogContext(db),
     loadPersonalContext(db, userId),
   ]);
 
   return sse(async (send, signal) => {
-    await streamAnswer(history, catalog, personal, send, signal);
+    await streamAnswer(history, knowledge, catalog, personal, send, signal);
   }, req.signal);
 });
 
@@ -152,6 +157,7 @@ type Send = (event: Record<string, unknown>) => void;
 
 async function streamAnswer(
   history: Anthropic.MessageParam[],
+  knowledge: string,
   catalog: CatalogContext,
   personal: string,
   send: Send,
@@ -176,6 +182,9 @@ async function streamAnswer(
       output_config: { effort: EFFORT },
       system: [
         { type: "text", text: PERSONA },
+        // Organizer fact sheet. Changes only when a new knowledge.md is
+        // uploaded, so it rides in the cached prefix of the next breakpoint.
+        { type: "text", text: knowledge },
         // Shared data, ordered least → most likely to change, each block
         // ending in a cache breakpoint (3 here + the automatic one on the
         // conversation = the API's maximum of 4). A change only invalidates
@@ -191,7 +200,7 @@ async function streamAnswer(
         {
           type: "web_search_20260209",
           name: "web_search",
-          max_uses: 5,
+          max_uses: 3,
           user_location: {
             type: "approximate",
             city: "Dublin",
@@ -203,7 +212,7 @@ async function streamAnswer(
         {
           type: "web_fetch_20260209",
           name: "web_fetch",
-          max_uses: 4,
+          max_uses: 3,
           citations: { enabled: true },
         },
       ],
@@ -331,6 +340,52 @@ function describeToolStep(name: string, rawJson: string): string | null {
 // ---------------------------------------------------------------------------
 // Grounding data (read as the caller → RLS-scoped)
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Knowledge base (supabase/archie/knowledge.md → Storage bucket "archie")
+// ---------------------------------------------------------------------------
+const KNOWLEDGE_BUCKET = "archie";
+const KNOWLEDGE_FILE = "knowledge.md";
+const KNOWLEDGE_TTL_MS = 5 * 60 * 1000;
+const KNOWLEDGE_MAX_CHARS = 120_000; // ~30K tokens — a sanity cap, not a target
+
+let knowledgeCache: { text: string; at: number } | null = null;
+
+// Reads the organizer fact sheet with the service role (the bucket is private;
+// the key is injected by Supabase and never leaves the function). Cached per
+// function instance so most questions don't touch Storage. On any failure the
+// last good copy is kept; with none, Archie simply runs without it.
+async function loadKnowledge(): Promise<string> {
+  if (knowledgeCache && Date.now() - knowledgeCache.at < KNOWLEDGE_TTL_MS) {
+    return knowledgeCache.text;
+  }
+  let body = "";
+  try {
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data, error } = await admin.storage.from(KNOWLEDGE_BUCKET).download(KNOWLEDGE_FILE);
+    if (error) throw error;
+    body = (await data.text())
+      .replace(/<!--[\s\S]*?-->/g, "") // editor notes / TODOs aren't for Archie
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (body.length > KNOWLEDGE_MAX_CHARS) {
+      console.warn(`knowledge.md is ${body.length} chars; using the first ${KNOWLEDGE_MAX_CHARS}`);
+      body = body.slice(0, KNOWLEDGE_MAX_CHARS);
+    }
+    console.log(JSON.stringify({ archie_knowledge: { chars: body.length } }));
+  } catch (e) {
+    console.warn("knowledge.md not loaded:", e instanceof Error ? e.message : e);
+    if (knowledgeCache) return knowledgeCache.text; // keep the last good copy
+  }
+  const text = body
+    ? `<knowledge_base source="Summit organizers' fact sheet">\n${body}\n</knowledge_base>`
+    : "<knowledge_base>(No knowledge base uploaded yet.)</knowledge_base>";
+  knowledgeCache = { text, at: Date.now() };
+  return text;
+}
+
 /// The shared (same-for-every-user) app data, split by how often it changes.
 type CatalogContext = { sessions: string; news: string; seats: string };
 

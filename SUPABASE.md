@@ -229,6 +229,12 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     sessions and sends each session's "Session cancelled" notices — use DELETE,
     not TRUNCATE, which skips triggers. Safe to re-run.
 
+37. `supabase/archie_knowledge_setup.sql` — creates the **private** Storage
+    bucket `archie` that holds Archie's knowledge base (`knowledge.md`, see
+    §3c). No policies: the function reads it with the service role and admins
+    upload it from the dashboard. Without it (or without the file) Archie works,
+    just without the fact sheet.
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 
@@ -359,9 +365,21 @@ set up on this server yet."*
    ```
    Or via the dashboard editor (paste `index.ts`, turn **Verify JWT OFF**, add
    the secrets under Edge Functions → Secrets).
-4. **Test:** sign in, open the Archie tab, tap a starter. You should see
+4. **Upload the knowledge base** (the organizers' fact sheet Archie answers
+   from before touching the web): run
+   [`supabase/archie_knowledge_setup.sql`](supabase/archie_knowledge_setup.sql),
+   then Dashboard → **Storage** → bucket **archie** → **Upload file** →
+   [`supabase/archie/knowledge.md`](supabase/archie/knowledge.md), named
+   exactly `knowledge.md`. **To update it:** edit the file in the repo, delete
+   the old `knowledge.md` in the bucket (or upload with overwrite), and upload
+   the new one. Archie picks it up within ~5 minutes — no redeploy. The
+   function logs `archie_knowledge` with the size it loaded. HTML comments
+   (`<!-- … -->`) in the file are editor notes and are stripped before Archie
+   sees them.
+5. **Test:** sign in, open the Archie tab, tap a starter. You should see
    "Searching the web…"/"Reading …" steps for web questions, the answer typing
-   out, and source chips under it.
+   out, and source chips under it. Questions the knowledge base covers should
+   answer with no web steps.
 
 Cost note: every question is a paid model call (plus web searches). Prompt
 caching is built in (see the function header); the daily cap and the

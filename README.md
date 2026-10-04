@@ -276,7 +276,7 @@ Home header** (Uber-style), not a bottom-bar tab.
     the full persona + data + conversation (the API is stateless). **Web
     search/fetch are Anthropic *server tools*:** the function only declares
     them; Anthropic runs the searches/fetches and feeds results back to the
-    model inside the same API call (capped at 5 searches / 4 fetches per
+    model inside the same API call (capped at 3 searches / 3 fetches per
     answer, billed on the Anthropic account). The function just watches the
     stream — turning tool calls into `status` steps and citations into
     `sources` — and resumes a long turn if the API returns `pause_turn`.
@@ -284,9 +284,12 @@ Home header** (Uber-style), not a bottom-bar tab.
     in priority
     order: the **live app data** (disciplines, sessions + seats left, rooms,
     recent announcements, and the caller's own profile + schedule — read with
-    the **caller's JWT** so RLS applies), then the **official sites** (summit /
-    EHS Academic Foundation, ehs.dublinusd.org, dublinusd.org) via `web_fetch`,
-    then general **`web_search`** (located to Dublin, CA). Scope is the summit,
+    the **caller's JWT** so RLS applies), then the **knowledge base** (below),
+    then the **official sites** (summit / EHS Academic Foundation,
+    ehs.dublinusd.org, dublinusd.org) via `web_fetch`, then general
+    **`web_search`** (located to Dublin, CA). Which source to use is Claude's
+    judgment, steered by that priority list in the persona; the web is meant
+    for what the app data and knowledge base don't cover. Scope is the summit,
     EHS, and summit-related topics; off-topic requests are politely declined.
     A per-user **daily question cap** (default 50,
     [archie_setup.sql](supabase/archie_setup.sql)) guards cost. Each call logs
@@ -298,13 +301,28 @@ Home header** (Uber-style), not a bottom-bar tab.
     a cache matches only an *exact* prefix and is reusable only at marked
     breakpoints). The request is laid out from least to most likely to change,
     using all 4 breakpoints the API allows:
-    `[persona][sessions ◆][announcements ◆][seats left ◆][user's own info][conversation ◆]`.
+    `[persona][knowledge base][sessions ◆][announcements ◆][seats left ◆][user's own info][conversation ◆]`.
     The three shared blocks are byte-identical for every user (fully ordered
     queries; personal notices live in the per-user block), so one cached copy
     serves everyone. A registration only re-caches the short seats block, a
     new announcement re-caches announcements + seats, and automatic caching
     re-reads earlier turns of a conversation from cache. Entries live ~5
     minutes, so savings are largest on busy days and within a conversation.
+  - **Knowledge base** —
+    [supabase/archie/knowledge.md](supabase/archie/knowledge.md), an
+    organizer-maintained fact sheet (summit logistics, disciplines/tracks, past
+    summits, the EHS Academic Foundation, Emerald High, Dublin USD, FAQ) so
+    common questions are answered without web search — faster, cheaper, and
+    under your control. Seeded from the official sites with `TODO` comments for
+    what only organizers know (exact date/times, check-in, parking, food,
+    eligibility). It lives in the **private Storage bucket `archie`**
+    ([archie_knowledge_setup.sql](supabase/archie_knowledge_setup.sql)): the
+    function reads it with the service role, caches it ~5 minutes, strips HTML
+    comments (editor notes), and puts it right after the persona, inside the
+    cached prefix. **To update: edit the file, upload it to the bucket as
+    `knowledge.md` — no redeploy.** (A file bundled with the function was
+    avoided because dashboard and CLI deploys handle extra files differently.)
+    Don't copy session times/rooms/seats into it; those come live from the app.
   - **The persona** is the `PERSONA` constant in
     [index.ts](supabase/functions/archie-chat/index.ts) (identity, sources and
     their priority, grounding rules, scope, style — contact
