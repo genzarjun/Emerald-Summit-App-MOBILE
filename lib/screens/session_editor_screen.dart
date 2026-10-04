@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../app_state.dart';
+import '../backend/repositories.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
 import '../widgets/type_to_confirm_dialog.dart';
@@ -409,11 +410,18 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             content: Text(_isEditing ? 'Session updated' : 'Session created'),
           ),
         );
-    } catch (e) {
+    } on SessionWriteDeniedException {
       if (!mounted) return;
       setState(() {
         _busy = false;
         _error = 'Could not save. You may not manage this discipline.';
+      });
+    } catch (e) {
+      debugPrint('Session save failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = 'Could not save the session. Please try again.';
       });
     }
   }

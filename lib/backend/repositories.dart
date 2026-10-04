@@ -136,8 +136,10 @@ abstract interface class CatalogRepository {
 abstract interface class ContentRepository {
   /// Map keys: discipline_id, title, track, room, expert_name, start_time,
   /// end_time, capacity, description, sponsor.
+  /// Throws [SessionWriteDeniedException] when the backend refuses the caller.
   Future<void> createSession(Map<String, dynamic> data);
 
+  /// Throws [SessionWriteDeniedException] when the backend refuses the caller.
   Future<void> updateSession(String id, Map<String, dynamic> data);
 
   /// Admin-only (enforced by the backend).
@@ -484,6 +486,12 @@ class ArchieExchange {
 String archieChatTitle(String question) {
   final oneLine = question.replaceAll(RegExp(r'\s+'), ' ').trim();
   return oneLine.length <= 80 ? oneLine : '${oneLine.substring(0, 79)}…';
+}
+
+/// The caller may not create/edit sessions in that discipline (RLS refused
+/// it). Any other save failure surfaces as the backend's own error.
+class SessionWriteDeniedException implements Exception {
+  const SessionWriteDeniedException();
 }
 
 /// The chat already has [kArchieMaxQuestionsPerChat] questions.

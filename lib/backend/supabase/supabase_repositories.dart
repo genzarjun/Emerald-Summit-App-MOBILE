@@ -58,12 +58,22 @@ class SupabaseContentRepository implements ContentRepository {
 
   @override
   Future<void> createSession(Map<String, dynamic> data) async {
-    await _client.from('sessions').insert(data);
+    try {
+      await _client.from('sessions').insert(data);
+    } on PostgrestException catch (e) {
+      // An insert RLS refuses fails with insufficient_privilege.
+      if (e.code == '42501') throw const SessionWriteDeniedException();
+      rethrow;
+    }
   }
 
   @override
   Future<void> updateSession(String id, Map<String, dynamic> data) async {
-    await _client.from('sessions').update(data).eq('id', id);
+    // An update RLS refuses doesn't error — it just matches no rows — so ask
+    // for the updated row back to tell a denial apart from success.
+    final rows =
+        await _client.from('sessions').update(data).eq('id', id).select('id');
+    if (rows.isEmpty) throw const SessionWriteDeniedException();
   }
 
   @override
