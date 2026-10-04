@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
+import '../widgets/type_to_confirm_dialog.dart';
 
 /// Create / edit a session within a discipline. Shown to admins and to mentors
 /// scoped to the discipline. RLS is the real guard; this screen just gates the
@@ -442,26 +443,15 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   }
 
   Future<void> _delete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete session?'),
-        content: Text(
-          '“${widget.session!.title}” will be removed for everyone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final title = widget.session!.title;
+    final confirmed = await confirmByTypingName(
+      context,
+      title: 'Delete session?',
+      message: '“$title” will be removed for everyone, along with its '
+          'registrations and teams. This can\'t be undone.',
+      name: title,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);

@@ -160,7 +160,11 @@ Home header** (Uber-style), not a bottom-bar tab.
   isn't listed, an **"Add a room…"** option in that dropdown creates it inline
   (admins and session-editing ambassadors; INSERT-only, backend-enforced)
   without leaving the page. Admins also get **New discipline** and **New
-  session**. Assigning a volunteer to a session is overlap-guarded server-side
+  session**, and a **delete** button on a discipline's page (removes the
+  discipline plus all its sessions, registrations and teams via FK cascade).
+  **Deleting a session or a discipline requires typing its exact name**
+  (case-sensitive) before the red Delete button enables — a shared
+  `confirmByTypingName` dialog, so a big delete can't happen from a stray tap. Assigning a volunteer to a session is overlap-guarded server-side
   (an admin sees *"This person has a schedule conflict…"* if it clashes with
   their other assignments or registrations). If the volunteer is already
   **registered** for that very session, the admin gets an *"…is registered for
@@ -400,7 +404,7 @@ lib/
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate)
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
     discover_screen.dart    Disciplines grid (+ admin "New discipline")
-    discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)
+    discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit, admin delete)
     session_detail_screen.dart   Tabbed session page: Session/Participants/Volunteers (permission-gated)
     session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown, hero/gallery, content blocks)
     session_volunteers_screen.dart  SessionVolunteersView — assign/unassign (Volunteers tab, admin)
@@ -413,6 +417,7 @@ lib/
     archie_screen.dart      Archie AI assistant tab (welcome + starters, streamed chat, typing reveal)
     archie_insights_screen.dart  Admin: anonymous recent Archie questions + answers
     announcements_screen.dart, resources_screen.dart, profile_screen.dart
+  widgets/type_to_confirm_dialog.dart  confirmByTypingName — type-the-name confirm for deletes
 supabase/                   SQL migrations + Edge Functions (sync-allowlist, dev-login, archie-chat)
 test/widget_test.dart       Widget tests
 ```

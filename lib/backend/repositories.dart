@@ -119,6 +119,10 @@ abstract interface class CatalogRepository {
   /// Creates a discipline (admin-only; enforced by the backend). Map keys:
   /// id, name, tagline, icon, sort_order.
   Future<void> createDiscipline(Map<String, dynamic> data);
+
+  /// Deletes a discipline (admin-only; enforced by the backend). Its sessions,
+  /// and their registrations and teams, cascade away with it.
+  Future<void> deleteDiscipline(String id);
 }
 
 /// Session authoring for mentors/admins. Authorization is enforced by the

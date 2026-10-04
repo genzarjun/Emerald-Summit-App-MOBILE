@@ -2,14 +2,43 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/models.dart';
+import '../widgets/type_to_confirm_dialog.dart';
 import 'session_detail_screen.dart';
 import 'session_editor_screen.dart';
 
 /// Lists the sessions within one discipline. Admins and mentors scoped to this
-/// discipline also get controls to create and edit sessions.
+/// discipline also get controls to create and edit sessions; admins can also
+/// delete the whole discipline.
 class DisciplineScreen extends StatelessWidget {
   const DisciplineScreen({super.key, required this.discipline});
   final Discipline discipline;
+
+  Future<void> _delete(BuildContext context, Discipline current) async {
+    final count = current.sessions.length;
+    final confirmed = await confirmByTypingName(
+      context,
+      title: 'Delete discipline?',
+      message: '“${current.name}” will be removed for everyone, along with '
+          '${count == 1 ? 'its 1 session' : 'all $count of its sessions'} '
+          'and their registrations and teams. This can\'t be undone.',
+      name: current.name,
+    );
+    if (!confirmed || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      await appState.deleteDiscipline(current.id);
+      navigator.pop();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Discipline deleted')));
+    } catch (e) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+            content: Text('Could not delete. Please try again.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +56,17 @@ class DisciplineScreen extends StatelessWidget {
         final sessions = current.sessions;
 
         return Scaffold(
-          appBar: AppBar(title: Text(current.name)),
+          appBar: AppBar(
+            title: Text(current.name),
+            actions: [
+              if (appState.isAdmin)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Delete discipline',
+                  onPressed: () => _delete(context, current),
+                ),
+            ],
+          ),
           floatingActionButton: canManage
               ? FloatingActionButton.extended(
                   heroTag: 'fab-new-session',

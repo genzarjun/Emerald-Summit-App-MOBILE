@@ -46,6 +46,11 @@ class SupabaseCatalogRepository implements CatalogRepository {
   Future<void> createDiscipline(Map<String, dynamic> data) async {
     await _client.from('disciplines').insert(data);
   }
+
+  @override
+  Future<void> deleteDiscipline(String id) async {
+    await _client.from('disciplines').delete().eq('id', id);
+  }
 }
 
 /// Create/update/delete sessions. Writes are gated by RLS to admins and
