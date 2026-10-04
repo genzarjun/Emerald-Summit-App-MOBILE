@@ -102,9 +102,15 @@ Home header** (Uber-style), not a bottom-bar tab.
     id). Joining a team is a normal registration: the session lands on the
     schedule and still counts toward capacity/conflicts. Once registered, a
     **project card** shows the solo project or the team (code, members with the
-    owner starred, *n of max*), with **Leave team / go solo** (asks for a solo
-    project name; they stay registered) and, for an owner with teammates,
-    **Transfer ownership**. **Edit my registration** lets them switch solo ↔
+    owner starred, and a note of the team's max size), with **Leave team / go
+    solo** (asks for a solo project name; they stay registered) and, for an
+    owner with teammates, **Transfer ownership** and a **remove** button per
+    member. A removed member stays registered for the session but is taken off
+    the team with no project answer (the page asks them to add their project
+    details), is notified, and **can't rejoin that team** with its code. When
+    someone **joins a team**, every other member gets a personal *"X joined
+    your team"* announcement + banner. Removing the session from your day also
+    takes you off your team (no notice to teammates). **Edit my registration** lets them switch solo ↔
     team, create/join another team, rename their team's project, or revise
     answers. An **owner who leaves** their team (going solo, switching teams, or
     removing the session) while teammates remain must first **pick a new
@@ -507,14 +513,19 @@ test/widget_test.dart       Widget tests
     only**, where creating/joining a team is refused with `teams_not_allowed`
     and `find_team` reports it). `sessions.project_prompt` holds a session's
     rewording of the project question (null = default); answers are still
-    stored as the project name. A trigger
+    stored as the project name. `remove_team_member` (owner only) takes someone
+    off the team and records them in `teams.removed_user_ids`; a trigger on
+    `registrations` refuses their rejoining (error `removed_from_team`, also
+    reported by `find_team` as `removed`), and another posts the *"joined your
+    team"* notices. A trigger
     deletes a team when its last registration leaves, and — as a backstop for
     account deletion — promotes the earliest-joined member if the owner
     vanishes without a hand-off.
     [teams_setup.sql](supabase/teams_setup.sql),
     [teams_ownership_setup.sql](supabase/teams_ownership_setup.sql),
     [team_size_limits.sql](supabase/team_size_limits.sql),
-    [project_prompt_setup.sql](supabase/project_prompt_setup.sql)
+    [project_prompt_setup.sql](supabase/project_prompt_setup.sql),
+    [team_members_setup.sql](supabase/team_members_setup.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /

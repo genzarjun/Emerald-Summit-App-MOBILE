@@ -198,6 +198,14 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     `sessions_with_counts`** to expose it. **Run before shipping the current
     app** — without it, saving a session in the editor fails (it writes
     `project_prompt`). Safe to re-run.
+32. `supabase/team_members_setup.sql` — **teammate notices + removing
+    members**: a trigger on `registrations` posts a personal *"X joined your
+    team"* announcement to every other member when someone joins a team; the
+    owner-only `remove_team_member` RPC takes someone off a team (they stay
+    registered, with no project answer) and notifies them; `teams.removed_user_ids`
+    + a `before` trigger stop removed people rejoining; `find_team` reports
+    `removed`. Team notices leave `announcements.session_id` null so
+    volunteer-unassign cleanup never deletes them. Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
