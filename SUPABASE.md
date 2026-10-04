@@ -252,6 +252,12 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     without it, saving a session in the editor fails (it writes
     `participant_deadline`). Safe to re-run.
 
+40. `supabase/volunteer_hub.sql` — adds the `fetch_volunteer_hub()` RPC behind
+    the in-app **Volunteer hub**: volunteers and admins get every other
+    onboarded volunteer's name, subtype and mobile number (from
+    `details->>'phone'`). Anyone else gets an error. `profiles` RLS stays
+    own-row only. Safe to re-run.
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

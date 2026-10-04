@@ -603,6 +603,28 @@ class SampleAssignmentRepository implements AssignmentRepository {
   Future<List<VolunteerRef>> fetchVolunteers() async => [..._store.volunteers];
 
   @override
+  Future<List<VolunteerRef>> fetchVolunteerHub() async => const [
+        VolunteerRef(
+            id: 'demo-vol-1',
+            name: 'Maya Chen',
+            email: '',
+            subtype: 'student_volunteer',
+            phone: '(925) 555-0142'),
+        VolunteerRef(
+            id: 'demo-vol-2',
+            name: 'Priya Natarajan',
+            email: '',
+            subtype: 'parent_volunteer',
+            phone: '(925) 555-0187'),
+        VolunteerRef(
+            id: 'demo-vol-3',
+            name: 'Jordan Ellis',
+            email: '',
+            subtype: 'eaf_ambassador',
+            phone: '(925) 555-0119'),
+      ];
+
+  @override
   Future<AssignmentResult> assign(String sessionId, String userId,
       {bool confirmRegistered = false}) async {
     final target = _store.sessionById(sessionId);

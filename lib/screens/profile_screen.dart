@@ -8,6 +8,7 @@ import 'auth/onboarding_screen.dart';
 import 'front_desk_screen.dart';
 import 'my_assignments_screen.dart';
 import 'rooms_manager_screen.dart';
+import 'volunteer_hub_screen.dart';
 
 /// "Profile" tab — the user's contact card, role, notification settings,
 /// and volunteer hours / certificate (spec section 04 — Profiles &
@@ -148,6 +149,18 @@ class _VisibilityCard extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                           builder: (_) => const MyAssignmentsScreen()),
+                    ),
+                  ),
+                if (appState.isVolunteer || appState.isAdmin)
+                  ListTile(
+                    leading: Icon(Icons.groups_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Volunteer hub'),
+                    subtitle: const Text('Every volunteer and how to reach them'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const VolunteerHubScreen()),
                     ),
                   ),
                 if (appState.canCheckInFrontDesk)

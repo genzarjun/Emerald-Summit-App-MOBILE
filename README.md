@@ -44,8 +44,9 @@ Home header** (Uber-style), not a bottom-bar tab.
   daily-rotating quote card with brand
   art, an **Up next** card (the next session in your schedule, or a "plan your
   day" nudge when it's empty), a grid of Uber-style **Jump to** action tiles
-  (schedule, browse, news with an unread badge, campus map, resources, profile —
-  campus map/resources push the Resources screen, which is no longer a tab),
+  (schedule, browse, news with an unread badge, campus map, resources,
+  **Volunteer hub** for volunteers and admins, profile — campus map/resources
+  push the Resources screen, which is no longer a tab),
   a horizontal **Explore disciplines** rail into the catalog, a **Latest news**
   peek, and outbound **Links** (website, Instagram, contact) opened via
   `url_launcher`. Exists so the app has an interesting home even before anything
@@ -380,10 +381,24 @@ Home header** (Uber-style), not a bottom-bar tab.
   manage), notifications toggle, an **Appearance** picker (Light / Dark /
   System, saved per device — see Theming below; on narrow screens or large
   text it drops the icons and keeps labels on one line), and role-gated shortcuts: **My sessions**
-  (a volunteer's assigned sessions → roster + attendance), **Front desk
+  (a volunteer's assigned sessions → roster + attendance), **Volunteer hub**
+  (volunteers/admins — see below), **Front desk
   check-in** (for front-desk-flagged volunteers/admins), **Manage rooms**
   (admins). Plus **Change role** (re-runs the gated role picker), sign-out, and
   volunteer hours with a "Download certificate" action.
+
+**Volunteer hub** ([lib/screens/volunteer_hub_screen.dart](lib/screens/volunteer_hub_screen.dart)),
+opened from a Home **Jump to** tile or Profile, for volunteers and admins:
+every *other* onboarded volunteer as a card with their initials and a
+**Student** / **Parent** / **EAF Ambassador** tag, with a search box and
+filter chips (All / Students / Parents / EAF Ambassadors, with counts).
+Tapping a card opens a sheet with their full subtype label and **mobile
+number** (copy, **Call**, **Text**). Data comes from the
+`fetch_volunteer_hub` RPC ([volunteer_hub.sql](supabase/volunteer_hub.sql)),
+which only answers volunteers and admins and returns name + subtype + phone
+only (no email). Numbers show any time, not only on summit day; the sign-up
+note's "the day of" describes what they're for. *(Code-complete; run
+`volunteer_hub.sql` to activate — until then the hub shows a load error.)*
 
 **Launch splash.** An animated splash plays once at app start
 ([lib/screens/splash_screen.dart](lib/screens/splash_screen.dart)): an emerald
@@ -441,10 +456,13 @@ fixed brand colors in both modes.
   an optional mobile; volunteers give a mobile number only; experts give area
   of expertise + a required one-line bio (the placeholder cycles through
   example bios) and an optional mobile, noted as used only to reach them
-  day-of; parents/spectators and admins give nothing extra. Every phone field
-  notes the number isn't shown publicly (true: `profiles` RLS is own-row
-  only; the one other reader is the organizers of sessions the person
-  registered for, via the roster profile sheet). Fields are
+  day-of; parents/spectators and admins give nothing extra. The participant
+  and expert phone fields note the number isn't shown publicly (true:
+  `profiles` RLS is own-row only; the one other reader is the organizers of
+  sessions the person registered for, via the roster profile sheet). The
+  volunteer phone field instead says *"Your phone number will be visible to
+  other volunteers the day of for communication with them"*, because the
+  **Volunteer hub** shares it. Fields are
   declared per role in [lib/models/user_profile.dart](lib/models/user_profile.dart),
   so the sign-up flow customizes itself. A volunteer's **subtype** (EAF
   ambassador / parent / student) and permissions come from the sheet, not the
@@ -499,6 +517,7 @@ lib/
     session_roster_screen.dart   SessionRosterView + wrapper — roster + attendance (Participants tab / My Assignments)
     my_assignments_screen.dart   A volunteer's assigned sessions
     front_desk_screen.dart       Summit-wide check-in (front-desk capability)
+    volunteer_hub_screen.dart    Volunteer hub: every volunteer + tap for their number
     rooms_manager_screen.dart    Admin rooms catalog CRUD
     discipline_editor_screen.dart  Create a discipline (admin)
     announcement_compose_screen.dart  Post an announcement (admin / scoped volunteer)

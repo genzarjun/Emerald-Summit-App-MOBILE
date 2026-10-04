@@ -15,6 +15,7 @@ import 'discipline_screen.dart';
 import 'profile_screen.dart';
 import 'resources_screen.dart';
 import 'session_detail_screen.dart';
+import 'volunteer_hub_screen.dart';
 
 /// "Home" tab — the launchpad. Instead of dropping the participant straight
 /// into an (often empty) schedule, this greets them, sets the tone with a
@@ -795,6 +796,13 @@ class _QuickActions extends StatelessWidget {
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => const ResourcesScreen())),
       ),
+      if (appState.isVolunteer || appState.isAdmin)
+        _Action(
+          icon: Icons.groups,
+          label: 'Volunteer hub',
+          onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const VolunteerHubScreen())),
+        ),
       _Action(
         icon: Icons.person,
         label: 'My profile',

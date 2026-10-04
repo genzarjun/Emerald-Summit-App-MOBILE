@@ -741,6 +741,14 @@ class SupabaseAssignmentRepository implements AssignmentRepository {
   }
 
   @override
+  Future<List<VolunteerRef>> fetchVolunteerHub() async {
+    final res = await _client.rpc('fetch_volunteer_hub');
+    return (res as List)
+        .map((r) => VolunteerRef.fromMap((r as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  @override
   Future<AssignmentResult> assign(String sessionId, String userId,
       {bool confirmRegistered = false}) async {
     final res = await _client.rpc(

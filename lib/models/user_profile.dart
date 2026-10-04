@@ -121,9 +121,15 @@ extension SummitRoleX on SummitRole {
   /// TODO(volunteer-subtypes): tailor these per [VolunteerSubtype] once the
   /// subtype is known at onboarding (deferred — the subtype currently arrives
   /// from the sheet after sign-up).
-  /// Shown under every phone field. True because `profiles` RLS only lets a
-  /// user read their own row, and no roster/team RPC returns `details`.
+  /// Shown under the non-volunteer phone fields. True because `profiles` RLS
+  /// only lets a user read their own row; the one other reader is the
+  /// organizers of sessions they registered for (`fetch_session_roster`).
   static const _phonePrivacyNote = "Your number won't be shown publicly.";
+
+  /// Shown under the volunteer phone field: the volunteer hub
+  /// (`fetch_volunteer_hub`) lists every volunteer's number for the others.
+  static const _volunteerPhoneNote = 'Your phone number will be visible to '
+      'other volunteers the day of for communication with them.';
 
   List<ProfileField> get onboardingFields => switch (this) {
         SummitRole.participant => const [
@@ -146,7 +152,7 @@ extension SummitRoleX on SummitRole {
                 label: 'Mobile number',
                 required: true,
                 hint: 'For day-of coordination',
-                helper: _phonePrivacyNote,
+                helper: _volunteerPhoneNote,
                 keyboardType: TextInputType.phone),
           ],
         SummitRole.expert => const [

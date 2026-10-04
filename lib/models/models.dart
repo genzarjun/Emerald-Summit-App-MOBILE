@@ -750,6 +750,7 @@ class VolunteerRef {
     required this.name,
     required this.email,
     this.subtype,
+    this.phone,
   });
 
   final String id;
@@ -759,12 +760,17 @@ class VolunteerRef {
   /// Stored subtype id (e.g. 'student_volunteer'), or null.
   final String? subtype;
 
+  /// Mobile number from the volunteer's onboarding answers. Only the volunteer
+  /// hub RPC returns it; null elsewhere or when they didn't give one.
+  final String? phone;
+
   /// `id` for the directory RPC, `user_id` for the session-volunteers RPC.
   factory VolunteerRef.fromMap(Map<String, dynamic> row) => VolunteerRef(
         id: (row['id'] ?? row['user_id']).toString(),
         name: (row['full_name'] ?? '') as String,
         email: (row['email'] ?? '') as String,
         subtype: row['subtype'] as String?,
+        phone: row['phone'] as String?,
       );
 }
 

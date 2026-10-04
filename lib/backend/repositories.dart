@@ -339,6 +339,11 @@ abstract interface class AssignmentRepository {
   /// The full volunteer directory, for the admin assignment picker.
   Future<List<VolunteerRef>> fetchVolunteers();
 
+  /// The volunteer hub: every other onboarded volunteer with their subtype and
+  /// mobile number, so volunteers can reach each other on summit day.
+  /// Readable by volunteers and admins only (enforced server-side).
+  Future<List<VolunteerRef>> fetchVolunteerHub();
+
   /// Assigns [userId] to [sessionId], enforcing the no-overlap guard, and drops
   /// a personal "you're managing this session" notification into the volunteer's
   /// feed. Returns [AssignmentOutcome.conflict] (with the clashing title) if the
