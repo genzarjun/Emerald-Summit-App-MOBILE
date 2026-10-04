@@ -35,6 +35,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   /// solo-only session.
   late int _maxTeamSize;
 
+  /// Wording of the built-in project question. Prefilled with the current
+  /// wording; blank or the default text saves as "use the default".
+  late final TextEditingController _projectPrompt;
+
   /// The session's existing teams (team id → member count), from its roster,
   /// so the editor can warn before a team setting change affects them.
   Map<String, int> _teamSizes = const {};
@@ -74,6 +78,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     _end = TextEditingController(text: s?.end ?? '');
     _capacity = TextEditingController(text: s != null ? '${s.capacity}' : '');
     _description = TextEditingController(text: s?.description ?? '');
+    _projectPrompt = TextEditingController(
+      text: s?.projectPrompt ?? DefaultQuestions.projectName,
+    );
     _maxTeamSize = (s?.maxTeamSize ?? kDefaultMaxTeamSize)
         .clamp(kSoloOnlyTeamSize, kLargestTeamSizeLimit);
     _heroImageUrl = s?.heroImageUrl;
@@ -155,6 +162,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       _end,
       _capacity,
       _description,
+      _projectPrompt,
     ]) {
       c.dispose();
     }
@@ -306,6 +314,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       'end_time': end,
       'capacity': capacity,
       'max_team_size': _maxTeamSize,
+      'project_prompt': switch (_projectPrompt.text.trim()) {
+        '' || DefaultQuestions.projectName => null,
+        final custom => custom,
+      },
       'description': _description.text.trim(),
       'hero_image_url': _heroImageUrl,
       'page_blocks': [
@@ -825,7 +837,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
           Text('Default questions (set by the app)',
               style: theme.textTheme.labelMedium),
           if (soloOnly) ...[
-            item(DefaultQuestions.projectName, 'Always asked.'),
+            _projectPromptItem(theme, 'Always asked.'),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -844,7 +856,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
           ] else ...[
             item(DefaultQuestions.soloOrTeam,
                 'Always asked. Answer: Solo or Team.'),
-            item(DefaultQuestions.projectName,
+            _projectPromptItem(theme,
                 'Asked of solo participants and of whoever creates a team.'),
             item(DefaultQuestions.teamCode,
                 'Asked when joining a team. Codes for this discipline look '
@@ -916,6 +928,58 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// The one default question editors may reword: the project question. It
+  /// stays built in and required; only its wording is theirs.
+  Widget _projectPromptItem(ThemeData theme, String detail) {
+    final isDefault = _projectPrompt.text.trim().isEmpty ||
+        _projectPrompt.text.trim() == DefaultQuestions.projectName;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Icon(Icons.edit_outlined,
+                size: 16, color: theme.colorScheme.primary),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _projectPrompt,
+                  enabled: !_busy,
+                  maxLength: 200,
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: 'Project question (you can reword this)',
+                    helperText: '$detail Still a default question — you can '
+                        'change its wording, not remove it.',
+                    helperMaxLines: 3,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                if (!isDefault)
+                  TextButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _projectPrompt.text =
+                            DefaultQuestions.projectName),
+                    icon: const Icon(Icons.restart_alt, size: 18),
+                    label: const Text('Reset to default wording'),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );

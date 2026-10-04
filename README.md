@@ -140,8 +140,12 @@ Home header** (Uber-style), not a bottom-bar tab.
   inline button) that open the editor for the whole page — base fields plus the
   hero photo, gallery, content sections, and the **participant questions** asked
   of anyone who joins as a participant — shown below the app's **default
-  questions** (solo/team, project name, team code), which editors can see but
-  not edit, plus a **Teams** dropdown: *Teams of up to 2–8* (default 4) or
+  questions** (solo/team, project name, team code). Editors can't change those,
+  except that they can **reword the project question** per session (e.g. *"What
+  will you be presenting?"*). It stays a required default question, and blank
+  or reset falls back to *"What is your project name?"*. The form, the
+  join-team confirmation (which then shows the question + the team's answer)
+  and the leave-team dialog all use the session's wording. The editor also has a **Teams** dropdown: *Teams of up to 2–8* (default 4) or
   *No teams allowed — solo only*. Lowering the limit or turning teams off
   never removes anyone — full teams just stop taking members, and people
   already on a team in a now-solo-only session can keep it or go solo, but no
@@ -496,13 +500,16 @@ test/widget_test.dart       Widget tests
     caller's project, code, owner flag, size limit, and teammates). The size
     limit lives on `sessions.max_team_size` (1–8, default 4; **1 = solo
     only**, where creating/joining a team is refused with `teams_not_allowed`
-    and `find_team` reports it). A trigger
+    and `find_team` reports it). `sessions.project_prompt` holds a session's
+    rewording of the project question (null = default); answers are still
+    stored as the project name. A trigger
     deletes a team when its last registration leaves, and — as a backstop for
     account deletion — promotes the earliest-joined member if the owner
     vanishes without a hand-off.
     [teams_setup.sql](supabase/teams_setup.sql),
     [teams_ownership_setup.sql](supabase/teams_ownership_setup.sql),
-    [team_size_limits.sql](supabase/team_size_limits.sql)
+    [team_size_limits.sql](supabase/team_size_limits.sql),
+    [project_prompt_setup.sql](supabase/project_prompt_setup.sql)
   - `profiles` gains `notifications_enabled`, `volunteer_hours`,
     `managed_disciplines` (a volunteer's scope; `{'*'}` = all), and the
     server-owned volunteer columns `volunteer_subtype` + `can_edit_sessions` /

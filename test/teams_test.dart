@@ -12,8 +12,10 @@ import 'package:emerald_summit/backend/sample/sample_repositories.dart';
 import 'package:emerald_summit/backend/sample/sample_store.dart';
 import 'package:emerald_summit/models/models.dart';
 
-/// [s] with its team size limit replaced (Session has no copyWith).
-Session withTeamSize(Session s, int maxTeamSize) => Session(
+/// [s] with its team size limit (and optionally project question) replaced
+/// (Session has no copyWith).
+Session withTeamSize(Session s, int maxTeamSize, {String? projectPrompt}) =>
+    Session(
       id: s.id,
       disciplineId: s.disciplineId,
       title: s.title,
@@ -29,6 +31,7 @@ Session withTeamSize(Session s, int maxTeamSize) => Session(
       description: s.description,
       participantQuestions: s.participantQuestions,
       maxTeamSize: maxTeamSize,
+      customProjectPrompt: projectPrompt ?? s.customProjectPrompt,
     );
 
 /// Replaces [session] in the sample catalog with a copy of team size [size].
@@ -133,6 +136,16 @@ void main() {
       expect(Session.fromMap({'id': 's', 'max_team_size': 3}).maxTeamSize, 3);
       expect(Session.fromMap({'id': 's', 'max_team_size': 1}).teamsAllowed,
           isFalse);
+    });
+
+    test('the project question uses the default unless reworded', () {
+      expect(Session.fromMap({'id': 's'}).projectPrompt,
+          DefaultQuestions.projectName);
+      expect(Session.fromMap({'id': 's', 'project_prompt': '  '})
+          .customProjectPrompt, isNull);
+      final custom = Session.fromMap(
+          {'id': 's', 'project_prompt': 'What will you present?'});
+      expect(custom.projectPrompt, 'What will you present?');
     });
   });
 
@@ -405,6 +418,8 @@ void main() {
       }
       await tester.scrollUntilVisible(find.text('Confirm & add'), 200,
           scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(find.text('Confirm & add'));
+      await tester.pump();
       await tester.tap(find.text('Confirm & add'));
       await tester.pumpAndSettle();
       expect(results.single!.project.action, ProjectAction.solo);
@@ -418,16 +433,50 @@ void main() {
       expect(find.text(DefaultQuestions.soloOrTeam), findsNothing);
       expect(find.textContaining('solo only'), findsOneWidget);
 
+      expect(find.text(DefaultQuestions.projectName), findsOneWidget);
       await tester.enterText(
-          find.widgetWithText(TextField, DefaultQuestions.projectName), 'Kite');
+          find.widgetWithText(TextField, 'Your answer'), 'Kite');
       for (final q in session.participantQuestions) {
         await tester.enterText(find.widgetWithText(TextField, q.prompt), 'x');
       }
       await tester.scrollUntilVisible(find.text('Confirm & add'), 200,
           scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(find.text('Confirm & add'));
+      await tester.pump();
       await tester.tap(find.text('Confirm & add'));
       await tester.pumpAndSettle();
       expect(results.single!.project.action, ProjectAction.solo);
+    });
+
+    testWidgets('a reworded project question is asked instead',
+        (tester) async {
+      final session = withTeamSize(appState.allSessions.first, 4,
+          projectPrompt: 'What will you be presenting?');
+      final results = await open(tester, session);
+      await tester.tap(find.text('Solo'));
+      await tester.pump();
+      expect(find.text('What will you be presenting?'), findsOneWidget);
+      expect(find.text(DefaultQuestions.projectName), findsNothing);
+
+      await tester.scrollUntilVisible(find.text('Confirm & add'), 200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(find.text('Confirm & add'));
+      await tester.pump();
+      await tester.tap(find.text('Confirm & add'));
+      await tester.pump();
+      expect(find.text('Please answer "What will you be presenting?"'),
+          findsOneWidget);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Your answer'), 'Rocket demo');
+      for (final q in session.participantQuestions) {
+        await tester.enterText(find.widgetWithText(TextField, q.prompt), 'x');
+      }
+      await tester.ensureVisible(find.text('Confirm & add'));
+      await tester.pump();
+      await tester.tap(find.text('Confirm & add'));
+      await tester.pumpAndSettle();
+      expect(results.single!.project.projectName, 'Rocket demo');
     });
 
     testWidgets('joining asks to confirm the project name', (tester) async {
@@ -459,6 +508,8 @@ void main() {
       }
       await tester.scrollUntilVisible(find.text('Confirm & add'), 200,
           scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(find.text('Confirm & add'));
+      await tester.pump();
       await tester.tap(find.text('Confirm & add'));
       await tester.pumpAndSettle();
       expect(results.single!.project.action, ProjectAction.joinTeam);
@@ -501,8 +552,11 @@ void main() {
       await tester.tap(find.text('Leave team / go solo'));
       await tester.pumpAndSettle();
       expect(find.text('Leave team?'), findsOneWidget);
+      // The dialog asks the session's project question.
+      expect(find.text(appState.allSessions.first.projectPrompt),
+          findsOneWidget);
       await tester.enterText(
-          find.widgetWithText(TextField, 'Your solo project name'), 'Kite');
+          find.widgetWithText(TextField, 'Your answer'), 'Kite');
       await tester.tap(find.widgetWithText(FilledButton, 'Leave team'));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
@@ -547,6 +601,14 @@ void main() {
       await tester.ensureVisible(dropdown);
       await tester.pump();
       expect(find.textContaining('already registered'), findsNothing);
+      // Only the project question is editable; the others are plain text.
+      expect(
+        find.widgetWithText(TextField, DefaultQuestions.projectName,
+            skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(TextField, DefaultQuestions.soloOrTeam,
+          skipOffstage: false), findsNothing);
 
       await tester.tap(dropdown);
       await tester.pumpAndSettle();

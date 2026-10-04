@@ -391,6 +391,7 @@ class Session {
     this.pageBlocks = const [],
     this.participantQuestions = const [],
     this.maxTeamSize = kDefaultMaxTeamSize,
+    this.customProjectPrompt,
   });
 
   /// Builds a [Session] from a `sessions_with_counts` view row. The view carries
@@ -419,6 +420,10 @@ class Session {
             SessionQuestion.parse(row['participant_questions']),
         maxTeamSize:
             (row['max_team_size'] as num?)?.toInt() ?? kDefaultMaxTeamSize,
+        customProjectPrompt: switch ((row['project_prompt'] as String?)?.trim()) {
+          final String p when p.isNotEmpty => p,
+          _ => null,
+        },
       );
 
   final String id;
@@ -458,6 +463,14 @@ class Session {
 
   /// False when the session is solo only.
   bool get teamsAllowed => maxTeamSize >= 2;
+
+  /// The editors' wording for the built-in project question, or null for the
+  /// default ([DefaultQuestions.projectName]).
+  final String? customProjectPrompt;
+
+  /// How the built-in project question reads for this session.
+  String get projectPrompt =>
+      customProjectPrompt ?? DefaultQuestions.projectName;
 
   bool get isFull => enrolled >= capacity;
   int get seatsLeft => capacity - enrolled;

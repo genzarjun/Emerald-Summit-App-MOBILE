@@ -459,6 +459,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
       context: context,
       builder: (_) => _LeaveTeamDialog(
         initialProjectName: _project?.projectName ?? '',
+        prompt: s.projectPrompt,
       ),
     );
     if (name == null || !mounted) return;
@@ -1387,8 +1388,14 @@ class _TeamCodeChip extends StatelessWidget {
 /// Confirms leaving a team and asks for the solo project name the user will be
 /// registered under (prefilled with the team's project).
 class _LeaveTeamDialog extends StatefulWidget {
-  const _LeaveTeamDialog({required this.initialProjectName});
+  const _LeaveTeamDialog({
+    required this.initialProjectName,
+    required this.prompt,
+  });
   final String initialProjectName;
+
+  /// The session's wording of the built-in project question.
+  final String prompt;
 
   @override
   State<_LeaveTeamDialog> createState() => _LeaveTeamDialogState();
@@ -1408,7 +1415,7 @@ class _LeaveTeamDialogState extends State<_LeaveTeamDialog> {
   void _submit() {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Please enter your project name.');
+      setState(() => _error = 'Please answer this to go solo.');
       return;
     }
     Navigator.of(context).pop(name);
@@ -1427,13 +1434,21 @@ class _LeaveTeamDialogState extends State<_LeaveTeamDialog> {
             'registration.',
           ),
           const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              widget.prompt,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          const SizedBox(height: 8),
           TextField(
             controller: _name,
             autofocus: true,
             textCapitalization: TextCapitalization.words,
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
-              labelText: 'Your solo project name',
+              hintText: 'Your answer',
               errorText: _error,
               border: const OutlineInputBorder(),
             ),

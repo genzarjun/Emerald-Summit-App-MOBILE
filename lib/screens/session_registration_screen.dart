@@ -153,12 +153,21 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
         content: Text.rich(
           TextSpan(
             children: [
-              const TextSpan(text: 'Is your project name '),
+              // A reworded project question can't be phrased as "Is your
+              // project name …?", so it shows the question and the answer.
+              if (widget.session.customProjectPrompt == null)
+                const TextSpan(text: 'Is your project name ')
+              else
+                TextSpan(
+                  text: 'Is this your team?\n\n'
+                      '${widget.session.projectPrompt}\n',
+                ),
               TextSpan(
                 text: '"$name"',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              const TextSpan(text: '?'),
+              if (widget.session.customProjectPrompt == null)
+                const TextSpan(text: '?'),
               if (lookup.memberCount > 0)
                 TextSpan(
                   text:
@@ -205,7 +214,7 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
     if (_isTeam == false) {
       final name = _soloName.text.trim();
       if (name.isEmpty) {
-        setState(() => _error = 'Please enter your project name.');
+        setState(() => _error = _projectMissing);
         return;
       }
       project = ProjectChoice.solo(name);
@@ -217,7 +226,7 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
         case ProjectAction.createTeam:
           final name = _newTeamName.text.trim();
           if (name.isEmpty) {
-            setState(() => _error = 'Please enter your project name.');
+            setState(() => _error = _projectMissing);
             return;
           }
           project = ProjectChoice.createTeam(name);
@@ -375,16 +384,38 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
     );
   }
 
-  Widget _soloSection(ThemeData theme) {
-    return TextField(
-      controller: _soloName,
-      textCapitalization: TextCapitalization.words,
-      decoration: const InputDecoration(
-        labelText: DefaultQuestions.projectName,
-        border: OutlineInputBorder(),
-      ),
+  /// The error when the built-in project question is left blank.
+  String get _projectMissing => widget.session.customProjectPrompt == null
+      ? 'Please enter your project name.'
+      : 'Please answer "${widget.session.projectPrompt}"';
+
+  /// The built-in project question (in the session's wording) above its answer
+  /// field. Shown as text, not a field label, so long rewordings wrap.
+  Widget _projectField(
+    ThemeData theme,
+    TextEditingController controller, {
+    String? helperText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(widget.session.projectPrompt, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            hintText: 'Your answer',
+            helperText: helperText,
+            helperMaxLines: 2,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+      ],
     );
   }
+
+  Widget _soloSection(ThemeData theme) => _projectField(theme, _soloName);
 
   Widget _teamSection(ThemeData theme) {
     return Column(
@@ -443,14 +474,10 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _stayName,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Team project name',
-            helperText: 'Renaming changes it for your whole team.',
-            border: OutlineInputBorder(),
-          ),
+        _projectField(
+          theme,
+          _stayName,
+          helperText: 'Changing this changes it for your whole team.',
         ),
         if (p.teamCode != null) ...[
           const SizedBox(height: 12),
@@ -464,14 +491,7 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _newTeamName,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: DefaultQuestions.projectName,
-            border: OutlineInputBorder(),
-          ),
-        ),
+        _projectField(theme, _newTeamName),
         const SizedBox(height: 10),
         Text(
           "You'll get a team code (like ${_prefix}1234) to share with your "

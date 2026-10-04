@@ -192,6 +192,12 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     session (`teams_not_allowed`). People already on a team keep it. **Run
     before shipping the current app** — without it, saving "No teams allowed"
     in the editor fails the old 2–50 check. Safe to re-run.
+31. `supabase/project_prompt_setup.sql` — adds `sessions.project_prompt`
+    (nullable; null = the default "What is your project name?") so editors can
+    **reword the built-in project question** per session, and **rebuilds
+    `sessions_with_counts`** to expose it. **Run before shipping the current
+    app** — without it, saving a session in the editor fails (it writes
+    `project_prompt`). Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
