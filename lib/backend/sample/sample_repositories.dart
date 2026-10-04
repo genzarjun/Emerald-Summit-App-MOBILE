@@ -23,11 +23,6 @@ class SampleCatalogRepository implements CatalogRepository {
   Future<void> createDiscipline(Map<String, dynamic> data) async {
     _store.disciplines.add(Discipline.fromMap(data));
   }
-
-  @override
-  Future<void> deleteDiscipline(String id) async {
-    _store.disciplines.removeWhere((d) => d.id == id);
-  }
 }
 
 class SampleContentRepository implements ContentRepository {

@@ -363,13 +363,6 @@ class AppState extends ChangeNotifier {
     await loadCatalog();
   }
 
-  /// Deletes a discipline and everything under it (admin only), then
-  /// refreshes the catalog.
-  Future<void> deleteDiscipline(String id) async {
-    await catalogRepository.deleteDiscipline(id);
-    await loadCatalog();
-  }
-
   // ---- Rooms (admin-managed catalog) ---------------------------------------
   List<Room> rooms = const [];
 

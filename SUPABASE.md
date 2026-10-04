@@ -221,6 +221,13 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     (registrants + its assigned volunteers, minus whoever deleted it) a personal
     *"Session cancelled"* announcement with its title and time. Also fires for
     sessions removed by deleting their discipline. Safe to re-run.
+36. `supabase/discipline_delete_dashboard_only.sql` — **disciplines can only be
+    deleted from the Supabase dashboard**: replaces the admin `for all` policy
+    with insert + update policies and revokes DELETE from app roles, so no app
+    user (admins included) can delete one. A dashboard delete (Table Editor or
+    `delete from public.disciplines where id = '…'`) still cascades to its
+    sessions and sends each session's "Session cancelled" notices — use DELETE,
+    not TRUNCATE, which skips triggers. Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

@@ -116,9 +116,11 @@ Home header** (Uber-style), not a bottom-bar tab.
     owner (hand-off, transfer, or the backstop) gets *"You're now the owner"*.
     No team notices fire while a session is being deleted, or when the last
     member leaves. Instead, **deleting a session** (directly, or by deleting
-    its discipline) sends everyone who had it on their schedule — registrants
-    and its assigned volunteers, except whoever deleted it — a personal
-    *"Session cancelled"* notice naming the session and its time. **Edit my registration** lets them switch solo ↔
+    its discipline in the dashboard) sends everyone who had it on their
+    schedule — registrants and its assigned volunteers, except whoever deleted
+    it — a personal *"Session cancelled"* notice naming the session and its
+    time.
+    **Edit my registration** lets them switch solo ↔
     team, create/join another team, rename their team's project, or revise
     answers. An **owner who leaves** their team (going solo, switching teams, or
     removing the session) while teammates remain must first **pick a new
@@ -174,11 +176,13 @@ Home header** (Uber-style), not a bottom-bar tab.
   isn't listed, an **"Add a room…"** option in that dropdown creates it inline
   (admins and session-editing ambassadors; INSERT-only, backend-enforced)
   without leaving the page. Admins also get **New discipline** and **New
-  session**, and a **delete** button on a discipline's page (removes the
-  discipline plus all its sessions, registrations and teams via FK cascade).
+  session**. **Disciplines can't be deleted in the app** — not even by admins
+  (the API refuses it); the project owner deletes one in the Supabase
+  dashboard, which cascades to its sessions, registrations and teams and sends
+  each session's "Session cancelled" notices.
   **Only admins can delete sessions** — ambassadors can create and edit but
   get no delete button, and the `sessions` DELETE policy is admin-only.
-  **Deleting a session or a discipline requires typing its exact name**
+  **Deleting a session requires typing its exact name**
   (case-sensitive) before the red Delete button enables — a shared
   `confirmByTypingName` dialog, so a big delete can't happen from a stray tap. Assigning a volunteer to a session is overlap-guarded server-side
   (an admin sees *"This person has a schedule conflict…"* if it clashes with
@@ -420,7 +424,7 @@ lib/
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate)
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
     discover_screen.dart    Disciplines grid (+ admin "New discipline")
-    discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit, admin delete)
+    discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)
     session_detail_screen.dart   Tabbed session page: Session/Participants/Volunteers (permission-gated)
     session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown, hero/gallery, content blocks)
     session_volunteers_screen.dart  SessionVolunteersView — assign/unassign (Volunteers tab, admin)
