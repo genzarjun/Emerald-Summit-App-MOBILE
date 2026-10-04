@@ -413,7 +413,12 @@ their **user id** (a bare UUID — the same payload as the website's QR pass),
 dark-on-white in both themes, a *Checked in · 9:12 AM* / *Not checked in yet*
 line (from `my_summit_checkin()`; refreshes on resume and via a refresh button;
 hidden if it can't be read), and a full-screen view for scanning. The **Front
-desk check-in** screen leads with **Scan QR passes**
+desk check-in** screen opens with **live stats**: *Checked in*, *Participants*
+and *Volunteers*, each shown as checked-in / total with a progress bar (total
+counts every onboarded account, admins included). The stats and the list stay
+in sync across every front-desk device through Realtime on `summit_checkins`.
+Bursts of changes are debounced, and a 30s poll is the backstop. Then comes
+**Scan QR passes**
 ([front_desk_scanner_screen.dart](lib/screens/front_desk_scanner_screen.dart),
 `mobile_scanner`): a scan checks the attendee in **instantly**
 (`scan_summit_checkin`) and a result card shows *Checked in* / *Already checked
@@ -751,7 +756,11 @@ test/widget_test.dart       Widget tests
     `mark_summit_checkin`, gated by the front-desk capability).
     [attendance_setup.sql](supabase/attendance_setup.sql)
     QR check-in adds `scan_summit_checkin` (front-desk gated; atomic; never
-    overwrites an earlier arrival) and `my_summit_checkin` (own row only).
+    overwrites an earlier arrival), `my_summit_checkin` (own row only),
+    `fetch_checkin_stats` (per-role counts), Realtime on `summit_checkins`
+    (front-desk read policy), and
+    limits the directory + scans to **onboarded** accounts (a blank profile row
+    exists for anyone who merely requested a sign-in code).
     [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql) — **not yet run on
     the dev project**
   - `announcements` gains `created_by` + `discipline_id`, **admin** write
