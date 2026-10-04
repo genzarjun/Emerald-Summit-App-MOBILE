@@ -235,6 +235,14 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     upload it from the dashboard. Without it (or without the file) Archie works,
     just without the fact sheet.
 
+38. `supabase/roster_profile_details.sql` — `fetch_session_roster` also returns
+    each registrant's `role` and `details` (school, grade, phone, expertise,
+    bio), so session organizers can tap a person on the Participants / Experts
+    tabs to see their profile. Same gate as before (assigned volunteer, admin,
+    or editor of the session's discipline); `profiles` RLS stays own-row only.
+    Until it's run, the sheet says profile details aren't available yet.
+    Safe to re-run.
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

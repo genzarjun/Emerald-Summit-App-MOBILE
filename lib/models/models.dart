@@ -752,6 +752,8 @@ class RosterEntry {
     this.teamId,
     this.teamCode,
     this.isTeamOwner = false,
+    this.role,
+    this.details = const {},
   });
 
   final String userId;
@@ -781,6 +783,14 @@ class RosterEntry {
   /// True for the owner of their team.
   final bool isTeamOwner;
 
+  /// Their account role id (`profiles.role`, e.g. "expert"), for the profile
+  /// sheet organizers open from the roster. Null from older backends.
+  final String? role;
+
+  /// Their onboarding answers (`profiles.details`: school, grade, phone, bio…),
+  /// keyed like [ProfileField.key]. Empty from older backends.
+  final Map<String, String> details;
+
   factory RosterEntry.fromMap(Map<String, dynamic> row) {
     final mode = row['project_mode'] as String?;
     return RosterEntry(
@@ -800,11 +810,14 @@ class RosterEntry {
       teamId: row['team_id']?.toString(),
       teamCode: row['team_code'] as String?,
       isTeamOwner: (row['is_team_owner'] ?? false) as bool,
+      role: row['role'] as String?,
+      details: parseAnswers(row['details']),
     );
   }
 
-  /// Decodes the `answers` jsonb (a decoded [Map] from some backends, a JSON
-  /// [String] from others) into a `{questionId: answer}` string map.
+  /// Decodes a jsonb object (a decoded [Map] from some backends, a JSON
+  /// [String] from others) into a string map — `answers` (`{questionId:
+  /// answer}`) and `details`.
   static Map<String, String> parseAnswers(dynamic raw) {
     if (raw == null) return const {};
     Map<dynamic, dynamic> map;
@@ -837,6 +850,8 @@ class RosterEntry {
         teamId: teamId,
         teamCode: teamCode,
         isTeamOwner: isTeamOwner,
+        role: role,
+        details: details,
       );
 }
 

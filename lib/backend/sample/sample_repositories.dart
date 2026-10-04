@@ -294,6 +294,11 @@ class SampleScheduleRepository implements ScheduleRepository {
       attended: attended,
       participationType: type,
       answers: answers,
+      role: _store.profile?.role.id,
+      details: {
+        for (final e in (_store.profile?.details ?? const {}).entries)
+          e.key: '${e.value ?? ''}',
+      },
     );
     if (project == null) return base;
     final name = project.projectName?.trim() ?? '';
@@ -311,6 +316,8 @@ class SampleScheduleRepository implements ScheduleRepository {
           answers: answers,
           isTeam: false,
           projectName: name,
+          role: base.role,
+          details: base.details,
         );
       case ProjectAction.createTeam:
         if (!session.teamsAllowed) throw _soloOnly;
@@ -376,6 +383,8 @@ class SampleScheduleRepository implements ScheduleRepository {
       teamId: team.id,
       teamCode: team.code,
       isTeamOwner: team.ownerId == e.userId,
+      role: e.role,
+      details: e.details,
     );
   }
 

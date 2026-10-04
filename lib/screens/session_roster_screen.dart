@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../backend/service_locator.dart';
 import '../models/models.dart';
+import '../widgets/roster_person_sheet.dart';
 
 /// Standalone attendance screen — a thin wrapper around [SessionRosterView] used
 /// when a volunteer opens a managed session from "Sessions I'm managing"
@@ -283,7 +284,8 @@ class _SessionRosterViewState extends State<SessionRosterView> {
   }
 
   /// One person's row: an attendance switch for attendance takers, or a
-  /// read-only present/not-marked indicator for editors.
+  /// read-only present/not-marked indicator for editors. Tapping the row opens
+  /// their profile.
   Widget _entryTile(ThemeData theme, RosterEntry e) {
     final avatar = CircleAvatar(
       backgroundColor: e.attended
@@ -296,22 +298,19 @@ class _SessionRosterViewState extends State<SessionRosterView> {
             : theme.colorScheme.onSurfaceVariant,
       ),
     );
-    final title = Text(e.name.isEmpty ? e.email : e.name);
-    if (!widget.canMarkAttendance) {
-      return ListTile(
-        isThreeLine: e.answers.isNotEmpty,
-        leading: avatar,
-        title: title,
-        subtitle: _rosterSubtitle(theme, e),
-      );
-    }
-    return SwitchListTile(
+    return ListTile(
       isThreeLine: e.answers.isNotEmpty,
-      value: e.attended,
-      onChanged: (v) => _toggle(e, v),
-      title: title,
+      leading: avatar,
+      title: Text(e.name.isEmpty ? e.email : e.name),
       subtitle: _rosterSubtitle(theme, e),
-      secondary: avatar,
+      trailing: widget.canMarkAttendance
+          ? Switch(value: e.attended, onChanged: (v) => _toggle(e, v))
+          : const Icon(Icons.chevron_right),
+      onTap: () => showRosterPersonSheet(context,
+          session: widget.session,
+          // Latest copy, so the sheet reflects an attendance toggle.
+          entry: _roster.firstWhere((r) => r.userId == e.userId,
+              orElse: () => e)),
     );
   }
 }
