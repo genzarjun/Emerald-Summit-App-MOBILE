@@ -985,6 +985,49 @@ class ScanCheckinResult {
   }
 }
 
+/// Checked-in vs total for one group of attendees.
+typedef CheckinCount = ({int checkedIn, int total});
+
+/// Live front-desk stats: onboarded accounts per role id (`participant`,
+/// `volunteer`, …) and how many of each have checked in.
+class CheckinStats {
+  const CheckinStats(this.byRole);
+
+  final Map<String, CheckinCount> byRole;
+
+  CheckinCount get everyone => (
+        checkedIn: byRole.values.fold(0, (n, c) => n + c.checkedIn),
+        total: byRole.values.fold(0, (n, c) => n + c.total),
+      );
+
+  CheckinCount get participants =>
+      byRole['participant'] ?? (checkedIn: 0, total: 0);
+
+  CheckinCount get volunteers =>
+      byRole['volunteer'] ?? (checkedIn: 0, total: 0);
+
+  /// From `fetch_checkin_stats` rows: `{role, total, checked_in}`.
+  factory CheckinStats.fromRows(List<Map<String, dynamic>> rows) =>
+      CheckinStats({
+        for (final r in rows)
+          (r['role'] ?? '').toString(): (
+            checkedIn: (r['checked_in'] as num?)?.toInt() ?? 0,
+            total: (r['total'] as num?)?.toInt() ?? 0,
+          ),
+      });
+
+  /// Tallied from a directory, for the sample backend.
+  factory CheckinStats.fromAttendees(Iterable<Attendee> attendees) {
+    final byRole = <String, CheckinCount>{};
+    for (final a in attendees) {
+      final c = byRole[a.role] ?? (checkedIn: 0, total: 0);
+      byRole[a.role] =
+          (checkedIn: c.checkedIn + (a.present ? 1 : 0), total: c.total + 1);
+    }
+    return CheckinStats(byRole);
+  }
+}
+
 /// The signed-in user's own front-desk status, shown on their QR pass.
 class MyCheckinStatus {
   const MyCheckinStatus({required this.present, this.checkedInAt});

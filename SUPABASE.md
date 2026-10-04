@@ -274,8 +274,17 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     *already checked in* (keeping the original arrival time) / *checked in*. Undo
     reuses `mark_summit_checkin(id, false)`. Also adds `my_summit_checkin()`,
     which returns only the caller's own `present` + `checked_in_at` for the
-    status line on their Profile QR pass. Needs `attendance_setup.sql` first.
-    Safe to re-run.
+    status line on their Profile QR pass. Also redefines
+    `fetch_attendee_directory` to list **only onboarded accounts**. A blank
+    `profiles` row is created as soon as someone *requests* a sign-in code, so
+    without this, never-verified or typo'd emails show up at the front desk.
+    Scans of such an id report *not found*. Adds `fetch_checkin_stats()` (onboarded
+    accounts per role + how many are checked in) for the front desk's live
+    stats. Turns on **Realtime for `summit_checkins`**: it adds the table to
+    `supabase_realtime` and gives front-desk volunteers/admins a read policy,
+    which Realtime needs before it delivers changes. Every desk's stats and
+    list then update when any desk checks someone in. Writes stay RPC-only.
+    Needs `attendance_setup.sql` first. Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

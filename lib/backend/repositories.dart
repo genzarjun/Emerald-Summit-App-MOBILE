@@ -390,6 +390,14 @@ abstract interface class AttendanceRepository {
 
   /// The signed-in user's own front-desk status (for their QR pass).
   Future<MyCheckinStatus> fetchMyCheckin();
+
+  /// Summit-wide check-in counts per role (front-desk only).
+  Future<CheckinStats> fetchCheckinStats();
+
+  /// Emits whenever anyone, on any device, checks an attendee in or out, so
+  /// every front-desk screen stays in sync. Listening opens the realtime
+  /// subscription; cancelling closes it. Best-effort: may never emit offline.
+  Stream<void> checkinChanges();
 }
 
 // ---- Archie (AI assistant) --------------------------------------------------

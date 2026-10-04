@@ -874,4 +874,47 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         ? MyCheckinStatus.notArrived
         : MyCheckinStatus.fromMap((rows.first as Map).cast<String, dynamic>());
   }
+
+  @override
+  Future<CheckinStats> fetchCheckinStats() async {
+    final rows = await _client.rpc('fetch_checkin_stats') as List;
+    return CheckinStats.fromRows(
+        [for (final r in rows) (r as Map).cast<String, dynamic>()]);
+  }
+
+  // One channel per listener (each front-desk screen), torn down on cancel.
+  // Delivery relies on the front-desk read policy + publication in
+  // qr_checkin_setup.sql; without them this simply never emits.
+  @override
+  Stream<void> checkinChanges() {
+    RealtimeChannel? channel;
+    late final StreamController<void> controller;
+    controller = StreamController<void>(
+      onListen: () {
+        try {
+          channel = _client
+              .channel('public:summit_checkins:${identityHashCode(controller)}')
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'summit_checkins',
+                callback: (_) => controller.add(null),
+              )
+              .subscribe((status, error) {
+            if (error != null && kDebugMode) {
+              debugPrint('Realtime summit_checkins: $status ($error)');
+            }
+          });
+        } catch (e) {
+          if (kDebugMode) debugPrint('Realtime subscribe skipped: $e');
+        }
+      },
+      onCancel: () async {
+        final c = channel;
+        channel = null;
+        if (c != null) await _client.removeChannel(c);
+      },
+    );
+    return controller.stream;
+  }
 }

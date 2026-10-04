@@ -1,14 +1,44 @@
 -- Emerald Summit — QR front-desk check-in
 -- Run AFTER attendance_setup.sql (reuses summit_checkins + can_check_in_front_desk).
+-- Safe to re-run.
 --
 -- Every attendee's Profile tab shows a QR code that encodes their user id (the
 -- same payload the website's QR pass uses). A front-desk volunteer scans it and
 -- the app calls scan_summit_checkin, which checks the attendee in atomically.
 -- Undo reuses mark_summit_checkin(id, false) from attendance_setup.sql.
 
+-- Only ONBOARDED accounts count as attendees. A profiles row is created the
+-- moment someone REQUESTS a sign-in code (handle_new_user on auth.users), so
+-- typo'd or never-verified emails leave blank onboarded = false rows behind;
+-- those never appear in the front-desk directory and can't be checked in.
+
+-- RPC: the attendee directory (replaces attendance_setup.sql's version, which
+-- listed every profiles row). Same signature and gate.
+create or replace function public.fetch_attendee_directory(p_query text default '')
+returns table (id uuid, full_name text, email text, role text, present boolean)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.can_check_in_front_desk() then
+    raise exception 'Not authorized for front-desk check-in';
+  end if;
+  return query
+    select p.id, p.full_name, p.email, p.role,
+           coalesce(c.present, false)
+      from public.profiles p
+      left join public.summit_checkins c on c.attendee_id = p.id
+     where p.onboarded
+       and (coalesce(btrim(p_query), '') = ''
+            or p.full_name ilike '%' || p_query || '%'
+            or p.email     ilike '%' || p_query || '%')
+     order by p.full_name;
+end;
+$$;
+
+grant execute on function public.fetch_attendee_directory(text) to authenticated;
+
 -- RPC: scan an attendee's pass. Gated to front-desk volunteers / admins.
 -- Returns one row describing the outcome:
---   attendee_found = false      → no account with that id (not a summit pass)
+--   attendee_found = false      → no onboarded account with that id
 --   already_checked_in = true   → they were already present; checked_in_at is
 --                                 the ORIGINAL arrival time (not overwritten)
 --   otherwise                   → checked in now
@@ -25,7 +55,8 @@ begin
     raise exception 'Not authorized for front-desk check-in';
   end if;
 
-  select * into v_profile from public.profiles where id = p_attendee_id;
+  select * into v_profile from public.profiles
+   where id = p_attendee_id and onboarded;
   if not found then
     return query select false, false, null::text, null::text, null::text,
                         null::timestamptz;
@@ -69,3 +100,42 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 grant execute on function public.my_summit_checkin() to authenticated;
+
+-- RPC: live front-desk stats — onboarded accounts per role and how many of
+-- each are checked in. The app sums these into Everyone / Participants /
+-- Volunteers tiles. Gated like the directory.
+create or replace function public.fetch_checkin_stats()
+returns table (role text, total bigint, checked_in bigint)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.can_check_in_front_desk() then
+    raise exception 'Not authorized for front-desk check-in';
+  end if;
+  return query
+    select p.role::text, count(*),
+           count(*) filter (where coalesce(c.present, false))
+      from public.profiles p
+      left join public.summit_checkins c on c.attendee_id = p.id
+     where p.onboarded
+     group by p.role;
+end;
+$$;
+
+grant execute on function public.fetch_checkin_stats() to authenticated;
+
+-- Realtime: front-desk screens refresh their stats + list whenever any desk
+-- checks someone in or out. postgres_changes only delivers rows the subscriber
+-- can SELECT, so front-desk volunteers / admins get a read policy (they can
+-- already see every row through fetch_attendee_directory). Writes still go
+-- only through the SECURITY DEFINER RPCs.
+drop policy if exists "summit_checkins_front_desk_read" on public.summit_checkins;
+create policy "summit_checkins_front_desk_read"
+  on public.summit_checkins for select to authenticated
+  using (public.can_check_in_front_desk());
+
+do $$
+begin
+  alter publication supabase_realtime add table public.summit_checkins;
+exception
+  when duplicate_object then null;
+end $$;

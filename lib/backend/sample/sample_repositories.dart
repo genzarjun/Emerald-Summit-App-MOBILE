@@ -737,6 +737,7 @@ class SampleAttendanceRepository implements AttendanceRepository {
     final i = _store.attendees.indexWhere((a) => a.id == attendeeId);
     if (i >= 0) _store.attendees[i] = _store.attendees[i].copyWith(present: present);
     if (!present) _store.checkedInAt.remove(attendeeId);
+    _changes.add(null);
   }
 
   @override
@@ -761,6 +762,7 @@ class SampleAttendanceRepository implements AttendanceRepository {
     final now = DateTime.now();
     _store.attendees[i] = a.copyWith(present: true);
     _store.checkedInAt[a.id] = now;
+    _changes.add(null);
     return ScanCheckinResult(
       outcome: ScanCheckinOutcome.checkedIn,
       attendeeId: a.id,
@@ -774,6 +776,16 @@ class SampleAttendanceRepository implements AttendanceRepository {
   // Sample mode has nobody signed in, so there's no one to report on.
   @override
   Future<MyCheckinStatus> fetchMyCheckin() async => MyCheckinStatus.notArrived;
+
+  @override
+  Future<CheckinStats> fetchCheckinStats() async =>
+      CheckinStats.fromAttendees(_store.attendees);
+
+  // Stands in for realtime: fires on every local check-in change.
+  final _changes = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> checkinChanges() => _changes.stream;
 }
 
 /// No-account auth for demo mode: nobody is ever signed in, and the OTP calls
