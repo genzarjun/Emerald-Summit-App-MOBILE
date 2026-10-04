@@ -4,12 +4,14 @@ import '../../app_state.dart';
 import '../../backend/service_locator.dart';
 import '../root_nav.dart';
 import 'onboarding_screen.dart';
+import 'phone_required_screen.dart';
 import 'sign_in_screen.dart';
 
 /// Decides what the user sees based on auth + profile state:
 ///
 ///   no session          → [SignInScreen]
 ///   session, no profile → [OnboardingScreen]
+///   volunteer/admin with no mobile number → [PhoneRequiredScreen]
 ///   session, onboarded  → the app ([RootNav])
 ///
 /// Rebuilds automatically whenever the backend's auth state changes (sign-in,
@@ -73,6 +75,11 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
         }
         if (!appState.isOnboarded) {
           return const OnboardingScreen();
+        }
+        // Volunteers and admins must have a number on file for the volunteer
+        // hub; anyone who onboarded before that was required adds it now.
+        if (appState.needsPhoneNumber) {
+          return const PhoneRequiredScreen();
         }
         // A dev-login test account was auto-assigned its role — tell the tester
         // once, as the final "sign-in step", before the app proper.

@@ -156,7 +156,7 @@ class _VisibilityCard extends StatelessWidget {
                     leading: Icon(Icons.groups_outlined,
                         color: theme.colorScheme.primary),
                     title: const Text('Volunteer hub'),
-                    subtitle: const Text('Every volunteer and how to reach them'),
+                    subtitle: const Text('Volunteers, admins, and how to reach them'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(

@@ -751,6 +751,7 @@ class VolunteerRef {
     required this.email,
     this.subtype,
     this.phone,
+    this.role,
   });
 
   final String id;
@@ -764,6 +765,12 @@ class VolunteerRef {
   /// hub RPC returns it; null elsewhere or when they didn't give one.
   final String? phone;
 
+  /// Account role id ('volunteer' / 'admin'). Only the volunteer hub RPC
+  /// returns it, since that's the one list that mixes in admins.
+  final String? role;
+
+  bool get isAdmin => role == 'admin';
+
   /// `id` for the directory RPC, `user_id` for the session-volunteers RPC.
   factory VolunteerRef.fromMap(Map<String, dynamic> row) => VolunteerRef(
         id: (row['id'] ?? row['user_id']).toString(),
@@ -771,6 +778,7 @@ class VolunteerRef {
         email: (row['email'] ?? '') as String,
         subtype: row['subtype'] as String?,
         phone: row['phone'] as String?,
+        role: row['role'] as String?,
       );
 }
 

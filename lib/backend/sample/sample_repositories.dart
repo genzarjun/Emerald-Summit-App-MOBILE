@@ -605,21 +605,30 @@ class SampleAssignmentRepository implements AssignmentRepository {
   @override
   Future<List<VolunteerRef>> fetchVolunteerHub() async => const [
         VolunteerRef(
+            id: 'demo-admin-1',
+            name: 'Sam Okafor',
+            email: '',
+            role: 'admin',
+            phone: '(925) 555-0100'),
+        VolunteerRef(
             id: 'demo-vol-1',
             name: 'Maya Chen',
             email: '',
+            role: 'volunteer',
             subtype: 'student_volunteer',
             phone: '(925) 555-0142'),
         VolunteerRef(
             id: 'demo-vol-2',
             name: 'Priya Natarajan',
             email: '',
+            role: 'volunteer',
             subtype: 'parent_volunteer',
             phone: '(925) 555-0187'),
         VolunteerRef(
             id: 'demo-vol-3',
             name: 'Jordan Ellis',
             email: '',
+            role: 'volunteer',
             subtype: 'eaf_ambassador',
             phone: '(925) 555-0119'),
       ];

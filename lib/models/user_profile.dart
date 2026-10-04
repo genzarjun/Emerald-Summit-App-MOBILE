@@ -114,9 +114,9 @@ extension SummitRoleX on SummitRole {
   /// Role-specific onboarding questions, asked after name + role.
   ///
   /// Kept deliberately minimal: we only collect what the summit actually uses.
-  /// Volunteers give a number for day-of coordination; experts give a one-line
-  /// bio (and optionally a number we'll only use day-of); parents/spectators
-  /// and admins need nothing extra.
+  /// Volunteers and admins give a number for day-of coordination (shared in
+  /// the volunteer hub); experts give a one-line bio (and optionally a number
+  /// we'll only use day-of); parents/spectators need nothing extra.
   ///
   /// TODO(volunteer-subtypes): tailor these per [VolunteerSubtype] once the
   /// subtype is known at onboarding (deferred — the subtype currently arrives
@@ -126,10 +126,26 @@ extension SummitRoleX on SummitRole {
   /// organizers of sessions they registered for (`fetch_session_roster`).
   static const _phonePrivacyNote = "Your number won't be shown publicly.";
 
-  /// Shown under the volunteer phone field: the volunteer hub
-  /// (`fetch_volunteer_hub`) lists every volunteer's number for the others.
+  /// Shown under the volunteer / admin phone fields: the volunteer hub
+  /// (`fetch_volunteer_hub`) lists every volunteer's and admin's number for
+  /// the rest of the team.
   static const _volunteerPhoneNote = 'Your phone number will be visible to '
       'other volunteers the day of for communication with them.';
+  static const _adminPhoneNote = 'Your phone number will be visible to '
+      'volunteers and other admins the day of for communication with them.';
+
+  /// Whether this role must have a mobile number on file. Volunteers and
+  /// admins do, because the volunteer hub is how the team reaches them; an
+  /// account that onboarded before this was required is asked on sign-in.
+  bool get requiresPhone =>
+      this == SummitRole.volunteer || this == SummitRole.admin;
+
+  /// The note shown under this role's phone field.
+  String get phoneNote => switch (this) {
+        SummitRole.volunteer => _volunteerPhoneNote,
+        SummitRole.admin => _adminPhoneNote,
+        _ => _phonePrivacyNote,
+      };
 
   List<ProfileField> get onboardingFields => switch (this) {
         SummitRole.participant => const [
@@ -181,7 +197,15 @@ extension SummitRoleX on SummitRole {
                 keyboardType: TextInputType.phone),
           ],
         SummitRole.parentSpectator => const [],
-        SummitRole.admin => const [],
+        SummitRole.admin => const [
+            ProfileField(
+                key: 'phone',
+                label: 'Mobile number',
+                required: true,
+                hint: 'For day-of coordination',
+                helper: _adminPhoneNote,
+                keyboardType: TextInputType.phone),
+          ],
       };
 
   static SummitRole fromId(String? id) => SummitRole.values.firstWhere(

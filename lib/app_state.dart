@@ -686,6 +686,15 @@ class AppState extends ChangeNotifier {
 
   bool get isOnboarded => profile?.onboarded ?? false;
 
+  /// True when the signed-in account's role needs a mobile number on file
+  /// (volunteers, admins) but none is saved — e.g. an admin who onboarded
+  /// before it was required. The auth gate asks for one before the app.
+  bool get needsPhoneNumber {
+    final p = profile;
+    if (p == null || !p.onboarded || !p.role.requiresPhone) return false;
+    return '${p.details['phone'] ?? ''}'.trim().isEmpty;
+  }
+
   // ---- Role helpers --------------------------------------------------------
   bool get isAdmin => profile?.role == SummitRole.admin;
   bool get isVolunteer => profile?.role == SummitRole.volunteer;
@@ -875,6 +884,19 @@ class AppState extends ChangeNotifier {
     notificationsEnabled = profile!.notificationsEnabled;
     volunteerHours = profile!.volunteerHours;
     notifyListeners();
+  }
+
+  /// Saves [phone] into the signed-in profile's details (the prompt shown
+  /// when [needsPhoneNumber]). Keeps every other answer as is.
+  Future<void> savePhoneNumber(String phone) async {
+    final p = profile!;
+    await completeOnboarding(UserProfile(
+      id: p.id,
+      email: p.email,
+      fullName: p.fullName,
+      role: p.role,
+      details: {...p.details, 'phone': phone},
+    ));
   }
 
   /// Signs the user out and clears their in-memory state.

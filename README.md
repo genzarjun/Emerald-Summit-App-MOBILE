@@ -390,16 +390,23 @@ Home header** (Uber-style), not a bottom-bar tab.
 
 **Volunteer hub** ([lib/screens/volunteer_hub_screen.dart](lib/screens/volunteer_hub_screen.dart)),
 opened from a Home **Jump to** tile or Profile, for volunteers and admins:
-every *other* onboarded volunteer as a card with their initials and a
-**Student** / **Parent** / **EAF Ambassador** tag, with a search box and
-filter chips (All / Students / Parents / EAF Ambassadors, with counts).
-Tapping a card opens a sheet with their full subtype label and **mobile
-number** (copy, **Call**, **Text**). Data comes from the
+every *other* onboarded volunteer **and admin** (admins listed first) as a
+card with their initials and a **Student Volunteer** / **Parent Volunteer** /
+**EAF Ambassador** / **Admin** tag, with a search box and filter chips (All
+plus one per group, with counts). Tapping a card opens a sheet with their
+label and **mobile number** (copy, **Call**, **Text**). Data comes from the
 `fetch_volunteer_hub` RPC ([volunteer_hub.sql](supabase/volunteer_hub.sql)),
-which only answers volunteers and admins and returns name + subtype + phone
-only (no email). Numbers show any time, not only on summit day; the sign-up
-note's "the day of" describes what they're for. *(Code-complete; run
-`volunteer_hub.sql` to activate — until then the hub shows a load error.)*
+which only answers volunteers and admins and returns name + role + subtype +
+phone only (no email). Numbers show any time, not only on summit day; the
+sign-up note's "the day of" describes what they're for. **Volunteers and
+admins must have a mobile number on file:** it's a required sign-up field
+for both, and a volunteer or admin who onboarded without one is stopped by
+the auth gate at sign-in with an *"Add your number"* screen
+([phone_required_screen.dart](lib/screens/auth/phone_required_screen.dart),
+`AppState.needsPhoneNumber`) until they save one. *(The first version of the
+RPC failed on every call — an unqualified `id` in its role check clashed
+with the `id` output column, which PL/pgSQL rejects as ambiguous. The
+current file drops and recreates it.)*
 
 **Launch splash.** An animated splash plays once at app start
 ([lib/screens/splash_screen.dart](lib/screens/splash_screen.dart)): an emerald
@@ -462,13 +469,15 @@ splash keeps its fixed brand colors in both modes.
   an optional mobile; volunteers give a mobile number only; experts give area
   of expertise + a required one-line bio (the placeholder cycles through
   example bios) and an optional mobile, noted as used only to reach them
-  day-of; parents/spectators and admins give nothing extra. The participant
+  day-of; admins give a mobile number (required); parents/spectators give
+  nothing extra. The participant
   and expert phone fields note the number isn't shown publicly (true:
   `profiles` RLS is own-row only; the one other reader is the organizers of
   sessions the person registered for, via the roster profile sheet). The
   volunteer phone field instead says *"Your phone number will be visible to
   other volunteers the day of for communication with them"*, because the
-  **Volunteer hub** shares it. Fields are
+  **Volunteer hub** shares it; the admin one says it's visible to volunteers
+  and other admins. Fields are
   declared per role in [lib/models/user_profile.dart](lib/models/user_profile.dart),
   so the sign-up flow customizes itself. A volunteer's **subtype** (EAF
   ambassador / parent / student) and permissions come from the sheet, not the
@@ -513,7 +522,7 @@ lib/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
     dashboard_screen.dart   Home launchpad (greeting, photo slideshow, quote, up-next, action grid, links)
-    auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate)
+    auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate), phone_required_screen
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
     discover_screen.dart    Disciplines grid (+ admin "New discipline")
     discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)

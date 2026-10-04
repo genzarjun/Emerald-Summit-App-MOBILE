@@ -254,9 +254,10 @@ permissions, rooms, session assignments, and attendance). Run these in order,
 
 40. `supabase/volunteer_hub.sql` — adds the `fetch_volunteer_hub()` RPC behind
     the in-app **Volunteer hub**: volunteers and admins get every other
-    onboarded volunteer's name, subtype and mobile number (from
-    `details->>'phone'`). Anyone else gets an error. `profiles` RLS stays
-    own-row only. Safe to re-run.
+    onboarded volunteer's and admin's name, role, subtype and mobile number
+    (from `details->>'phone'`). Anyone else gets an error. `profiles` RLS
+    stays own-row only. Drops and recreates the function, so re-run it if you
+    ran the first version (that one failed on every call). Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

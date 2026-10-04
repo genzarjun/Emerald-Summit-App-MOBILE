@@ -6,10 +6,11 @@ import '../backend/service_locator.dart';
 import '../models/models.dart';
 import '../models/user_profile.dart';
 
-/// The volunteer hub: every other volunteer, each tagged student / parent /
-/// EAF ambassador, with a tap-through card showing their mobile number so
-/// volunteers can coordinate on summit day. Opened by volunteers (and admins);
-/// `fetch_volunteer_hub` enforces that server-side.
+/// The volunteer hub: every other volunteer and admin, each tagged student
+/// volunteer / parent volunteer / EAF ambassador / admin, with a tap-through
+/// card showing their mobile number so the team can coordinate on summit day.
+/// Opened by volunteers and admins; `fetch_volunteer_hub` enforces that
+/// server-side.
 class VolunteerHubScreen extends StatefulWidget {
   const VolunteerHubScreen({super.key});
 
@@ -23,8 +24,8 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
   List<VolunteerRef> _volunteers = const [];
   String _query = '';
 
-  /// Subtype filter; null shows everyone.
-  VolunteerSubtype? _filter;
+  /// Group filter; null shows everyone.
+  _HubGroup? _filter;
 
   @override
   void initState() {
@@ -58,15 +59,13 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
     final q = _query.trim().toLowerCase();
     return [
       for (final v in _volunteers)
-        if ((_filter == null ||
-                VolunteerSubtypeX.fromId(v.subtype) == _filter) &&
+        if ((_filter == null || _groupOf(v) == _filter) &&
             (q.isEmpty || v.name.toLowerCase().contains(q)))
           v,
     ];
   }
 
-  int _count(VolunteerSubtype s) =>
-      _volunteers.where((v) => VolunteerSubtypeX.fromId(v.subtype) == s).length;
+  int _count(_HubGroup g) => _volunteers.where((v) => _groupOf(v) == g).length;
 
   @override
   Widget build(BuildContext context) {
@@ -97,8 +96,8 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         Text(
-          'Tap a volunteer to see their number. Numbers are shared here so '
-          'volunteers can reach each other on summit day.',
+          'Tap anyone to see their number. Numbers are shared here so '
+          'volunteers and admins can reach each other on summit day.',
           style: theme.textTheme.bodyMedium
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
@@ -106,7 +105,7 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
         TextField(
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.search),
-            hintText: 'Search volunteers',
+            hintText: 'Search by name',
             border: OutlineInputBorder(),
           ),
           onChanged: (v) => setState(() => _query = v),
@@ -116,12 +115,8 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
           spacing: 8,
           children: [
             _filterChip('All (${_volunteers.length})', null),
-            for (final s in [
-              VolunteerSubtype.studentVolunteer,
-              VolunteerSubtype.parentVolunteer,
-              VolunteerSubtype.eafAmbassador,
-            ])
-              _filterChip('${_shortLabel(s)}s (${_count(s)})', s),
+            for (final g in _HubGroup.values)
+              if (_count(g) > 0) _filterChip('${g.plural} (${_count(g)})', g),
           ],
         ),
         const SizedBox(height: 8),
@@ -130,8 +125,8 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
             padding: const EdgeInsets.only(top: 48),
             child: Text(
               _volunteers.isEmpty
-                  ? 'No other volunteers have signed up yet.'
-                  : 'No volunteers match.',
+                  ? 'No other volunteers or admins have signed up yet.'
+                  : 'No one matches.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -150,7 +145,7 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
     );
   }
 
-  Widget _filterChip(String label, VolunteerSubtype? value) {
+  Widget _filterChip(String label, _HubGroup? value) {
     return ChoiceChip(
       label: Text(label),
       selected: _filter == value,
@@ -159,14 +154,32 @@ class _VolunteerHubScreenState extends State<VolunteerHubScreen> {
   }
 }
 
-/// "Student", "Parent", "EAF Ambassador" — the tag shown on each card.
-String _shortLabel(VolunteerSubtype s) => switch (s) {
-      VolunteerSubtype.studentVolunteer => 'Student',
-      VolunteerSubtype.parentVolunteer => 'Parent',
-      VolunteerSubtype.eafAmbassador => 'EAF Ambassador',
-    };
+/// What each person is on the summit team — the tag on their card and the
+/// filter chips. [volunteer] covers a volunteer with no subtype on the sheet.
+enum _HubGroup {
+  admin('Admin', 'Admins'),
+  studentVolunteer('Student Volunteer', 'Student Volunteers'),
+  parentVolunteer('Parent Volunteer', 'Parent Volunteers'),
+  eafAmbassador('EAF Ambassador', 'EAF Ambassadors'),
+  volunteer('Volunteer', 'Other volunteers');
 
-String _displayName(VolunteerRef v) => v.name.isEmpty ? 'Volunteer' : v.name;
+  const _HubGroup(this.label, this.plural);
+
+  final String label;
+  final String plural;
+}
+
+_HubGroup _groupOf(VolunteerRef v) {
+  if (v.isAdmin) return _HubGroup.admin;
+  return switch (VolunteerSubtypeX.fromId(v.subtype)) {
+    VolunteerSubtype.studentVolunteer => _HubGroup.studentVolunteer,
+    VolunteerSubtype.parentVolunteer => _HubGroup.parentVolunteer,
+    VolunteerSubtype.eafAmbassador => _HubGroup.eafAmbassador,
+    null => _HubGroup.volunteer,
+  };
+}
+
+String _displayName(VolunteerRef v) => v.name.isEmpty ? _groupOf(v).label : v.name;
 
 String _initials(String name) {
   final parts = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
@@ -174,25 +187,25 @@ String _initials(String name) {
   return letters.isEmpty ? '?' : letters;
 }
 
-/// Tag colors per subtype, from the theme so they follow light/dark.
-({Color bg, Color fg}) _tagColors(ColorScheme cs, VolunteerSubtype? s) =>
-    switch (s) {
-      VolunteerSubtype.studentVolunteer =>
+/// Tag colors per group, from the theme so they follow light/dark.
+({Color bg, Color fg}) _tagColors(ColorScheme cs, _HubGroup g) => switch (g) {
+      _HubGroup.admin => (bg: cs.secondary, fg: cs.onSecondary),
+      _HubGroup.studentVolunteer =>
         (bg: cs.primaryContainer, fg: cs.onPrimaryContainer),
-      VolunteerSubtype.parentVolunteer =>
+      _HubGroup.parentVolunteer =>
         (bg: cs.tertiaryContainer, fg: cs.onTertiaryContainer),
       _ => (bg: cs.surfaceContainerHighest, fg: cs.onSurface),
     };
 
-class _SubtypeTag extends StatelessWidget {
-  const _SubtypeTag(this.subtype);
+class _GroupTag extends StatelessWidget {
+  const _GroupTag(this.group);
 
-  final VolunteerSubtype? subtype;
+  final _HubGroup group;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = _tagColors(theme.colorScheme, subtype);
+    final colors = _tagColors(theme.colorScheme, group);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
@@ -200,7 +213,7 @@ class _SubtypeTag extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        subtype == null ? 'Volunteer' : _shortLabel(subtype!),
+        group.label,
         style: theme.textTheme.labelMedium?.copyWith(color: colors.fg),
       ),
     );
@@ -216,8 +229,8 @@ class _VolunteerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final subtype = VolunteerSubtypeX.fromId(volunteer.subtype);
-    final colors = _tagColors(theme.colorScheme, subtype);
+    final group = _groupOf(volunteer);
+    final colors = _tagColors(theme.colorScheme, group);
     final name = _displayName(volunteer);
     return Card(
       margin: EdgeInsets.zero,
@@ -245,7 +258,7 @@ class _VolunteerCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium),
                     const SizedBox(height: 4),
-                    _SubtypeTag(subtype),
+                    _GroupTag(group),
                   ],
                 ),
               ),
@@ -285,8 +298,8 @@ class _VolunteerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final subtype = VolunteerSubtypeX.fromId(volunteer.subtype);
-    final colors = _tagColors(theme.colorScheme, subtype);
+    final group = _groupOf(volunteer);
+    final colors = _tagColors(theme.colorScheme, group);
     final name = _displayName(volunteer);
     final phone = volunteer.phone?.trim() ?? '';
     final dial = phone.replaceAll(RegExp(r'[^0-9+]'), '');
@@ -315,7 +328,7 @@ class _VolunteerSheet extends StatelessWidget {
                       Text(name, style: theme.textTheme.titleLarge),
                       const SizedBox(height: 2),
                       Text(
-                        subtype?.label ?? 'Volunteer',
+                        group.label,
                         style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant),
                       ),
