@@ -148,10 +148,15 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               bottom: TabBar(
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
-                labelColor: Theme.of(context).colorScheme.onPrimary,
-                unselectedLabelColor: Theme.of(context).colorScheme.onPrimary
-                    .withValues(alpha: 0.7),
-                indicatorColor: Theme.of(context).colorScheme.onPrimary,
+                // Tabs sit on the app bar, so they take its foreground (white
+                // on emerald in light mode, light text on black in dark).
+                labelColor: Theme.of(context).appBarTheme.foregroundColor,
+                unselectedLabelColor: Theme.of(context)
+                    .appBarTheme
+                    .foregroundColor
+                    ?.withValues(alpha: 0.7),
+                indicatorColor: Theme.of(context).appBarTheme.foregroundColor,
+                dividerColor: Colors.transparent,
                 tabs: tabs,
               ),
             ),

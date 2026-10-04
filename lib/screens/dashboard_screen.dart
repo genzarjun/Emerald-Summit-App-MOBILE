@@ -909,8 +909,8 @@ class _ActionTile extends StatelessWidget {
                         child: Text(
                           action.badge!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: theme.colorScheme.onError,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1213,8 +1213,7 @@ class _Footer extends StatelessWidget {
           SampleData.eventName,
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onSurface
-                .withValues(alpha: .7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 2),
@@ -1222,8 +1221,7 @@ class _Footer extends StatelessWidget {
           'STEAM, together. Lead, together. Build, together.',
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurface
-                .withValues(alpha: .5),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],

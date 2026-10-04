@@ -20,7 +20,7 @@ class EmeraldTheme {
   static const Color nightMist = Color(0xFF153126); // Fills, pills (dark)
   static const Color nightBorder = Color(0xFF24493A);
   static const Color nightText = Color(0xFFE6F0EC);
-  static const Color nightTextDim = Color(0xFF9DB3AB);
+  static const Color nightTextDim = Color(0xFFB4C7C0);
   static const Color nightAppBar = night;
   static const Color nightEmeraldContainer = Color(0xFF17513F);
   static const Color nightBlue = Color(0xFFA3BEF2); // Navy accent, lifted
@@ -41,6 +41,9 @@ class EmeraldTheme {
       surfaceContainerLowest: Colors.white,
       surfaceContainerLow: mist,
       surfaceContainer: mist,
+      // Kept light enough that emerald text and icons on them stay ≥4.5:1.
+      surfaceContainerHigh: const Color(0xFFE8F1EC),
+      surfaceContainerHighest: const Color(0xFFE5EEE9),
     );
     return _build(
       scheme,
@@ -82,9 +85,11 @@ class EmeraldTheme {
       surfaceContainerLowest: night,
       surfaceContainerLow: nightSurface,
       surfaceContainer: nightMist,
+      // High/Highest are fills (chips, info boxes, avatars), not borders:
+      // dark enough that dim text and outlines still read on them.
       surfaceContainerHigh: const Color(0xFF1B3B2F),
-      surfaceContainerHighest: nightBorder,
-      outline: const Color(0xFF627D73),
+      surfaceContainerHighest: const Color(0xFF1F4134),
+      outline: const Color(0xFF7E998F),
       outlineVariant: nightBorder,
     );
     return _build(
