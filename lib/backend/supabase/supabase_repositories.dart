@@ -127,20 +127,30 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     ProjectChoice? project,
     String? newOwnerId,
   }) async {
-    final res = await _client.rpc(
-      'register_for_session',
-      params: {
-        'p_session_id': sessionId,
-        'p_participation_type': type.id,
-        'p_answers': answers,
-        'p_project_mode': project?.modeId,
-        'p_project_name': project?.projectName,
-        'p_team_code': project?.teamCode,
-        // Only sent when set, so the call also matches the pre-ownership
-        // signature of the RPC (teams_setup.sql).
-        'p_new_owner_id': ?newOwnerId,
-      },
-    );
+    final Object? res;
+    try {
+      res = await _client.rpc(
+        'register_for_session',
+        params: {
+          'p_session_id': sessionId,
+          'p_participation_type': type.id,
+          'p_answers': answers,
+          'p_project_mode': project?.modeId,
+          'p_project_name': project?.projectName,
+          'p_team_code': project?.teamCode,
+          // Only sent when set, so the call also matches the pre-ownership
+          // signature of the RPC (teams_setup.sql).
+          'p_new_owner_id': ?newOwnerId,
+        },
+      );
+    } on PostgrestException catch (e) {
+      // A removed member trying to rejoin is refused by a database trigger.
+      if (e.message.contains('removed_from_team')) {
+        return RegistrationResult.invalidProject(
+            projectProblemMessage('removed_from_team')!);
+      }
+      rethrow;
+    }
     final map = (res as Map).cast<String, dynamic>();
     final raw = (map['outcome'] ?? 'added') as String;
     final problem = projectProblemMessage(raw);
@@ -192,6 +202,10 @@ class SupabaseScheduleRepository implements ScheduleRepository {
         ),
       'teams_not_allowed' =>
         const TeamLookup(TeamLookupOutcome.teamsNotAllowed),
+      'removed' => TeamLookup(
+          TeamLookupOutcome.removed,
+          projectName: map['project_name'] as String?,
+        ),
       'wrong_session' => TeamLookup(
           TeamLookupOutcome.wrongSession,
           sessionTitle: map['session_title'] as String?,
@@ -207,17 +221,25 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     required ProjectChoice project,
     String? newOwnerId,
   }) async {
-    final res = await _client.rpc(
-      'update_my_registration',
-      params: {
-        'p_session_id': sessionId,
-        'p_answers': answers,
-        'p_project_mode': project.modeId,
-        'p_project_name': project.projectName,
-        'p_team_code': project.teamCode,
-        'p_new_owner_id': ?newOwnerId,
-      },
-    );
+    final Object? res;
+    try {
+      res = await _client.rpc(
+        'update_my_registration',
+        params: {
+          'p_session_id': sessionId,
+          'p_answers': answers,
+          'p_project_mode': project.modeId,
+          'p_project_name': project.projectName,
+          'p_team_code': project.teamCode,
+          'p_new_owner_id': ?newOwnerId,
+        },
+      );
+    } on PostgrestException catch (e) {
+      if (e.message.contains('removed_from_team')) {
+        throw TeamCodeException(projectProblemMessage('removed_from_team')!);
+      }
+      rethrow;
+    }
     final map = (res as Map).cast<String, dynamic>();
     final outcome = map['outcome'] as String?;
     final problem = projectProblemMessage(outcome);
@@ -245,6 +267,26 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     if (outcome == 'transferred') return;
     throw TeamCodeException(projectProblemMessage(outcome as String?) ??
         "Only the team's owner can hand it over.");
+  }
+
+  @override
+  Future<void> removeTeamMember(String sessionId, String userId) async {
+    final res = await _client.rpc(
+      'remove_team_member',
+      params: {'p_session_id': sessionId, 'p_user_id': userId},
+    );
+    switch ((res as Map?)?['outcome']) {
+      case 'removed':
+        return;
+      case 'not_member':
+        throw const TeamCodeException("That person isn't on your team anymore.");
+      case 'cannot_remove_self':
+        throw const TeamCodeException(
+            'To leave your own team, use "Leave team / go solo".');
+      default:
+        throw const TeamCodeException(
+            "Only the team's owner can remove members.");
+    }
   }
 }
 

@@ -299,6 +299,10 @@ class AppState extends ChangeNotifier {
   Future<void> transferTeamOwnership(Session session, String newOwnerId) =>
       scheduleRepository.transferTeamOwnership(session.id, newOwnerId);
 
+  /// Takes teammate [userId] off the user's team in [session] (owner only).
+  Future<void> removeTeamMember(Session session, String userId) =>
+      scheduleRepository.removeTeamMember(session.id, userId);
+
   /// Admin self-manage: adds or removes the current admin as a manager of
   /// [session]. Mirrors the server outcome into the local assignments cache.
   /// Returns [AddResult] so callers can surface a time-conflict the same way as

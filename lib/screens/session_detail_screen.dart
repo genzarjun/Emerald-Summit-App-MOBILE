@@ -495,6 +495,47 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     }
   }
 
+  /// Lets a team owner take [member] off the team (e.g. someone who got the
+  /// code but isn't really a teammate). They stay registered for the session.
+  Future<void> _removeMember(Session s, TeamMember member) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Remove ${member.name}?'),
+        content: const Text(
+          "They'll be taken off your team but stay registered for this "
+          "session, and they'll be notified. They won't be able to rejoin "
+          'your team with its code.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await appState.removeTeamMember(s, member.id);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Removed ${member.name} from your team')),
+      );
+    } on TeamCodeException catch (e) {
+      _showBlockedDialog("Couldn't remove them", e.message);
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't remove them. Try again.")),
+      );
+    }
+    _loadProject();
+  }
+
   /// Lets a team owner hand the team to a teammate while staying on it.
   Future<void> _transferOwnership(Session s) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -826,6 +867,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                       project: _project,
                       onLeave: () => _leaveTeam(current),
                       onTransfer: () => _transferOwnership(current),
+                      onRemoveMember: (m) => _removeMember(current, m),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -1213,10 +1255,14 @@ class _ProjectCard extends StatelessWidget {
     required this.project,
     required this.onLeave,
     required this.onTransfer,
+    required this.onRemoveMember,
   });
   final MyProject? project;
   final VoidCallback onLeave;
   final VoidCallback onTransfer;
+
+  /// Owner only: take a teammate off the team.
+  final ValueChanged<TeamMember> onRemoveMember;
 
   @override
   Widget build(BuildContext context) {
@@ -1277,12 +1323,7 @@ class _ProjectCard extends StatelessWidget {
             ],
             if (p.isTeam && p.members.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(
-                p.teamsAllowed
-                    ? 'Members (${p.members.length} of ${p.maxTeamSize})'
-                    : 'Members (${p.members.length})',
-                style: theme.textTheme.labelLarge,
-              ),
+              Text('Members', style: theme.textTheme.labelLarge),
               const SizedBox(height: 4),
               for (final m in p.members)
                 Padding(
@@ -1303,9 +1344,27 @@ class _ProjectCard extends StatelessWidget {
                           style: theme.textTheme.bodyMedium,
                         ),
                       ),
+                      // The owner can take anyone else off the team.
+                      if (p.isOwner && !m.isOwner && m.id.isNotEmpty)
+                        IconButton(
+                          tooltip: 'Remove ${m.name} from the team',
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.person_remove_outlined,
+                              size: 20),
+                          color: theme.colorScheme.error,
+                          onPressed: () => onRemoveMember(m),
+                        ),
                     ],
                   ),
                 ),
+              if (p.teamsAllowed) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'The max number of members your team can have is '
+                  '${p.maxTeamSize}.',
+                  style: muted,
+                ),
+              ],
             ],
             if (p.isTeam) ...[
               const SizedBox(height: 8),

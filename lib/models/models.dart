@@ -323,7 +323,16 @@ class MyProject {
 }
 
 /// Result of looking up a team code before joining.
-enum TeamLookupOutcome { found, full, notFound, wrongSession, teamsNotAllowed }
+enum TeamLookupOutcome {
+  found,
+  full,
+  notFound,
+  wrongSession,
+  teamsNotAllowed,
+
+  /// The team's owner removed the caller, so they can't rejoin it.
+  removed,
+}
 
 class TeamLookup {
   const TeamLookup(
@@ -350,6 +359,9 @@ class TeamLookup {
         TeamLookupOutcome.full =>
           '"${projectName ?? 'That team'}" is full ($memberCount of '
               '$maxTeamSize members).',
+        TeamLookupOutcome.removed =>
+          "The owner of \"${projectName ?? 'that team'}\" removed you from "
+              "it, so you can't rejoin with this code.",
         TeamLookupOutcome.teamsNotAllowed =>
           "This session is solo only — teams aren't allowed.",
         TeamLookupOutcome.notFound =>

@@ -57,6 +57,8 @@ String? projectProblemMessage(String? outcome) => switch (outcome) {
       'team_wrong_session' => 'That team code is for a different session.',
       'team_full' => 'That team is already full.',
       'teams_not_allowed' => "This session is solo only — teams aren't allowed.",
+      'removed_from_team' =>
+        "That team's owner removed you from it, so you can't rejoin it.",
       'project_name_required' => 'Please enter your project name.',
       'choose_new_owner' =>
         'You own this team. Choose a teammate to take over before you leave.',
@@ -193,6 +195,11 @@ abstract interface class ScheduleRepository {
   /// Hands the caller's team in [sessionId] to teammate [newOwnerId]. Owner
   /// only; throws [TeamCodeException] if it's refused.
   Future<void> transferTeamOwnership(String sessionId, String newOwnerId);
+
+  /// Takes [userId] off the caller's team in [sessionId] (owner only). They
+  /// stay registered for the session with no project answer, and are notified.
+  /// Throws [TeamCodeException] if it's refused.
+  Future<void> removeTeamMember(String sessionId, String userId);
 }
 
 /// The signed-in user's own profile row.

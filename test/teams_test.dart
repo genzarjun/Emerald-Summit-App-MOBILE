@@ -354,6 +354,43 @@ void main() {
       );
     });
 
+    test('an owner can remove a member, who then cannot rejoin', () async {
+      final code = await teamWith({'u2': 'Ana'});
+      await expectLater(repo.removeTeamMember(session.id, 'demo-user'),
+          throwsA(isA<TeamCodeException>()));
+
+      await repo.removeTeamMember(session.id, 'u2');
+      final team = store.teams[code]!;
+      expect(team.members.keys, ['demo-user']);
+      expect(team.removedIds, contains('u2'));
+      await expectLater(repo.removeTeamMember(session.id, 'u2'),
+          throwsA(isA<TeamCodeException>()));
+    });
+
+    test('a removed member is told they cannot rejoin', () async {
+      final code = await teamWith({'u2': 'Ana'});
+      // Ana takes over and removes the demo user.
+      await repo.transferTeamOwnership(session.id, 'u2');
+      store.teams[code]!
+        ..members.remove('demo-user')
+        ..removedIds.add('demo-user');
+      await repo.toggle(session.id); // demo user's own registration goes too
+
+      final lookup = await repo.findTeam(session.id, code);
+      expect(lookup.outcome, TeamLookupOutcome.removed);
+      expect(lookup.problem, contains("can't rejoin"));
+      final res = await repo.toggle(session.id,
+          project: ProjectChoice.joinTeam(code));
+      expect(res.outcome, RegistrationOutcome.invalidProject);
+    });
+
+    test('only the owner can remove members', () async {
+      final code = await teamWith({'u2': 'Ana'});
+      store.teams[code]!.ownerId = 'u2';
+      await expectLater(repo.removeTeamMember(session.id, 'u2'),
+          throwsA(isA<TeamCodeException>()));
+    });
+
     test('unregistering removes the project', () async {
       await repo.toggle(
         session.id,
@@ -546,6 +583,12 @@ void main() {
           scrollable: scrollable);
       expect(find.text('Team project'), findsOneWidget);
       expect(find.textContaining('Owner'), findsWidgets);
+      expect(find.text('Members'), findsOneWidget);
+      expect(
+        find.text('The max number of members your team can have is 4.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('of 4)'), findsNothing);
 
       await tester.ensureVisible(find.text('Leave team / go solo'));
       await tester.pump();

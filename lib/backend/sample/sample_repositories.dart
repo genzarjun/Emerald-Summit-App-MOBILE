@@ -154,6 +154,10 @@ class SampleScheduleRepository implements ScheduleRepository {
     }
     final max = _store.sessionById(sessionId)?.maxTeamSize ??
         kDefaultMaxTeamSize;
+    if (team.removedIds.contains(_demoUserId)) {
+      return TeamLookup(TeamLookupOutcome.removed,
+          projectName: team.projectName);
+    }
     if (max < 2) return const TeamLookup(TeamLookupOutcome.teamsNotAllowed);
     return TeamLookup(
       team.members.length >= max
@@ -220,6 +224,22 @@ class SampleScheduleRepository implements ScheduleRepository {
           "That person isn't on your team anymore. Pick someone else.");
     }
     team.ownerId = newOwnerId;
+  }
+
+  @override
+  Future<void> removeTeamMember(String sessionId, String userId) async {
+    final team = _teamById(_myEntry(sessionId)?.teamId);
+    if (team == null || team.ownerId != _demoUserId) {
+      throw const TeamCodeException("Only the team's owner can remove members.");
+    }
+    if (userId == _demoUserId) {
+      throw const TeamCodeException(
+          'To leave your own team, use "Leave team / go solo".');
+    }
+    if (team.members.remove(userId) == null) {
+      throw const TeamCodeException("That person isn't on your team anymore.");
+    }
+    team.removedIds.add(userId);
   }
 
   RosterEntry? _myEntry(String sessionId) {
@@ -327,6 +347,10 @@ class SampleScheduleRepository implements ScheduleRepository {
         if (team.sessionId != session.id) {
           throw const TeamCodeException(
               'That team code is for a different session.');
+        }
+        if (team.removedIds.contains(_demoUserId)) {
+          throw const TeamCodeException(
+              "That team's owner removed you from it, so you can't rejoin it.");
         }
         if (!team.members.containsKey(_demoUserId) && !session.teamsAllowed) {
           throw _soloOnly;

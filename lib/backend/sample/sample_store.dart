@@ -101,4 +101,7 @@ class SampleTeam {
   String projectName;
   String ownerId;
   final Map<String, String> members = {};
+
+  /// People the owner removed; they can't rejoin this team.
+  final Set<String> removedIds = {};
 }
