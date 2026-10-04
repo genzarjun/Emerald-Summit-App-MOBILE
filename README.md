@@ -402,9 +402,30 @@ Home header** (Uber-style), not a bottom-bar tab.
   text it drops the icons and keeps labels on one line), and role-gated shortcuts: **My sessions**
   (a volunteer's assigned sessions → roster + attendance), **Volunteer hub**
   (volunteers/admins — see below), **Front desk
-  check-in** (for front-desk-flagged volunteers/admins), **Manage rooms**
+  check-in** (for front-desk-flagged volunteers/admins — see below), **Manage rooms**
   (admins). Plus **Change role** (re-runs the gated role picker), sign-out, and
   volunteer hours with a "Download certificate" action.
+
+**Check-in pass + QR front desk.** Every signed-in user's Profile shows a
+**Check-in pass** card right under their contact card
+([checkin_pass_card.dart](lib/widgets/checkin_pass_card.dart)): a QR code of
+their **user id** (a bare UUID — the same payload as the website's QR pass),
+dark-on-white in both themes, a *Checked in · 9:12 AM* / *Not checked in yet*
+line (from `my_summit_checkin()`; refreshes on resume and via a refresh button;
+hidden if it can't be read), and a full-screen view for scanning. The **Front
+desk check-in** screen leads with **Scan QR passes**
+([front_desk_scanner_screen.dart](lib/screens/front_desk_scanner_screen.dart),
+`mobile_scanner`): a scan checks the attendee in **instantly**
+(`scan_summit_checkin`) and a result card shows *Checked in* / *Already checked
+in* (with the original arrival time) / *No account found* / *Not a check-in
+pass*, with **Undo** and **Scan next**. The camera stays live and the same code
+is ignored until dismissed, so the next person can be scanned straight away.
+Torch toggle; haptics per outcome; camera-denied and no-camera states (Open
+Settings on iOS, Try again on Android). The searchable present/absent list stays
+below as the fallback for people without their pass. **Camera permission** is
+only requested when the scanner opens, which only front-desk volunteers/admins
+can reach (`NSCameraUsageDescription`; Android `CAMERA`, with the camera marked
+not-required).
 
 **Volunteer hub** ([lib/screens/volunteer_hub_screen.dart](lib/screens/volunteer_hub_screen.dart)),
 opened from a Home **Jump to** tile or Profile, for volunteers and admins:
@@ -550,6 +571,7 @@ lib/
   widgets/summit_logo.dart    Brand mark rebuilt as a CustomPainter (no asset)
   widgets/roster_person_sheet.dart  Organizer-only profile sheet opened from a roster row
   widgets/volunteer_contact.dart  Volunteer card + Call/Text contact sheet (hub + session Volunteers tab)
+  widgets/checkin_pass_card.dart  Profile "Check-in pass": the user's QR + front-desk status
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
@@ -563,7 +585,8 @@ lib/
     session_volunteers_screen.dart  SessionVolunteersView — Volunteers tab: co-workers (organizers/editors), assign/unassign (admin)
     session_roster_screen.dart   SessionRosterView + wrapper — roster + attendance (Participants tab / My Assignments)
     my_assignments_screen.dart   A volunteer's assigned sessions
-    front_desk_screen.dart       Summit-wide check-in (front-desk capability)
+    front_desk_screen.dart       Summit-wide check-in (front-desk capability): Scan button + searchable list
+    front_desk_scanner_screen.dart  QR pass scanner — instant check-in, Undo
     volunteer_hub_screen.dart    Volunteer hub: every volunteer + tap for their number
     rooms_manager_screen.dart    Admin rooms catalog CRUD
     discipline_editor_screen.dart  Create a discipline (admin)
@@ -727,6 +750,10 @@ test/widget_test.dart       Widget tests
     the summit-wide front-desk directory (`fetch_attendee_directory` /
     `mark_summit_checkin`, gated by the front-desk capability).
     [attendance_setup.sql](supabase/attendance_setup.sql)
+    QR check-in adds `scan_summit_checkin` (front-desk gated; atomic; never
+    overwrites an earlier arrival) and `my_summit_checkin` (own row only).
+    [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql) — **not yet run on
+    the dev project**
   - `announcements` gains `created_by` + `discipline_id`, **admin** write
     policies, and **Realtime**. [announcements_write_setup.sql](supabase/announcements_write_setup.sql)
     Later gains `target_user_id` for **personal** announcements (RLS: a targeted
@@ -949,7 +976,9 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   editing** (edit in own discipline, blocked in others) and **scoped
   announcements** (composer limited to the managed discipline, post allowed by
   RLS); and the sign-out-to-sign-in fix. Front-desk check-in and per-session
-  attendance marking are implemented but not yet live-tested. Run the SQL files
+  attendance marking are implemented but not yet live-tested. **QR check-in**
+  (Profile pass + front-desk scanner) is code-complete and unit-tested but not
+  yet live-tested; it needs [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql). Run the SQL files
   in [SUPABASE.md](SUPABASE.md) + deploy the Edge Functions to activate on a
   fresh project.)*
 - ✅ **Archie AI assistant** — a Claude-backed chat tab (live-data grounding +
@@ -978,11 +1007,8 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   - Foreground messages reuse the existing in-app banner
     ([lib/widgets/in_app_banner.dart](lib/widgets/in_app_banner.dart)).
   - Also planned: per-user "next session" reminders; email fan-out.
-- **QR-based front-desk check-in** — the front-desk screen currently checks
-  attendees in via a searchable list with a present/absent toggle each; the plan
-  is to replace/augment that with a **QR-code scan** (each attendee shows a code;
-  the front desk scans to mark arrival). Deferred. Per-session **attendance
-  roster marking stays toggle-based** (no QR).
+- Per-session **attendance roster marking stays toggle-based** (no QR) — QR
+  is only for summit-wide front-desk check-in.
 - **Per-subtype volunteer onboarding** — tailor the sign-up questionnaire to the
   volunteer subtype (EAF ambassador / parent / student). Deferred: the subtype
   currently arrives from the sheet *after* sign-up, so all volunteers share one
