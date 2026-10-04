@@ -171,7 +171,13 @@ Home header** (Uber-style), not a bottom-bar tab.
     ([roster_profile_details.sql](supabase/roster_profile_details.sql) has been
     run); on a backend without it, the sheet says profile details aren't
     available yet.
-  - **Volunteers** (admins) — assign/unassign volunteers.
+  - **Volunteers** (admins, the session's **organizers**, and its **editors**)
+    — who's organizing the session: everyone in `session_volunteers` for it
+    (admins first, the viewer marked *(you)*), each a card with their role tag;
+    tapping one opens the same contact sheet as the Volunteer hub (number,
+    copy, **Call** / **Text**). Admins also **assign/unassign** here; for
+    organizers and editors it's read-only, so they can see and reach their
+    co-workers. Emails stay admin-only.
   A plain participant sees only the Session tab. Admins and EAF ambassadors who
   can edit the session's discipline get **Edit** controls (an AppBar pencil + an
   inline button) that open the editor for the whole page — base fields plus the
@@ -213,7 +219,13 @@ Home header** (Uber-style), not a bottom-bar tab.
   their other assignments or registrations). If the volunteer is already
   **registered** for that very session, the admin gets an *"…is registered for
   this session. Assign them to manage it?"* confirm first. On assignment the
-  volunteer receives an automatic personal announcement + banner. **Editing a
+  volunteer receives an automatic personal announcement + banner, and the
+  session's **other organizers** get *"X is now helping you manage …"* (also
+  when an admin self-manages; the assigning admin is skipped). Organizers also
+  get a *"New expert"* notice whenever someone signs up for their session as
+  an **expert**. *Organizers* means the people assigned to the session (plus a
+  self-managing admin) — **not** discipline editors, whose scope is the whole
+  discipline rather than one session, so they get neither notice. **Editing a
   session's time** is conflict-aware: if the new time would clash with sessions
   people registered for it already have, the editor warns *"…N people will have a
   schedule clash — save anyway?"* (via the `session_time_conflicts` RPC), and on
@@ -447,7 +459,12 @@ raw `EmeraldTheme` constants — `primary` (emerald / mint in dark),
 `secondary` (deepEmerald), `onSurface` (ink), `surfaceContainer` (mist) — so
 they follow the mode. The Home hero band is solid (no gradient): emerald in
 light mode, deep green in dark (`EmeraldTheme.nightHero`); the launch
-splash keeps its fixed brand colors in both modes.
+splash keeps its fixed brand colors in both modes. [test/theme_contrast_test.dart](test/theme_contrast_test.dart) checks
+every text/background role pairing (plus the app bar and outlines) against
+WCAG AA in both themes, so a palette tweak can't make text unreadable in one
+mode; widgets on the app bar (e.g. the session page's tab bar) take
+`appBarTheme.foregroundColor`, not `onPrimary`, since the dark app bar isn't
+primary-colored.
 
 **Accounts & sign-in** (live when Supabase is configured):
 - **Passwordless email OTP.** A user enters their email, gets a numeric code,
@@ -532,6 +549,7 @@ lib/
   widgets/in_app_banner.dart  Instagram-style in-app banner (controller + host)
   widgets/summit_logo.dart    Brand mark rebuilt as a CustomPainter (no asset)
   widgets/roster_person_sheet.dart  Organizer-only profile sheet opened from a roster row
+  widgets/volunteer_contact.dart  Volunteer card + Call/Text contact sheet (hub + session Volunteers tab)
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
@@ -542,7 +560,7 @@ lib/
     discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)
     session_detail_screen.dart   Tabbed session page: Session/Participants/Experts/Volunteers (permission-gated)
     session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown, hero/gallery, content blocks)
-    session_volunteers_screen.dart  SessionVolunteersView — assign/unassign (Volunteers tab, admin)
+    session_volunteers_screen.dart  SessionVolunteersView — Volunteers tab: co-workers (organizers/editors), assign/unassign (admin)
     session_roster_screen.dart   SessionRosterView + wrapper — roster + attendance (Participants tab / My Assignments)
     my_assignments_screen.dart   A volunteer's assigned sessions
     front_desk_screen.dart       Summit-wide check-in (front-desk capability)
@@ -687,7 +705,14 @@ test/widget_test.dart       Widget tests
     list update live. An **admin can self-manage** a session via the
     **`set_session_manage` RPC** (overlap-guarded, admin-only), which is the
     "Manage" option in the Add-to-my-day chooser and its "Stop managing" toggle.
+    `fetch_session_volunteers` (name, subtype, role, phone; email for admins
+    only) answers admins, the session's organizers and its discipline editors.
+    Triggers post the organizer notices: `after insert` on `session_volunteers`
+    (new co-organizer → the other organizers) and on `registrations` (a new
+    expert → the organizers). These notices leave `announcements.session_id`
+    null so unassigning doesn't sweep them up.
     [session_volunteers_setup.sql](supabase/session_volunteers_setup.sql),
+    [session_organizer_notices.sql](supabase/session_organizer_notices.sql),
     [assignment_notifications.sql](supabase/assignment_notifications.sql),
     [unassign_notification.sql](supabase/unassign_notification.sql),
     [session_participation_setup.sql](supabase/session_participation_setup.sql)

@@ -259,6 +259,15 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     stays own-row only. Drops and recreates the function, so re-run it if you
     ran the first version (that one failed on every call). Safe to re-run.
 
+41. `supabase/session_organizer_notices.sql` — **session co-workers + organizer
+    notices**: opens `fetch_session_volunteers` to the session's organizers
+    (its `session_volunteers`) and discipline editors, and adds role + phone
+    (email stays admin-only), for the session page's **Volunteers** tab. Adds
+    two triggers that post personal notices to a session's organizers: *"New
+    expert"* when someone registers as an expert, and *"X is now helping you
+    manage …"* when another organizer is added (admin assign or self-manage).
+    Drops and recreates `fetch_session_volunteers`. Safe to re-run.
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

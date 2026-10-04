@@ -19,7 +19,8 @@ import 'session_volunteers_screen.dart';
 ///     action.
 ///   * **Participants** (admins + volunteers assigned to the session) — roster +
 ///     attendance.
-///   * **Volunteers** (admins) — assign/unassign volunteers.
+///   * **Volunteers** (admins, the session's organizers, and its editors) — who's
+///     organizing the session, with their numbers; admins also assign/unassign.
 /// Anyone who can edit the session's discipline also gets an Edit action that
 /// opens the editor for the main page.
 class SessionDetailScreen extends StatefulWidget {
@@ -74,7 +75,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         final canMarkAttendance =
             appState.isAdmin || appState.isManaging(current.id);
         final canSeeRoster = canMarkAttendance || canEdit;
-        final canSeeVolunteers = appState.isAdmin;
+        // Organizers and editors see their co-workers; only admins assign.
+        final canSeeVolunteers = canSeeRoster;
 
         // Build the tab set in a fixed order, tracking labels for the TabBar.
         final tabs = <Tab>[const Tab(text: 'Session')];
@@ -113,7 +115,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         }
         if (canSeeVolunteers) {
           tabs.add(const Tab(text: 'Volunteers'));
-          views.add(SessionVolunteersView(session: current));
+          views.add(SessionVolunteersView(
+              session: current, canAssign: appState.isAdmin));
         }
 
         final actions = <Widget>[
