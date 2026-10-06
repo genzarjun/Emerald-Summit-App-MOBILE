@@ -240,8 +240,25 @@ Home header** (Uber-style), not a bottom-bar tab.
 - **News** — the announcements feed (pinned items, audience tags). Reads live
   from Supabase and stays **live via Realtime** — a new announcement appears the
   instant an admin posts it, alongside an **Instagram-style in-app banner** when
-  the app is foregrounded. **Admins** get a **New announcement** composer
-  (title, message, audience, pin). **Audience targeting:** an announcement aimed
+  the app is foregrounded. **Feed cards are previews**: the subject, a two-line
+  peek at the message, and an attachment count ("2 photos · 1 file"). **Tapping
+  a card opens the full announcement** on its own page
+  ([announcement_detail_screen.dart](lib/screens/announcement_detail_screen.dart)):
+  audience + pinned chips, sender and full date, the whole (selectable)
+  message, photos (tap for a swipeable, pinch-to-zoom full-screen viewer) and
+  files (tap to open in the browser/viewer), plus a menu to remove it from your
+  feed (admins can also delete it for everyone). The Home **Latest news** peek
+  opens the same page. **Admins** get a **New announcement** composer
+  (subject, message, audience, pin, **photos & files**). Attachments (up to 10,
+  10 MB each; photos re-encoded to ≤2000px JPEG) are held locally until
+  **Post**, then uploaded to the `announcement_attachments` bucket; if the
+  post fails the uploads are removed. The attachment buttons only appear on the
+  live backend. **Admin oversight:** admins already receive every discipline
+  announcement (broadcast rows are readable by all; only the feed filters by
+  audience), and each one carries a line like *"Priya Shah sent an announcement
+  to the TechVerse discipline"* on the feed card, the detail page, and the
+  in-app banner, so admins can see everything discipline leads post. Personal
+  system notices (team joins, assignments…) stay private to their recipient. **Audience targeting:** an announcement aimed
   at a discipline reaches only users who have an **activity in that discipline**
   (plus admins and the volunteers who manage it); "Everyone" reaches all.
   A volunteer with the **post-announcements** capability gets the composer too,
@@ -595,7 +612,8 @@ lib/
     volunteer_hub_screen.dart    Volunteer hub: every volunteer + tap for their number
     rooms_manager_screen.dart    Admin rooms catalog CRUD
     discipline_editor_screen.dart  Create a discipline (admin)
-    announcement_compose_screen.dart  Post an announcement (admin / scoped volunteer)
+    announcement_compose_screen.dart  Post an announcement (admin / scoped volunteer), with photos/files
+    announcement_detail_screen.dart   Full announcement page (message, photo viewer, files)
     archie_screen.dart      Archie AI assistant tab (welcome + starters, streamed chat, typing reveal)
     archie_insights_screen.dart  Admin: anonymous recent Archie questions + answers
     announcements_screen.dart, resources_screen.dart, profile_screen.dart
@@ -619,7 +637,7 @@ test/widget_test.dart       Widget tests
   [service_locator.dart](lib/backend/service_locator.dart). See **Swapping
   backends** below.
 - **Live now:**
-  - The `announcements` table feeds the News tab (read-only, behind a
+  - The `announcements` table feeds the News tab (broadcast rows behind a
     public-read RLS policy). Schema in
     [supabase/announcements_setup.sql](supabase/announcements_setup.sql).
   - **Auth + `profiles` table.** Email OTP via Supabase Auth; each account gets
@@ -770,6 +788,14 @@ test/widget_test.dart       Widget tests
     notice can be cleaned up on unassign), used by assign/unassign notifications.
     [assignment_notifications.sql](supabase/assignment_notifications.sql),
     [unassign_notification.sql](supabase/unassign_notification.sql)
+    Later still gains `attachments` (jsonb `[{url, path, name, type, size}]`)
+    backed by the public **`announcement_attachments`** Storage bucket: uploads
+    go in the uploader's `<user_id>/` folder and only admins + volunteers with
+    `can_post_announcements` may upload; there's no list policy; owners and
+    admins can delete (delete-for-everyone also removes the files).
+    [announcement_attachments.sql](supabase/announcement_attachments.sql)
+    *(code-complete; not yet run on the dev project — until it is, plain posts
+    work and posts with attachments fail)*
   - **Photo sets = public Storage buckets** (no table). Each photo set in the
     app is a public bucket, and **every image in it is shown**; curation is just
     uploading/deleting files. The app **lists** the bucket
@@ -904,9 +930,9 @@ flutter run --dart-define-from-file=env.json      # choose a device when prompte
 
 > **Seeing sample data when you expected the backend?** The launch is missing the
 > flag. `SupabaseConfig`'s credentials are *compile-time* constants, so a plain
-> `flutter run` (or the IDE's default run) boots in sample mode — the News tab
-> shows "Sample data — no backend configured yet" and Discover shows the sample
-> disciplines. Relaunch with the flag (or the VS Code "Supabase" config).
+> `flutter run` (or the IDE's default run) boots in sample mode — Discover
+> shows the sample disciplines and News the sample announcements (with no
+> attachment buttons in the composer). Relaunch with the flag (or the VS Code "Supabase" config).
 
 ### Dev-testing build vs. production build (the `DEV_LOGIN` bypass)
 The **code-email login bypass** (sign in as a test account without an OTP — see

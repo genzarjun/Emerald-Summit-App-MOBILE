@@ -97,6 +97,8 @@ class AnnouncementEvent {
     required this.title,
     required this.body,
     this.createdBy,
+    this.author = '',
+    this.audience = '',
     this.disciplineId,
     this.targetUserId,
     this.deleted = false,
@@ -105,6 +107,11 @@ class AnnouncementEvent {
   final String id;
   final String title;
   final String body;
+
+  /// Display name of the poster and the audience label (e.g. a discipline
+  /// name), so an admin's banner can say who sent it where.
+  final String author;
+  final String audience;
 
   /// User id of the poster, so the app can avoid bannering the author.
   final String? createdBy;
@@ -235,7 +242,18 @@ abstract interface class AnnouncementsRepository {
     String audience,
     bool pinned,
     String? disciplineId,
+    List<AnnouncementAttachment> attachments,
   });
+
+  /// Uploads one photo/file to send with an announcement (the caller then
+  /// passes the result to [create]). Only admins and volunteers who may post
+  /// announcements can upload (enforced by the backend). Throws on failure.
+  Future<AnnouncementAttachment> uploadAttachment(
+      Uint8List bytes, String fileName);
+
+  /// Removes uploaded attachments, e.g. when posting fails after the upload.
+  /// Best-effort — never throws.
+  Future<void> deleteAttachments(Iterable<AnnouncementAttachment> attachments);
 
   /// The current user's per-announcement read state:
   ///   * [seen]   — surfaced in the feed; clears the red unread count.

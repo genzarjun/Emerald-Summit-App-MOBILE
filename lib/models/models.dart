@@ -587,6 +587,9 @@ class Announcement {
     this.pinned = false,
     this.disciplineId,
     this.targetUserId,
+    this.createdBy,
+    this.createdAt,
+    this.attachments = const [],
   });
 
   final String id;
@@ -596,6 +599,20 @@ class Announcement {
   final String audience;
   final String timeAgo;
   final bool pinned;
+
+  /// User id of whoever posted it (null for system notices / sample data).
+  final String? createdBy;
+
+  /// When it was posted (local time), for the full date on the detail page.
+  final DateTime? createdAt;
+
+  /// Photos and files sent with the announcement (shown on the detail page).
+  final List<AnnouncementAttachment> attachments;
+
+  List<AnnouncementAttachment> get photos =>
+      attachments.where((a) => a.isImage).toList();
+  List<AnnouncementAttachment> get files =>
+      attachments.where((a) => !a.isImage).toList();
 
   /// When set, this announcement targets one discipline — it only reaches users
   /// who have an activity in that discipline (plus admins / its volunteers). Null
@@ -620,6 +637,13 @@ class Announcement {
       timeAgo: _relativeTime(row['created_at'] as String?),
       disciplineId: row['discipline_id'] as String?,
       targetUserId: row['target_user_id'] as String?,
+      createdBy: row['created_by'] as String?,
+      createdAt: DateTime.tryParse(row['created_at'] as String? ?? '')
+          ?.toLocal(),
+      attachments: [
+        for (final a in (row['attachments'] as List? ?? const []))
+          if (a is Map) AnnouncementAttachment.fromMap(a.cast()),
+      ],
     );
   }
 
@@ -633,6 +657,93 @@ class Announcement {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
   }
+}
+
+/// A photo or file sent with an announcement. The bytes live in the public
+/// `announcement_attachments` Storage bucket; the row's `attachments` jsonb
+/// holds one of these per file ({url, path, name, type, size}).
+class AnnouncementAttachment {
+  const AnnouncementAttachment({
+    required this.url,
+    required this.path,
+    required this.name,
+    required this.contentType,
+    this.size = 0,
+  });
+
+  /// Public URL of the stored file.
+  final String url;
+
+  /// Storage object key (used to remove it when the announcement is deleted).
+  final String path;
+
+  /// Original file name, shown in the UI.
+  final String name;
+
+  /// MIME type, e.g. `image/jpeg` or `application/pdf`.
+  final String contentType;
+
+  /// Size in bytes (0 when unknown).
+  final int size;
+
+  bool get isImage => contentType.startsWith('image/');
+
+  /// "1.2 MB" / "340 KB", or '' when unknown.
+  String get sizeLabel => formatFileSize(size);
+
+  factory AnnouncementAttachment.fromMap(Map<String, dynamic> m) =>
+      AnnouncementAttachment(
+        url: (m['url'] ?? '') as String,
+        path: (m['path'] ?? '') as String,
+        name: (m['name'] ?? 'Attachment') as String,
+        contentType: (m['type'] ?? 'application/octet-stream') as String,
+        size: (m['size'] as num?)?.toInt() ?? 0,
+      );
+
+  Map<String, dynamic> toMap() => {
+        'url': url,
+        'path': path,
+        'name': name,
+        'type': contentType,
+        'size': size,
+      };
+}
+
+/// "1.2 MB" / "340 KB" / "12 B", or '' for 0.
+String formatFileSize(int bytes) {
+  if (bytes <= 0) return '';
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).round()} KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+/// MIME type for a file name, from its extension. Falls back to
+/// `application/octet-stream`.
+String contentTypeForFileName(String fileName) {
+  final dot = fileName.lastIndexOf('.');
+  final ext = dot < 0 ? '' : fileName.substring(dot + 1).toLowerCase();
+  return switch (ext) {
+    'jpg' || 'jpeg' => 'image/jpeg',
+    'png' => 'image/png',
+    'gif' => 'image/gif',
+    'webp' => 'image/webp',
+    'heic' => 'image/heic',
+    'pdf' => 'application/pdf',
+    'doc' => 'application/msword',
+    'docx' =>
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls' => 'application/vnd.ms-excel',
+    'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'ppt' => 'application/vnd.ms-powerpoint',
+    'pptx' =>
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'txt' => 'text/plain',
+    'csv' => 'text/csv',
+    'zip' => 'application/zip',
+    'mp4' => 'video/mp4',
+    'mov' => 'video/quicktime',
+    _ => 'application/octet-stream',
+  };
 }
 
 /// A photo shown in the app (e.g. the dashboard slideshow). The bytes live in a

@@ -11,6 +11,7 @@ import '../data/sample_data.dart';
 import '../models/models.dart';
 import '../theme.dart';
 import '../widgets/summit_logo.dart';
+import 'announcement_detail_screen.dart';
 import 'discipline_screen.dart';
 import 'profile_screen.dart';
 import 'resources_screen.dart';
@@ -1081,7 +1082,7 @@ class _LatestNews extends StatelessWidget {
             margin: EdgeInsets.zero,
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: () => rootTab.value = kNewsTabIndex,
+              onTap: () => openAnnouncement(context, a),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

@@ -363,6 +363,7 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
     String audience = 'Everyone',
     bool pinned = false,
     String? disciplineId,
+    List<AnnouncementAttachment> attachments = const [],
   }) async {
     await _client.from('announcements').insert({
       'title': title,
@@ -372,7 +373,55 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
       'pinned': pinned,
       'discipline_id': disciplineId,
       'created_by': _client.auth.currentUser?.id,
+      // Only sent when used, so plain posts still work on a project that
+      // hasn't run announcement_attachments.sql yet.
+      if (attachments.isNotEmpty)
+        'attachments': [for (final a in attachments) a.toMap()],
     });
+  }
+
+  static const String _attachmentsBucket = 'announcement_attachments';
+
+  @override
+  Future<AnnouncementAttachment> uploadAttachment(
+      Uint8List bytes, String fileName) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('Not signed in');
+    // Keys live under the uploader's folder (Storage RLS checks it) and use a
+    // generated name; the original name is kept in the row for display.
+    final dot = fileName.lastIndexOf('.');
+    final ext = dot < 0 ? '' : fileName.substring(dot).toLowerCase();
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final path = '${user.id}/a_$stamp$ext';
+    final type = contentTypeForFileName(fileName);
+    final store = _client.storage.from(_attachmentsBucket);
+    await store.uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(contentType: type),
+    );
+    return AnnouncementAttachment(
+      url: store.getPublicUrl(path),
+      path: path,
+      name: fileName,
+      contentType: type,
+      size: bytes.length,
+    );
+  }
+
+  @override
+  Future<void> deleteAttachments(
+      Iterable<AnnouncementAttachment> attachments) async {
+    final paths = [
+      for (final a in attachments)
+        if (a.path.isNotEmpty) a.path,
+    ];
+    if (paths.isEmpty) return;
+    try {
+      await _client.storage.from(_attachmentsBucket).remove(paths);
+    } catch (_) {
+      // Best-effort: an orphaned file is harmless.
+    }
   }
 
   @override
@@ -497,7 +546,15 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
   Future<void> deleteForEveryone(String id) async {
     // Admin-only, enforced by the DELETE RLS policy — a non-admin call is
     // rejected server-side. Let errors surface so the UI can report them.
-    await _client.from('announcements').delete().eq('id', id);
+    final deleted = await _client
+        .from('announcements')
+        .delete()
+        .eq('id', id)
+        .select();
+    // Clean up its photos/files too (admins may delete any attachment).
+    for (final row in deleted) {
+      await deleteAttachments(Announcement.fromMap(row).attachments);
+    }
   }
 
   @override
@@ -521,6 +578,8 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
                 title: (row['title'] ?? 'New announcement') as String,
                 body: (row['body'] ?? '') as String,
                 createdBy: row['created_by']?.toString(),
+                author: (row['author'] ?? '') as String,
+                audience: (row['audience'] ?? '') as String,
                 disciplineId: row['discipline_id'] as String?,
                 targetUserId: row['target_user_id'] as String?,
               ));

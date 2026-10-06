@@ -4,13 +4,16 @@ import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
 import 'announcement_compose_screen.dart';
+import 'announcement_detail_screen.dart';
 
 /// "News" tab — the announcement feed (spec section 04 — Announcements).
 ///
 /// Reads from [appState], which loads the feed from the backend (or sample data)
 /// and keeps it live via the backend's event stream — a new announcement appears
-/// here the instant an admin posts it, alongside the in-app banner. Admins get
-/// a "New announcement" button.
+/// here the instant an admin posts it, alongside the in-app banner. Each card is
+/// a preview (subject + a couple of lines); tapping it opens the full
+/// announcement with its photos and files. Admins get a "New announcement"
+/// button.
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
 
@@ -70,8 +73,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   }
 
   Widget _body(List<Announcement> items, bool loading, Object? error) {
-    final live = backendInfo.isLive;
-
     if (loading && items.isEmpty && error == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -81,13 +82,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
     return Column(
       children: [
-        _SourceBanner(
-          live: live,
-          text: live
-              ? 'Live from ${backendInfo.name} · ${items.length} '
-                  'announcement${items.length == 1 ? '' : 's'}'
-              : 'Sample data — no backend configured yet',
-        ),
         if (loading)
           const LinearProgressIndicator(minHeight: 2)
         else
@@ -157,34 +151,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 : appState.loadAnnouncements,
             icon: const Icon(Icons.refresh),
             label: const Text('Try again'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Small banner showing where the data came from.
-class _SourceBanner extends StatelessWidget {
-  const _SourceBanner({required this.live, required this.text});
-  final bool live;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = live ? theme.colorScheme.primary : theme.colorScheme.tertiary;
-    return Container(
-      width: double.infinity,
-      color: theme.colorScheme.surfaceContainer,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Icon(live ? Icons.cloud_done : Icons.storage, size: 16, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text,
-                style: theme.textTheme.labelMedium?.copyWith(color: color)),
           ),
         ],
       ),
@@ -313,6 +279,8 @@ class _SwipeableAnnouncement extends StatelessWidget {
   }
 }
 
+/// Feed preview: the subject, a two-line peek at the message, and what's
+/// attached. Tapping opens the full announcement ([AnnouncementDetailScreen]).
 class _AnnouncementCard extends StatelessWidget {
   const _AnnouncementCard({required this.item});
   final Announcement item;
@@ -323,15 +291,36 @@ class _AnnouncementCard extends StatelessWidget {
     // Unread dot persists until this specific card is opened (tapped), even
     // after the News tab's red badge has cleared.
     final unopened = appState.isAnnouncementUnopened(item.id);
+    final oversight = appState.adminOversightLabel(item);
+    final attachmentSummary = _attachmentSummary(item);
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => appState.markAnnouncementOpened(item.id),
+        onTap: () => openAnnouncement(context, item),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (oversight != null) ...[
+                Row(
+                  children: [
+                    Icon(Icons.admin_panel_settings_outlined,
+                        size: 14, color: theme.colorScheme.secondary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        oversight,
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: theme.colorScheme.secondary),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
               Row(
                 children: [
                   if (unopened) ...[
@@ -351,44 +340,81 @@ class _AnnouncementCard extends StatelessWidget {
                     const SizedBox(width: 6),
                   ],
                   Expanded(
-                    child: Text(item.title, style: theme.textTheme.titleMedium),
+                    child: Text(
+                      item.title,
+                      style: theme.textTheme.titleMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right,
+                      color: theme.colorScheme.onSurfaceVariant),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                item.body,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (attachmentSummary != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.attach_file,
+                        size: 14, color: theme.colorScheme.primary),
+                    const SizedBox(width: 4),
+                    Text(attachmentSummary,
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: theme.colorScheme.primary)),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(item.audience,
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: theme.colorScheme.primary)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      [item.author, item.timeAgo]
+                          .where((s) => s.isNotEmpty)
+                          .join(' · '),
+                      style: theme.textTheme.bodySmall,
+                      textAlign: TextAlign.end,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
-            const SizedBox(height: 8),
-            Text(item.body, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(item.audience,
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: theme.colorScheme.primary)),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    [item.author, item.timeAgo]
-                        .where((s) => s.isNotEmpty)
-                        .join(' · '),
-                    style: theme.textTheme.bodySmall,
-                    textAlign: TextAlign.end,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
           ),
         ),
       ),
     );
+  }
+
+  /// "2 photos · 1 file", or null when nothing is attached.
+  static String? _attachmentSummary(Announcement a) {
+    final p = a.photos.length;
+    final f = a.files.length;
+    if (p == 0 && f == 0) return null;
+    return [
+      if (p > 0) '$p photo${p == 1 ? '' : 's'}',
+      if (f > 0) '$f file${f == 1 ? '' : 's'}',
+    ].join(' · ');
   }
 }

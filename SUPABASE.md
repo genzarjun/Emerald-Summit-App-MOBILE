@@ -285,6 +285,15 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     which Realtime needs before it delivers changes. Every desk's stats and
     list then update when any desk checks someone in. Writes stay RPC-only.
     Needs `attendance_setup.sql` first. Safe to re-run.
+43. `supabase/announcement_attachments.sql` — **photos & files on
+    announcements**. Adds `announcements.attachments` (jsonb list of
+    `{url, path, name, type, size}`), the public `announcement_attachments`
+    Storage bucket (10 MB per file), and `can_post_announcements()`. Uploads must
+    go in the uploader's own `<user_id>/` folder and are limited to admins and
+    volunteers with `can_post_announcements`. No list policy, so the bucket
+    can't be enumerated. Owners and admins can delete (cleanup after a failed
+    post, or a delete-for-everyone). Without it, plain posts still work and
+    only posting with attachments fails. Safe to re-run.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

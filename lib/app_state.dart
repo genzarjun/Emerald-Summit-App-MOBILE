@@ -453,6 +453,38 @@ class AppState extends ChangeNotifier {
     return announcementReaches(disciplineId);
   }
 
+  /// For admins, the oversight line on a discipline announcement — e.g.
+  /// "Priya Shah sent an announcement to the TechVerse discipline" — so every
+  /// scoped post a discipline lead sends is visible and attributed in the
+  /// admin feed. Null for everyone else, and for Everyone/personal items.
+  String? adminOversightLabel(Announcement a) {
+    if (!isAdmin || a.disciplineId == null || a.targetUserId != null) {
+      return null;
+    }
+    return _sentToLabel(
+      createdBy: a.createdBy,
+      author: a.author,
+      disciplineId: a.disciplineId!,
+      audience: a.audience,
+    );
+  }
+
+  String _sentToLabel({
+    required String? createdBy,
+    required String author,
+    required String disciplineId,
+    required String audience,
+  }) {
+    final mine = createdBy != null && createdBy == _myUserId;
+    final who = mine ? 'You' : (author.isEmpty ? 'Someone' : author);
+    final discipline = _disciplines
+            .where((d) => d.id == disciplineId)
+            .map((d) => d.name)
+            .firstOrNull ??
+        (audience.isEmpty ? disciplineId : audience);
+    return '$who sent an announcement to the $discipline discipline';
+  }
+
   /// The announcements this user should actually see: audience-filtered,
   /// personal announcements only for their recipient, and anything they've
   /// hidden from their own feed ("delete from my view") removed.
@@ -652,9 +684,20 @@ class AppState extends ChangeNotifier {
         disciplineId: event.disciplineId, targetUserId: event.targetUserId)) {
       return;
     }
+    // Admins see who sent a discipline announcement where.
+    final oversight = isAdmin &&
+            event.disciplineId != null &&
+            event.targetUserId == null
+        ? _sentToLabel(
+            createdBy: event.createdBy,
+            author: event.author,
+            disciplineId: event.disciplineId!,
+            audience: event.audience,
+          )
+        : null;
     inAppBanner.show(BannerMessage(
-      title: event.title,
-      body: event.body,
+      title: oversight ?? event.title,
+      body: oversight == null ? event.body : event.title,
       onTap: () => rootTab.value = kNewsTabIndex,
     ));
   }

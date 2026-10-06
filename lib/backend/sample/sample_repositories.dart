@@ -440,6 +440,7 @@ class SampleAnnouncementsRepository implements AnnouncementsRepository {
     String audience = 'Everyone',
     bool pinned = false,
     String? disciplineId,
+    List<AnnouncementAttachment> attachments = const [],
   }) async {
     _store.announcements.insert(
       0,
@@ -452,9 +453,22 @@ class SampleAnnouncementsRepository implements AnnouncementsRepository {
         timeAgo: 'just now',
         pinned: pinned,
         disciplineId: disciplineId,
+        createdAt: DateTime.now(),
+        attachments: attachments,
       ),
     );
   }
+
+  // Attachments need Storage, so demo mode doesn't offer them (the composer
+  // hides the buttons when the backend isn't live).
+  @override
+  Future<AnnouncementAttachment> uploadAttachment(
+          Uint8List bytes, String fileName) =>
+      throw UnsupportedError('Attachments need the live backend');
+
+  @override
+  Future<void> deleteAttachments(
+      Iterable<AnnouncementAttachment> attachments) async {}
 
   @override
   Future<({Set<String> seen, Set<String> opened})> fetchReadState() async => (
