@@ -794,8 +794,7 @@ test/widget_test.dart       Widget tests
     `can_post_announcements` may upload; there's no list policy; owners and
     admins can delete (delete-for-everyone also removes the files).
     [announcement_attachments.sql](supabase/announcement_attachments.sql)
-    *(code-complete; not yet run on the dev project — until it is, plain posts
-    work and posts with attachments fail)*
+    *(run on the dev project)*
   - **Photo sets = public Storage buckets** (no table). Each photo set in the
     app is a public bucket, and **every image in it is shown**; curation is just
     uploading/deleting files. The app **lists** the bucket

@@ -293,7 +293,8 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     volunteers with `can_post_announcements`. No list policy, so the bucket
     can't be enumerated. Owners and admins can delete (cleanup after a failed
     post, or a delete-for-everyone). Without it, plain posts still work and
-    only posting with attachments fails. Safe to re-run.
+    only posting with attachments fails. Safe to re-run. *(Run on the dev
+    project.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
