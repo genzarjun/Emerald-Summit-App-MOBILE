@@ -58,3 +58,9 @@ app.*.map.json
 env.json
 env.*.json
 !env.example.json
+
+# /checkup skill: graphify knowledge graph + local run state
+graphify-out/
+.claude/skills/checkup/state.json
+supabase/.temp/
+supabase/.branches/

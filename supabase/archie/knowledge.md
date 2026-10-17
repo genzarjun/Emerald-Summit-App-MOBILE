@@ -1,5 +1,5 @@
 <!--
-ARCHIE KNOWLEDGE BASE — the organizer-maintained fact sheet Archie reads on
+ARCHIE KNOWLEDGE BASE: the organizer-maintained fact sheet Archie reads on
 every question. Facts here are answered directly, with no web search (faster,
 cheaper, and you control what it says).
 
@@ -10,7 +10,7 @@ HOW TO EDIT
 - Write plain, specific facts. Short bullets beat paragraphs.
 - Only write what is TRUE and CONFIRMED. Archie treats this file as
   authoritative; a wrong fact here becomes a confident wrong answer.
-- Session times, rooms, experts, and seats come live from the app — do NOT
+- Session times, rooms, experts, and seats come live from the app, so do NOT
   copy them here (they'd go stale).
 - Anything inside these HTML comments is stripped before Archie sees it, so use
   comments for notes and TODOs. Replace each "TODO" comment with real facts.
@@ -22,7 +22,7 @@ Seeded 2026-10-03 from the official sites listed under "Sources" at the bottom.
 
 # Emerald Summit '27
 
-- **What:** The Tri-Valley's student-run STEAM summit — exhibits, presentations, workshops, and competitions, with expert mentors.
+- **What:** The Tri-Valley's student-run STEAM summit: exhibits, presentations, workshops, and competitions, with expert mentors.
 - **When:** January 2027. <!-- TODO: exact date, start and end times, check-in time. The official site still says "date TBD". -->
 - **Where:** Emerald High School, 3600 Central Pkwy, Dublin, CA 94568.
 - **Organized by:** the Emerald High School Academic Foundation (EAF), a 501(c)(3) nonprofit (Federal Tax ID 33-4810954).
@@ -53,7 +53,7 @@ Seeded 2026-10-03 from the official sites listed under "Sources" at the bottom.
 -->
 
 ## Disciplines and tracks
-These are the disciplines and tracks from Emerald Summit '26. <!-- TODO: confirm for '27 — the app's live catalog is authoritative for sessions. -->
+These are the disciplines and tracks from Emerald Summit '26. <!-- TODO: confirm for '27; the app's live catalog is authoritative for sessions. -->
 - **TechVerse:** Computer Science (exhibits, presentations, AI Playground); Engineering (exhibits, presentations, CADathon, Robothon, Product Design).
 - **BioSphere:** Psychology, Genetics, Health Sciences, presentations.
 - **NovaSphere:** Core Science; Climate Change & Sustainability.
@@ -66,8 +66,8 @@ These are the disciplines and tracks from Emerald Summit '26. <!-- TODO: confirm
 <!-- TODO: how CADathon / Robothon / other competitions work, team sizes, judging criteria, prizes, awards ceremony. -->
 
 ## Past summits
-- **Emerald Summit '26** — Saturday, March 7, 2026, at Emerald High School. 225+ signups from 6 Tri-Valley schools; 6 disciplines, 20+ tracks, 30+ experts. Keynote: Dr. Bernard Kress (XR Engineering, Google).
-- **Emerald Summit '25** — 325 participants from Tri-Valley schools (200+ from Emerald High and 5 other schools); 5 disciplines, 20 tracks, 35+ experts. Keynote: Sabeer Bhatia (founder of Hotmail).
+- **Emerald Summit '26**: Saturday, March 7, 2026, at Emerald High School. 225+ signups from 6 Tri-Valley schools; 6 disciplines, 20+ tracks, 30+ experts. Keynote: Dr. Bernard Kress (XR Engineering, Google).
+- **Emerald Summit '25**: 325 participants from Tri-Valley schools (200+ from Emerald High and 5 other schools); 5 disciplines, 20 tracks, 35+ experts. Keynote: Sabeer Bhatia (founder of Hotmail).
 
 ## Volunteering and sponsorship
 - The EHS Academic Foundation runs a Volunteer Program and a Student Ambassadors program, and welcomes sponsors and academic partners for the summit.
@@ -90,22 +90,22 @@ These are the disciplines and tracks from Emerald Summit '26. <!-- TODO: confirm
 - **History:** Opened to students in the 2023–24 school year; classes began on its own campus in August 2024.
 - **Mascot:** the Aerouant. **Colors:** green, blue, and white.
 - **Academies and pathways** include Biomedical and Computer Science/Engineering.
-- **Website:** https://ehs.dublinusd.org — calendar: https://ehs.dublinusd.org/apps/events/ · bell schedules: https://ehs.dublinusd.org/apps/bell_schedules/ · maps and directions: https://ehs.dublinusd.org/apps/maps/ · contact: https://ehs.dublinusd.org/apps/contact/
+- **Website:** https://ehs.dublinusd.org · calendar: https://ehs.dublinusd.org/apps/events/ · bell schedules: https://ehs.dublinusd.org/apps/bell_schedules/ · maps and directions: https://ehs.dublinusd.org/apps/maps/ · contact: https://ehs.dublinusd.org/apps/contact/
 <!-- TODO: principal's name, if you want Archie to know it. -->
 
 # Dublin Unified School District (DUSD)
 
 - **District office:** 7471 Larkdale Avenue, Dublin, CA 94568. Phone (925) 828-2551. Office hours Monday–Friday, 8:00 AM–4:30 PM.
 - **High schools:** Dublin High School and Emerald High School.
-- **Website:** https://www.dublinusd.org — calendar: https://www.dublinusd.org/apps/events/ · parent portal: https://icampus.dublinusd.org/campus/portal/dublin.jsp
-<!-- TODO: superintendent's name (the district site was ambiguous when this was seeded — verify before adding). -->
+- **Website:** https://www.dublinusd.org · calendar: https://www.dublinusd.org/apps/events/ · parent portal: https://icampus.dublinusd.org/campus/portal/dublin.jsp
+<!-- TODO: superintendent's name (the district site was ambiguous when this was seeded; verify before adding). -->
 
 # Frequently asked questions
 <!-- TODO: add real Q&A pairs as you hear them (check Profile → Archie insights
 for what people actually ask). Format:
 
 **Q: Can I switch sessions after registering?**
-A: Yes — remove it from your day in the Schedule tab, then add the other one in Discover (if it has seats and doesn't overlap).
+A: Yes. Remove it from your day in the Schedule tab, then add the other one in Discover (if it has seats and doesn't overlap).
 -->
 
 <!--

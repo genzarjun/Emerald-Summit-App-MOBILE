@@ -387,6 +387,12 @@ Home header** (Uber-style), not a bottom-bar tab.
     [index.ts](supabase/functions/archie-chat/index.ts) (identity, sources and
     their priority, grounding rules, scope, style — contact
     president@ehsacademics.org, no emojis, treat earlier answers as settled).
+    A **WRITING** block holds Archie to the app's writing rule (see
+    [App writing rule](#app-writing-rule)): no em dashes, no "Great question"
+    openers or "let me know" closers, no AI vocabulary, at most one
+    exclamation mark. The function's fixed replies (daily limit, off-topic,
+    failed answer) follow the same rule. A persona change only takes effect
+    after `supabase functions deploy archie-chat --no-verify-jwt --use-api`.
     **Edit it in the repo and deploy with the CLI**, not in the dashboard
     editor: a CLI deploy overwrites dashboard edits (this happened once and
     was merged back by hand).
@@ -570,6 +576,17 @@ primary-colored.
 
 Brand colors and type follow spec section 03 (Emerald `#0C7A55`, Deep Emerald
 `#0A5F43`, Ink `#16211C`, Mist `#EEF5F1`, system fonts).
+
+## App writing rule
+Nothing a user reads in the app should sound machine-written. That covers every
+on-screen string, sample and seed data, notification text in SQL triggers,
+Archie's knowledge base, and Archie's live replies. In practice: plain,
+specific, short sentences; no em dashes (use a period, comma, colon, or
+parentheses); no filler like "seamless", "unlock", "You're all set!" or
+"Oops!"; sentence case. The [avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)
+Claude Code plugin defines the patterns, and `/checkup` enforces them (below).
+As of October 2026 about 30 on-screen strings still contain em dashes; the
+first `/checkup` runs clean them up.
 
 ## Project layout
 ```
@@ -983,6 +1000,38 @@ clean: the bypass lives entirely on dev.
 flutter test
 flutter analyze
 ```
+
+## Code health: `/checkup` and the code map
+Claude Code tooling for keeping the codebase in shape. Lives in
+`.claude/skills/checkup/` (local, not committed).
+
+- **`/checkup`** looks at what changed since files were last checked and
+  routes the work to installed Claude Code plugins: agent-skills (review,
+  tests, security, simplification), Context7 (current package docs),
+  avoid-ai-writing, impeccable and taste-skill (UI), and `/update-readme`. It
+  fixes what's safe, verifies with `flutter analyze` + `flutter test`, asks
+  about larger changes once at the end, and commits locally. It never writes
+  to Supabase.
+- **Per-file tracking.** When a checkup reviews a file it saves a fingerprint
+  (a SHA-1 hash of the file's contents) in `.claude/skills/checkup/state.json`
+  (gitignored). Next run, any file whose contents no longer match is
+  reviewed again; files never checked are picked up a few per run, most
+  connected first, until all ~117 files in `lib/`, `test/` and `supabase/` are
+  covered. `/checkup all` covers everything at once.
+- **graphify** builds a code graph (`graphify update .`, ~3 s, no AI cost) of
+  `lib/`, `test/` and `supabase/` (scope set in `.graphifyignore`) into
+  `graphify-out/` (gitignored). `/checkup` uses it to find the files that
+  depend on whatever changed. SQL files are not parsed yet (needs
+  `graphifyy[sql]`).
+- **3D code map.** `python3 .claude/skills/checkup/scripts/graph3d.py` turns
+  the graph into `graphify-out/graph3d.html`: a draggable, searchable 3D view
+  where each color is a group of related code. It contains only names and
+  file paths from this (public) repo, no keys or data. Planned: publish it on
+  GitHub Pages from a `gh-pages` branch.
+- **Supabase CLI** is set up locally and linked to the dev project
+  (`supabase link --project-ref dgrskmykbkvphnaasfzl`; link state in
+  `supabase/.temp/`, gitignored). Schema dumps (`db pull` / `db dump`) need
+  Docker, which isn't installed yet.
 
 ## Deploy to TestFlight
 See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`.

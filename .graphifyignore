@@ -1,0 +1,14 @@
+# Keep the graph to app source: lib/, test/, supabase/ SQL.
+android/
+ios/
+build/
+assets/
+.dart_tool/
+.claude/
+.impeccable/
+graphify-out/
+env.json
+env.example.json
+*.lock
+*.iml
+*.apk
