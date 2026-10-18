@@ -45,12 +45,16 @@ spec's core participant features. **Profile is reached from the avatar in the
 Home header** (Uber-style), not a bottom-bar tab.
 
 - **Home** — the launchpad ([lib/screens/dashboard_screen.dart](lib/screens/dashboard_screen.dart)).
-  A greeting + tappable avatar → Profile, a **photo slideshow** (a 16:9 band of
+  A greeting + tappable avatar → Profile, a live **countdown** in the header
+  (days, hours, minutes, seconds to the summit's first session; it appears
+  once `summit_settings.summit_date` is set and disappears when the summit
+  starts), a **photo slideshow** (a 16:9 band of
   event photos that auto-advances every 5s with a cross-fade + page dots, in a
   fresh random order each load; hidden when there are no photos), a
   daily-rotating quote card with brand
   art, an **Up next** card (the next session in your schedule, or a "plan your
   day" nudge when it's empty), a grid of Uber-style **Jump to** action tiles
+  with two-tone Phosphor icons
   (schedule, browse, news with an unread badge, campus map, resources,
   **Volunteer hub** for volunteers and admins, profile — campus map/resources
   push the Resources screen, which is no longer a tab),
@@ -65,11 +69,12 @@ Home header** (Uber-style), not a bottom-bar tab.
 - **Schedule** — the user's full personal schedule (formerly the "My Day" first
   tab; the in-app header still reads "My Day"). A summary line at the top
   ([day_summary.dart](lib/widgets/day_summary.dart)) gives sessions and time
-  booked, days until the summit, and how many open sessions still fit (with a
+  booked and how many open sessions still fit (with a
   **Find one** jump to Discover). It doesn't repeat the next session, since Home's
   **Up next** card covers that. The list runs in time order with **"N free"**
   dividers for gaps of 15 minutes or more. On summit day the current and next
-  sessions are tagged **Now** / **Next** and finished ones fade. It shows **everything they're
+  sessions are tagged **Now** / **Next** and finished ones move into a
+  collapsed **Past** group at the bottom. It shows **everything they're
   committed to**, each tagged with **how they joined**: sessions they registered
   for (from `registrations`) show **Participating**, **Spectating**, or
   **Expert** (the `participation_type`), and sessions they're **Managing**
@@ -90,13 +95,19 @@ Home header** (Uber-style), not a bottom-bar tab.
     its real session titles, its start time and how many sessions are open.
   - **Each discipline has its own personality**
     ([discipline_vibe.dart](lib/widgets/discipline_vibe.dart), looked up by
-    discipline id, no database column): a dark palette, an animated background
-    motif, a band of light that flows around the screen edge, and an entrance
-    haptic pattern. TechVerse: cyan/violet circuit pulses. VentureVerse: an
-    orange/gold chart that climbs. BioSphere: drifting cells and a border that
-    beats like a heart. NovaSphere: stars and orbits. CivicVerse: brass gavel
-    ripples. ImagineX: color-shifting paint. A discipline added later gets an
-    emerald default. Painters and the portal route live in
+    discipline id, no database column): a palette, a two-tone mark, an animated
+    background motif, a band of light that flows around the screen edge, and an
+    entrance haptic pattern. **Palettes come from the summit's discipline color
+    sheet** (four swatches each; keep them in sync with it): TechVerse
+    `#254F93 #119DA4 #6D9DC5 #80DED9`, ImagineX `#DCD6F7 #A6B1E1 #B4869F
+    #805D93`, VentureVerse `#FCDE9C #FFA552 #BA5624 #381D2A`, BioSphere
+    `#F6FEDB #E6D3A3 #D8D174 #B6C454`, CivicVerse `#DCCCA3 #824C71 #4A2545
+    #2B0539`, NovaSphere `#E5C2C0 #8FD5A6 #329F5B #0C8346`. Marks and motifs:
+    TechVerse circuit board and circuit pulses; VentureVerse rising chart and a
+    climbing chart line; BioSphere DNA and drifting cells with a heartbeat
+    border; NovaSphere planet, stars and orbits; CivicVerse scales and gavel
+    ripples; ImagineX paint brush and drifting paint. A discipline added later
+    gets an emerald default and its stored icon key. Painters and the portal route live in
     [discipline_effects.dart](lib/widgets/discipline_effects.dart). Tapping a
     discipline opens it as a circle of its color growing from the card. The
     effects pause on hidden tabs and turn off under Reduce Motion (a plain
@@ -107,9 +118,14 @@ Home header** (Uber-style), not a bottom-bar tab.
     (All, Open seats, Morning, Afternoon, plus each real track); sessions grouped
     under start-time headers, each with a seat bar that turns amber when only a
     few seats are left and red when full.
-  - Discipline icons are keys in `disciplineIcon()`. `gavel`, `lightbulb` and
-    `trending_up` were added in Oct 2026, and the dev rows for CivicVerse,
-    ImagineX and VentureVerse were switched to them.
+  - The six known disciplines draw their mark from the personality, so the
+    `icon` key on their rows only matters for disciplines without one. Keys live
+    in `disciplineIcon()` (`gavel`, `lightbulb` and `trending_up` added Oct 2026).
+  - **Icons:** two-tone icons come from the Phosphor duotone font, bundled at
+    `assets/fonts/Phosphor-Duotone.ttf` (MIT, license beside it) and drawn by
+    [duotone_icon.dart](lib/widgets/duotone_icon.dart). The `phosphor_flutter`
+    package isn't used because it doesn't build on Flutter 3.47 (`IconData` is a
+    final class now). To add an icon, copy its two codepoints into `Duotone`.
 
   The session page has a **horizontal, permission-gated tab
   bar** at the top:
@@ -752,6 +768,7 @@ lib/
   widgets/discipline_vibe.dart  Per-discipline personality: palette, motif, border flow, haptics, theme
   widgets/discipline_effects.dart  Ambient motifs, flowing screen border, portal route
   widgets/day_summary.dart  My Day summary line: sessions and time booked, sessions that still fit
+  widgets/duotone_icon.dart  Phosphor duotone icons (bundled font) + DuotoneIcon widget
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
