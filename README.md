@@ -505,7 +505,7 @@ read by the app.
 and admin's hours go on one Google Sheet in the format of the *Student
 Volunteer Timecard 26-27* template, 16 columns. The
 [`sync-hours-sheet`](supabase/functions/sync-hours-sheet/index.ts) Edge
-Function rewrites the whole first tab (header row included) from the database,
+Function rewrites the whole hours tab (header row included) from the database,
 so edits and deletes in the app show up correctly. Changes mark the sheet
 dirty and a once-a-minute cron sends at most one rewrite, so the sheet is at
 most about a minute behind; it also rewrites hourly as a safety net
@@ -526,9 +526,10 @@ most about a minute behind; it also rewrites hourly as a safety net
 
 Status: **live on dev**, writing to
 [Emerald Summit App - Student Volunteer Timecard 26-27](https://docs.google.com/spreadsheets/d/1IhGfTqenWUVJhxqt7EZxotpK3YXSePmLqBkqZM-_gwU/edit)
-(first tab, *Form Responses 1*; shared with the Google service account as
-Editor). The app owns that tab: anything typed there by hand, or sent by a
-linked Google Form, is erased on the next sync. See [SUPABASE.md](SUPABASE.md)
+(tab *Volunteer Hours*, pinned with the `HOURS_SHEET_TAB` secret; shared
+with the Google service account as Editor). The app owns that tab: anything
+typed there by hand is erased on the next sync, so notes go on other tabs.
+Renaming the tab means updating `HOURS_SHEET_TAB` too, or syncs fail. See [SUPABASE.md](SUPABASE.md)
 step 46.
 
 **After the summit: feedback and "volunteer again?"**

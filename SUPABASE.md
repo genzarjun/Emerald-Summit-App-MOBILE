@@ -334,7 +334,8 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     also grants `service_role` SELECT on the eight tables the function
     reads (this project doesn't grant it table access by default; without
     it the function fails with "permission denied for table profiles").
-    *(Run, deployed and connected on the dev project.)*
+    *(Run, deployed and connected on the dev project; `HOURS_SHEET_TAB` is
+    set to `Volunteer Hours`, so renaming that tab needs the secret updated.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
