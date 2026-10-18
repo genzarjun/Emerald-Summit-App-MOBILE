@@ -63,10 +63,13 @@ Home header** (Uber-style), not a bottom-bar tab.
   an animated shimmer sweep (echoing the website wordmark); the quote card wipes
   down on first view.
 - **Schedule** — the user's full personal schedule (formerly the "My Day" first
-  tab; the in-app header still reads "My Day"). A **Your day** card at the top
-  ([your_day_card.dart](lib/widgets/your_day_card.dart)) shows the first session
-  (or the next one on summit day), sessions and time booked, how many open
-  sessions still fit around them, and days until the summit. Below it, it shows **everything they're
+  tab; the in-app header still reads "My Day"). A summary line at the top
+  ([day_summary.dart](lib/widgets/day_summary.dart)) gives sessions and time
+  booked, days until the summit, and how many open sessions still fit (with a
+  **Find one** jump to Discover). It doesn't repeat the next session, since Home's
+  **Up next** card covers that. The list runs in time order with **"N free"**
+  dividers for gaps of 15 minutes or more. On summit day the current and next
+  sessions are tagged **Now** / **Next** and finished ones fade. It shows **everything they're
   committed to**, each tagged with **how they joined**: sessions they registered
   for (from `registrations`) show **Participating**, **Spectating**, or
   **Expert** (the `participation_type`), and sessions they're **Managing**
@@ -736,7 +739,7 @@ lib/
   widgets/checkin_pass_card.dart  Profile "Check-in pass": the user's QR + front-desk status
   widgets/discipline_vibe.dart  Per-discipline personality: palette, motif, border flow, haptics, theme
   widgets/discipline_effects.dart  Ambient motifs, flowing screen border, portal route
-  widgets/your_day_card.dart  My Day summary: first/next session, time booked, sessions that still fit
+  widgets/day_summary.dart  My Day summary line: sessions and time booked, sessions that still fit
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
