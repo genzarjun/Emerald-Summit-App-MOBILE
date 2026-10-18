@@ -550,6 +550,16 @@ change it later:
 Writes go through `submit_expert_feedback` / `set_eaf_future_interest`, which
 check the role and that feedback is open.
 
+**Archie knows about volunteer hours.** The fact sheet
+([knowledge.md](supabase/archie/knowledge.md), "Volunteer hours in the app",
+"After the summit", and FAQ entries) explains how tracking works and that it's
+for volunteers and admins only. For a volunteer or admin, `archie-chat` also
+adds their own hours to the user context (total, each log, each managed session
+and whether it counts yet, the summit date, and their "volunteer again?"
+answer), counted the same way as the hours screen and read under RLS, so
+Archie only ever sees the asker's own hours. Experts get their feedback status
+once feedback opens.
+
 **Check-in pass + QR front desk.** Every signed-in user's Profile shows a
 **Check-in pass** card right under their contact card
 ([checkin_pass_card.dart](lib/widgets/checkin_pass_card.dart)): a QR code of

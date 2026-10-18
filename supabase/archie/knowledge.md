@@ -169,6 +169,25 @@ These are from Summit '26. The '27 list is UNCONFIRMED. Always make clear this i
 * **Experts:** Choose the Expert role when you sign up in the app. Right now anyone can sign up as an expert; expert sign-up will soon need approval. Experts review presentations and give feedback.
 * **Sponsors and academic partners:** No sponsorship tiers. Email president@ehsacademics.org. EAF is a 501(c)(3), so contributions may be tax-deductible; donors should consult a tax professional.
 
+### Volunteer hours in the app
+
+* **Who has it:** Only volunteers and admins. It is in **Profile → Track volunteer hours**. Other roles don't see it. If a participant, parent, or expert asks, tell them hour tracking is only for volunteers and admins.
+* **The user's own hours:** If the user is a volunteer or admin, their own totals, logs, and managed sessions are in the user context. Use those numbers. Never guess someone's hours.
+* **Two kinds of hours add up to the total:**
+  * **Summit-day hours are tracked automatically.** Each session a volunteer manages counts from its start time to its end time, once that session has ended on summit day. Nobody needs to log them. Until the summit date is set, they show as "Not counted yet." Admins assign volunteers to manage sessions; admins can also choose to manage a session themselves.
+  * **Everything else is logged by hand:** planning meetings, setup, outreach, and other work before or after the summit. Tap **Add hours**, pick the date, start time, and end time, and write what you did. The app works out the length.
+* **Rules for a log:** The end time has to be after the start time, and you can't log time that hasn't happened yet. The description can be up to 500 characters.
+* **Fixing a mistake:** Tap a log to edit it, or use the trash icon on that screen to delete it.
+* **Where hours go:** The app sends everyone's hours to EAF's volunteer timecard automatically, within about a minute of a change. Each log is one row, and each session managed on summit day is one row.
+* **Student ID and grade:** Volunteers and admins can add an optional student ID when they sign up. Student volunteers and EAF ambassadors are asked their grade right after sign-up. Parent volunteers are never asked their grade, and for admins it's optional. Both can be changed in **Profile → Edit profile**. They appear on the volunteer timecard.
+* **There is no volunteer hours certificate** in the app.
+
+### After the summit
+
+* After the last session on summit day ends, the app asks **experts** to rate three things from 1 to 5, with an optional comment: the app, the summit overall, and each session they served in as an expert. Their feedback on a session goes on the volunteer timecard of the volunteers who managed that session.
+* The app asks **volunteers and admins**: "Would you like to volunteer for EAF in the future?" (yes or no).
+* Both can be answered or changed later under **Profile**. These questions don't appear before the summit date is set.
+
 ---
 
 ## 9. About the organizations
@@ -314,6 +333,18 @@ Choose the Volunteer role when you sign up in the app. High school students and 
 
 **Can volunteers also attend sessions?**
 Not confirmed.
+
+**How do I track my volunteer hours?**
+Go to Profile → Track volunteer hours (volunteers and admins only). Tap Add hours, pick the date, start time, and end time, and say what you did. Hours for sessions you manage on summit day are added for you after each session ends.
+
+**Do I need to log my summit-day hours?**
+No. Every session you manage on summit day is counted automatically after it ends, from its start time to its end time. Log everything else yourself.
+
+**Why do my summit-day hours say "Not counted yet"?**
+They count only after each session has ended on summit day. Until then, including while the summit date hasn't been set, they show as "Not counted yet." Check the user context for whether the date is set.
+
+**How do I fix or delete an hours log?**
+Open Profile → Track volunteer hours and tap the log. You can change it there, or tap the trash icon to delete it.
 
 **How do I become an expert?**
 Choose the Expert role when you sign up in the app. Right now anyone can do this; expert sign-up will soon need approval.
