@@ -54,7 +54,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   (schedule, browse, news with an unread badge, campus map, resources,
   **Volunteer hub** for volunteers and admins, profile — campus map/resources
   push the Resources screen, which is no longer a tab),
-  a horizontal **Explore disciplines** rail into the catalog, a **Latest news**
+  a horizontal **Explore disciplines** rail into the catalog (opens each one
+  with its portal transition), a **Latest news**
   peek, and outbound **Links** (website, Instagram, contact) opened via
   `url_launcher`. Exists so the app has an interesting home even before anything
   is added to the schedule. **Touches:** the greeting is a random mix of standard
@@ -77,7 +78,37 @@ Home header** (Uber-style), not a bottom-bar tab.
   Empty-state → browse flow.
 - **Discover** — catalog of the disciplines → each discipline's sessions → a
   **vibrant, tabbed session page.** Reads live from Supabase (`disciplines` +
-  `sessions_with_counts` view). The page has a **horizontal, permission-gated tab
+  `sessions_with_counts` view).
+  - **Discover tab:** a **Your day** card (first session up, or the next one
+    on summit day; sessions booked, time booked, how many open sessions still
+    fit around them, days until the summit, and an **Open schedule** link), a
+    **search box** across every session (title, track, room, expert,
+    discipline), then one full-width listing per discipline showing a few of
+    its real session titles, its start time and how many sessions are open.
+  - **Each discipline has its own personality**
+    ([discipline_vibe.dart](lib/widgets/discipline_vibe.dart), looked up by
+    discipline id, no database column): a dark palette, an animated background
+    motif, a band of light that flows around the screen edge, and an entrance
+    haptic pattern. TechVerse: cyan/violet circuit pulses. VentureVerse: an
+    orange/gold chart that climbs. BioSphere: drifting cells and a border that
+    beats like a heart. NovaSphere: stars and orbits. CivicVerse: brass gavel
+    ripples. ImagineX: color-shifting paint. A discipline added later gets an
+    emerald default. Painters and the portal route live in
+    [discipline_effects.dart](lib/widgets/discipline_effects.dart). Tapping a
+    discipline opens it as a circle of its color growing from the card. The
+    effects pause on hidden tabs and turn off under Reduce Motion (a plain
+    fade replaces the portal). The page has its own left-edge swipe back,
+    since the custom route has none.
+  - **Discipline page:** name, topics (the tagline split on commas), a one-line
+    count of sessions, open seats and how many are on your day; filter chips
+    (All, Open seats, Morning, Afternoon, plus each real track); sessions grouped
+    under start-time headers, each with a seat bar that turns amber when only a
+    few seats are left and red when full.
+  - Discipline icons are keys in `disciplineIcon()`. `gavel`, `lightbulb` and
+    `trending_up` were added in Oct 2026, and the dev rows for CivicVerse,
+    ImagineX and VentureVerse were switched to them.
+
+  The session page has a **horizontal, permission-gated tab
   bar** at the top:
   - **Session** (everyone) — the rich page: a big **hero photo** on top (the
     explicit hero, or the first gallery photo when none is set), a **photo
@@ -621,14 +652,16 @@ lib/
   widgets/roster_person_sheet.dart  Organizer-only profile sheet opened from a roster row
   widgets/volunteer_contact.dart  Volunteer card + Call/Text contact sheet (hub + session Volunteers tab)
   widgets/checkin_pass_card.dart  Profile "Check-in pass": the user's QR + front-desk status
+  widgets/discipline_vibe.dart  Per-discipline personality: palette, motif, border flow, haptics, theme
+  widgets/discipline_effects.dart  Ambient motifs, flowing screen border, portal route
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
     dashboard_screen.dart   Home launchpad (greeting, photo slideshow, quote, up-next, action grid, links)
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate), phone_required_screen
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
-    discover_screen.dart    Disciplines grid (+ admin "New discipline")
-    discipline_screen.dart  Sessions in a discipline (+ mentor/admin edit)
+    discover_screen.dart    Your day card, session search, discipline listings (+ admin "New discipline")
+    discipline_screen.dart  A discipline's themed page: filters, time-grouped sessions (+ mentor/admin edit)
     session_detail_screen.dart   Tabbed session page: Session/Participants/Experts/Volunteers (permission-gated)
     session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown, hero/gallery, content blocks)
     session_volunteers_screen.dart  SessionVolunteersView — Volunteers tab: co-workers (organizers/editors), assign/unassign (admin)
