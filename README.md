@@ -511,11 +511,10 @@ summit day" breakdown. There is no certificate (the old placeholder button was
 removed on purpose). The old `profiles.volunteer_hours` column is no longer
 read by the app.
 
-> **Summit date: not set yet.** The organizers don't have the date. It lives
-> in `summit_settings.summit_date` (one row, null for now), so setting it needs
-> no app release: `update public.summit_settings set summit_date = 'YYYY-MM-DD';`.
-> Until it's set, summit-day hours don't count, the sheet has no summit-day
-> rows, and post-summit feedback never opens.
+> **Summit date: not set yet.** Until it's set, summit-day hours don't count,
+> the sheet has no summit-day rows, and post-summit feedback never opens. Every
+> feature tied to the date, and how to set it, is in
+> [Summit date: what changes when it's set](#summit-date-what-changes-when-its-set).
 
 **Hours spreadsheet (Google Sheet, synced automatically).** Every volunteer's
 and admin's hours go on one Google Sheet in the format of the *Student
@@ -730,6 +729,68 @@ primary-colored.
 
 Brand colors and type follow spec section 03 (Emerald `#0C7A55`, Deep Emerald
 `#0A5F43`, Ink `#16211C`, Mist `#EEF5F1`, system fonts).
+
+## Summit date: what changes when it's set
+
+**Status: not set.** `summit_settings.summit_date` is null on dev. The organizers
+haven't confirmed the day (only "January 2027"). This section lists everything
+that depends on it, so the date can go in with one pass.
+
+**1. First, fix afternoon session times.** Session `start_time` / `end_time`
+are plain `HH:mm`, and everything that compares them assumes 24-hour time. Some
+afternoon sessions are stored without the PM offset: as of Oct 2026 on dev,
+*Engineering Exhibit* is `2:00`–`3:30` and *CADathon Workshop* is `1:30`–`3:00`,
+so they read as early-morning times. With the date set, that would open
+post-summit feedback at 11:30 AM (`summit_feedback_open()` waits for the
+latest `end_time`), count those sessions' volunteer hours before they happen,
+file them under Morning and sort them first, and tag them wrongly on My Day.
+Find them with `select title, start_time, end_time from sessions where
+start_time < '07:00';` and change them to 24-hour times (`14:00`–`15:30`,
+`13:30`–`15:00`) in the session editor.
+
+**2. Set the date (no app release):**
+`update public.summit_settings set summit_date = 'YYYY-MM-DD';` in the SQL
+editor or with `supabase db query --linked`. Admins also hold the row's update
+policy, but there's no in-app screen for it. The app reads it through
+`fetch_summit_status()` at sign-in and when Volunteer hours opens, so relaunch
+the app to see it.
+
+**3. These turn on by themselves:**
+
+| Feature | Where | What happens |
+|---|---|---|
+| Home countdown | `_SummitCountdown` in [dashboard_screen.dart](lib/screens/dashboard_screen.dart) | Appears in the header and counts down to the day's earliest session start from 6 AM on (8 AM if none). Hides once it starts. |
+| Home header date | [dashboard_screen.dart](lib/screens/dashboard_screen.dart) | "January 2027" becomes the real day (e.g. "Sat, Jan 23"). |
+| My Day on summit day | `_timeline` in [schedule_screen.dart](lib/screens/schedule_screen.dart) | **Now** / **Next** tags; ended sessions move into the collapsed **Past** group. |
+| Volunteer hours, summit day | `summitSessionCounted()` in [models.dart](lib/models/models.dart), [volunteer_hours_screen.dart](lib/screens/volunteer_hours_screen.dart) | Each managed session counts once it ends that day. The screen note names the date. |
+| Hours sheet | `sync-hours-sheet` function | Adds a summit-day row per managed session once it ends (Pacific). |
+| Feedback and "volunteer again?" | `summit_feedback_open()` in [summit_followup_setup.sql](supabase/summit_followup_setup.sql), [summit_followup_screen.dart](lib/screens/summit_followup_screen.dart), Profile → Settings | Opens after the day's latest session end time (Pacific). |
+| Archie's live context | `archie-chat` function | Tells volunteers and admins the date and which sessions count yet; tells experts whether they've sent feedback once it opens. |
+
+**4. Edit these by hand** (they still say "January 2027"):
+- **Archie's fact sheet** [knowledge.md](supabase/archie/knowledge.md): the
+  *When* line, the UNCONFIRMED row about the date and hours, and the FAQ
+  answer. Upload it to the `archie` Storage bucket as `knowledge.md` (no
+  redeploy). Add the hours there too once they're known.
+- **Archie's persona** (`PERSONA` in
+  [archie-chat/index.ts](supabase/functions/archie-chat/index.ts)) says "in
+  January 2027". Edit it and redeploy the function.
+- **`SampleData.eventDate`** in [sample_data.dart](lib/data/sample_data.dart):
+  the My Day header banner (`_EventBanner` in schedule_screen.dart) always
+  shows this string, and Home falls back to it while the date is unset. Change
+  it, or switch the banner to `formatDay(appState.summitStatus.date)` the way
+  Home does (either needs an app release).
+- The sample-mode Archie reply in
+  [sample_archie_repository.dart](lib/backend/sample/sample_archie_repository.dart),
+  this README's intro line, and the website (a separate project).
+
+**Not tied to the summit date:** per-session participant deadlines
+(`sessions.participant_deadline`, their own timestamps) and front-desk
+check-in, which works on any day.
+
+**5. Check:** `select fetch_summit_status();` returns the date. Then in the app:
+the Home countdown shows, and Volunteer hours names the date. On summit day,
+feedback should open once the last session ends.
 
 ## App writing rule
 Nothing a user reads in the app should sound machine-written. That covers every
@@ -1259,8 +1320,8 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   volunteer subtype (EAF ambassador / parent / student). Deferred: the subtype
   currently arrives from the sheet *after* sign-up, so all volunteers share one
   questionnaire for now (see [user_profile.dart](lib/models/user_profile.dart)).
-- **Set the summit date** once the organizers confirm it (one SQL update, see
-  Volunteer hours above).
+- **Set the summit date** once the organizers confirm it. Follow the checklist
+  in [Summit date: what changes when it's set](#summit-date-what-changes-when-its-set).
 - Team formation; spectator seats; check-in dashboard; pre-summit milestone
   reminders; sponsor blocks; post-event social posts. (Volunteer certificates
   were dropped: not needed.)
