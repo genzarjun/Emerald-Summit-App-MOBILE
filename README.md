@@ -1,10 +1,16 @@
 # Emerald Summit '27
 
-The companion app (iOS, Android, and web) for **Emerald Summit '27** — the
-Tri-Valley's student-run STEAM summit at Emerald High, Dublin CA
-(January 2027). Built with Flutter. This repo builds the iOS and Android apps;
-it has no `web/` target, so the web version is built and hosted elsewhere
-(location not recorded here yet).
+The companion app for **Emerald Summit '27** — the Tri-Valley's student-run
+STEAM summit at Emerald High, Dublin CA (January 2027). This repo is the
+production app: Flutter, for iOS and Android.
+
+**Web version.** A separate React + TypeScript (Vite) web app lives in
+[dogethecoderr/Emerald-Summit-Website](https://github.com/dogethecoderr/Emerald-Summit-Website)
+and is live at [emerald-summit.vercel.app](https://emerald-summit.vercel.app/).
+Its own README describes it as a prototype: a fast place to try out UX and
+features and to test the Supabase backend before the work is built into this
+app. The two codebases are independent; it keeps its own Supabase migrations in
+`supabase/migrations/`.
 
 > **Status: role-driven backend live.** All screens and interactions work, and
 > the backend is wired up and verified end-to-end on the dev project (two-device
