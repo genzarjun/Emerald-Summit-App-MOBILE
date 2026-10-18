@@ -1,8 +1,10 @@
 # Emerald Summit '27
 
-The companion mobile app (iOS + Android) for **Emerald Summit '27** — the
+The companion app (iOS, Android, and web) for **Emerald Summit '27** — the
 Tri-Valley's student-run STEAM summit at Emerald High, Dublin CA
-(January 2027). Built with Flutter.
+(January 2027). Built with Flutter. This repo builds the iOS and Android apps;
+it has no `web/` target, so the web version is built and hosted elsewhere
+(location not recorded here yet).
 
 > **Status: role-driven backend live.** All screens and interactions work, and
 > the backend is wired up and verified end-to-end on the dev project (two-device
@@ -373,9 +375,11 @@ Home header** (Uber-style), not a bottom-bar tab.
     organizer-maintained fact sheet (summit logistics, disciplines/tracks, past
     summits, the EHS Academic Foundation, Emerald High, Dublin USD, FAQ) so
     common questions are answered without web search — faster, cheaper, and
-    under your control. Seeded from the official sites with `TODO` comments for
-    what only organizers know (exact date/times, check-in, parking, food,
-    eligibility). It lives in the **private Storage bucket `archie`**
+    under your control. Written by the organizers: instructions for Archie
+    (sources in order: this file and live app data, then the official sites
+    and web search, then "I don't know" plus a contact), a table of
+    **UNCONFIRMED** items Archie must not guess at, logistics, last year's
+    tracks (always labeled as last year's), and an FAQ. It lives in the **private Storage bucket `archie`**
     ([archie_knowledge_setup.sql](supabase/archie_knowledge_setup.sql)): the
     function reads it with the service role, caches it ~5 minutes, strips HTML
     comments (editor notes), and puts it right after the persona, inside the
@@ -563,7 +567,8 @@ primary-colored.
   ambassador / parent / student) and permissions come from the sheet, not the
   picker. *(Per-subtype onboarding questions are a planned refinement — see
   Roadmap.)*
-- **Gated management roles.** Anyone can be a participant/expert/parent, but
+- **Gated management roles.** Anyone can be a participant/expert/parent
+  (expert sign-up will be gated next; see Roadmap), but
   **volunteer** and **admin** are verified against an allowlist synced from two
   Google Sheets (see "Roles & permissions" below). Picking a gated role you're
   not listed for is blocked with *"You aren't eligible to sign up as a
@@ -1094,6 +1099,9 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   - Also planned: per-user "next session" reminders; email fan-out.
 - Per-session **attendance roster marking stays toggle-based** (no QR) — QR
   is only for summit-wide front-desk check-in.
+- **Gate the expert role.** Expert sign-up is open to anyone today. Planned:
+  verify experts before they get the role, like volunteers and admins. Archie's
+  knowledge base already tells users expert sign-up will soon need approval.
 - **Per-subtype volunteer onboarding** — tailor the sign-up questionnaire to the
   volunteer subtype (EAF ambassador / parent / student). Deferred: the subtype
   currently arrives from the sheet *after* sign-up, so all volunteers share one
