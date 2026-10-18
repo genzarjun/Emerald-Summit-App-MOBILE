@@ -736,17 +736,14 @@ Brand colors and type follow spec section 03 (Emerald `#0C7A55`, Deep Emerald
 haven't confirmed the day (only "January 2027"). This section lists everything
 that depends on it, so the date can go in with one pass.
 
-**1. First, fix afternoon session times.** Session `start_time` / `end_time`
-are plain `HH:mm`, and everything that compares them assumes 24-hour time. Some
-afternoon sessions are stored without the PM offset: as of Oct 2026 on dev,
-*Engineering Exhibit* is `2:00`–`3:30` and *CADathon Workshop* is `1:30`–`3:00`,
-so they read as early-morning times. With the date set, that would open
-post-summit feedback at 11:30 AM (`summit_feedback_open()` waits for the
-latest `end_time`), count those sessions' volunteer hours before they happen,
-file them under Morning and sort them first, and tag them wrongly on My Day.
-Find them with `select title, start_time, end_time from sessions where
-start_time < '07:00';` and change them to 24-hour times (`14:00`–`15:30`,
-`13:30`–`15:00`) in the session editor.
+**1. Check session times.** `start_time` / `end_time` are plain text and
+everything that compares them assumes 24-hour time (`14:00`, not `2:00`). The
+afternoon sessions were corrected on Oct 18, 2026 (Engineering Exhibit
+`14:00`–`15:30`, CADathon Workshop `13:30`–`15:00`). Before setting the date,
+re-check that nothing new slipped in: `select title, start_time, end_time from
+sessions order by end_time;`. Also keep two-digit hours for anything ending
+before 10 AM (`09:45`, not `9:45`): Archie compares end times as text when it
+works out which summit-day hours count.
 
 **2. Set the date (no app release):**
 `update public.summit_settings set summit_date = 'YYYY-MM-DD';` in the SQL
@@ -764,7 +761,7 @@ the app to see it.
 | My Day on summit day | `_timeline` in [schedule_screen.dart](lib/screens/schedule_screen.dart) | **Now** / **Next** tags; ended sessions move into the collapsed **Past** group. |
 | Volunteer hours, summit day | `summitSessionCounted()` in [models.dart](lib/models/models.dart), [volunteer_hours_screen.dart](lib/screens/volunteer_hours_screen.dart) | Each managed session counts once it ends that day. The screen note names the date. |
 | Hours sheet | `sync-hours-sheet` function | Adds a summit-day row per managed session once it ends (Pacific). |
-| Feedback and "volunteer again?" | `summit_feedback_open()` in [summit_followup_setup.sql](supabase/summit_followup_setup.sql), [summit_followup_screen.dart](lib/screens/summit_followup_screen.dart), Profile → Settings | Opens after the day's latest session end time (Pacific). |
+| Feedback and "volunteer again?" | `summit_feedback_open()` in [summit_followup_setup.sql](supabase/summit_followup_setup.sql), [summit_followup_screen.dart](lib/screens/summit_followup_screen.dart), Profile → Settings | Opens on summit day once the latest `end_time` across **all** sessions has passed (Pacific); today that's 3:30 PM, set by Engineering Exhibit. Adding a later session moves it. The app picks it up at its next launch or sign-in (it doesn't re-check on resume). |
 | Archie's live context | `archie-chat` function | Tells volunteers and admins the date and which sessions count yet; tells experts whether they've sent feedback once it opens. |
 
 **4. Edit these by hand** (they still say "January 2027"):
