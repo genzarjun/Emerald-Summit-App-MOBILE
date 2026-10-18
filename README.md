@@ -524,11 +524,12 @@ most about a minute behind; it also rewrites hourly as a safety net
 - *Would like to volunteer for EAF in future?* (summit rows only): Yes / No /
   blank, from the post-summit question.
 
-Status: function deployed and cron running on dev, but **no spreadsheet is
-connected yet**. The real file still has to be created, shared with the
-Google service account (the same email the allowlist sheets use) as
-**Editor**, and its id set as the `HOURS_SHEET_ID` secret. Until then the
-function answers "skipped". See [SUPABASE.md](SUPABASE.md) step 46.
+Status: **live on dev**, writing to
+[Emerald Summit App - Student Volunteer Timecard 26-27](https://docs.google.com/spreadsheets/d/1IhGfTqenWUVJhxqt7EZxotpK3YXSePmLqBkqZM-_gwU/edit)
+(first tab, *Form Responses 1*; shared with the Google service account as
+Editor). The app owns that tab: anything typed there by hand, or sent by a
+linked Google Form, is erased on the next sync. See [SUPABASE.md](SUPABASE.md)
+step 46.
 
 **After the summit: feedback and "volunteer again?"**
 ([summit_followup_screen.dart](lib/screens/summit_followup_screen.dart),
@@ -1231,8 +1232,7 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   currently arrives from the sheet *after* sign-up, so all volunteers share one
   questionnaire for now (see [user_profile.dart](lib/models/user_profile.dart)).
 - **Set the summit date** once the organizers confirm it (one SQL update, see
-  Volunteer hours above), and **connect the real hours spreadsheet**
-  (`HOURS_SHEET_ID`, shared with the service account as Editor).
+  Volunteer hours above).
 - Team formation; spectator seats; check-in dashboard; pre-summit milestone
   reminders; sponsor blocks; post-event social posts. (Volunteer certificates
   were dropped: not needed.)

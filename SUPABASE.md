@@ -330,8 +330,11 @@ permissions, rooms, session assignments, and attendance). Run these in order,
       **Editor** (ownership isn't needed), and set `HOURS_SHEET_ID` (optional
       `HOURS_SHEET_TAB`, default first tab). The function writes the header
       row itself, so an empty sheet is fine.
-    Until `HOURS_SHEET_ID` is set the function returns "skipped". *(Run,
-    deployed and secret set on the dev project; no sheet connected yet.)*
+    Until `HOURS_SHEET_ID` is set the function returns "skipped". The file
+    also grants `service_role` SELECT on the eight tables the function
+    reads (this project doesn't grant it table access by default; without
+    it the function fails with "permission denied for table profiles").
+    *(Run, deployed and connected on the dev project.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
