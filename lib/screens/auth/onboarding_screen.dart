@@ -45,11 +45,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   /// True when an already-onboarded user is here to change their role, rather
   /// than a first-time sign-up. Enables a close button and re-titles the screen.
-  bool get _editing => appState.isOnboarded;
+  ///
+  /// Fixed when the screen opens: saving flips `isOnboarded` to true, and a
+  /// live check would then treat a first-time sign-up as an edit and pop the
+  /// app's only route, leaving a blank screen.
+  late final bool _editing;
 
   @override
   void initState() {
     super.initState();
+    _editing = appState.isOnboarded;
     // Prefill name + current role (e.g. changing role from Profile).
     _nameController.text = appState.profile?.fullName ?? '';
     _role = appState.profile?.role ?? SummitRole.participant;
