@@ -61,7 +61,7 @@ HOW TO EDIT (this comment is stripped before Archie sees the file)
 * **Who can attend:** All high school students who want to participate. Parents, family, younger siblings, and other non-student guests are allowed.
 * **Organized by:** The Emerald High School Academic Foundation (EAF), a 501(c)(3) nonprofit (Federal Tax ID 33-4810954), approved by the Dublin Unified School District.
 * **Instagram:** @emeraldsummit27
-* **In the app:** Discover tab (browse and add sessions), Schedule tab (your day), News tab (announcements). The app works on iPhone, Android, and the web.
+* **In the app:** Discover tab (browse and add sessions), Schedule tab (your day), News tab (announcements). The app works on iPhone and Android. An Emerald Summit website is in progress and hasn't been released to the public yet.
 * **Capacity:** Limited in past years, so encourage people to register early.
 
 ---
@@ -126,7 +126,7 @@ The Student Ambassadors program is not currently open to new members.
 
 **Bike racks:** UNCONFIRMED.
 
-**What to bring:** Phone with the app or web access, charger, water bottle, your own food. Presenters: exhibit materials, laptop, or props.
+**What to bring:** Phone with the app, charger, water bottle, your own food. Presenters: exhibit materials, laptop, or props.
 
 ---
 
