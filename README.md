@@ -466,8 +466,84 @@ Home header** (Uber-style), not a bottom-bar tab.
   (a volunteer's assigned sessions → roster + attendance), **Volunteer hub**
   (volunteers/admins — see below), **Front desk
   check-in** (for front-desk-flagged volunteers/admins — see below), **Manage rooms**
-  (admins). Plus **Change role** (re-runs the gated role picker), sign-out, and
-  volunteer hours with a "Download certificate" action.
+  (admins), **Track volunteer hours** (volunteers/admins only, see below).
+  Plus **Change role** (re-runs the gated role picker) and sign-out. Other roles
+  see nothing about volunteer hours.
+
+**Volunteer hours** ([lib/screens/volunteer_hours_screen.dart](lib/screens/volunteer_hours_screen.dart)),
+opened from Profile → Settings → **Track volunteer hours**, for volunteers and
+admins only. The total adds up two sources:
+- **Summit day (automatic):** every session the person manages (their
+  `session_volunteers` rows, which covers both admin-assigned volunteers and
+  admin self-manage) counts its end minus its start, but **only once the
+  summit date is set and that session has ended on it**. Until then the
+  sessions are listed with *Not counted yet*. A note on the screen explains
+  this to users. Nothing is stored; the list follows assignments as admins
+  change them. Assignments are overlap-guarded, so these never double count.
+- **Your logs (manual):** planning meetings, setup, anything else. Each log
+  is a date, a start time, an end time, and "What did you do?" (up to 500
+  characters); the app computes the length. The end must be after the start
+  and not in the future. Tap a log to edit or delete it. Stored in
+  `volunteer_hour_logs` ([volunteer_hours_setup.sql](supabase/volunteer_hours_setup.sql)),
+  owner-only RLS, writes limited to volunteers and admins.
+
+The total shows as hours (e.g. *4.25*) with a "2.25 logged by you · 2 on
+summit day" breakdown. There is no certificate (the old placeholder button was
+removed on purpose). The old `profiles.volunteer_hours` column is no longer
+read by the app.
+
+> **Summit date: not set yet.** The organizers don't have the date. It lives
+> in `summit_settings.summit_date` (one row, null for now), so setting it needs
+> no app release: `update public.summit_settings set summit_date = 'YYYY-MM-DD';`.
+> Until it's set, summit-day hours don't count, the sheet has no summit-day
+> rows, and post-summit feedback never opens.
+
+**Hours spreadsheet (Google Sheet, synced automatically).** Every volunteer's
+and admin's hours go on one Google Sheet in the format of the *Student
+Volunteer Timecard 26-27* template, 16 columns. The
+[`sync-hours-sheet`](supabase/functions/sync-hours-sheet/index.ts) Edge
+Function rewrites the whole first tab (header row included) from the database,
+so edits and deletes in the app show up correctly. Changes mark the sheet
+dirty and a once-a-minute cron sends at most one rewrite, so the sheet is at
+most about a minute behind; it also rewrites hourly as a safety net
+([hours_sheet_sync.sql](supabase/hours_sheet_sync.sql)). Rows:
+- **One row per manual log**, and **one row per session managed on summit
+  day** (after it ends). Sorted by date and start time; times in Pacific.
+- *Timestamp*: when the log was saved (summit rows: the session's end).
+  *Email Address* and *Non-DUSD email*: both the account's email. *Name*: the
+  profile name. *Student ID*: optional, from sign-up. *Grade*: see below; blank
+  for parent volunteers and for admins who skipped it. *Parent name / email /
+  phone* and *Board feedback*: always blank. *Date / Start time / End time /
+  Volunteer work performed*: from the log (summit rows: `Managed "<session>"
+  (<discipline>) on summit day`).
+- *External fdbk* (summit rows only): every expert's session feedback for that
+  session, one line each, e.g. `John Smith: 5/5. Very well run.`
+- *Would like to volunteer for EAF in future?* (summit rows only): Yes / No /
+  blank, from the post-summit question.
+
+Status: function deployed and cron running on dev, but **no spreadsheet is
+connected yet**. The real file still has to be created, shared with the
+Google service account (the same email the allowlist sheets use) as
+**Editor**, and its id set as the `HOURS_SHEET_ID` secret. Until then the
+function answers "skipped". See [SUPABASE.md](SUPABASE.md) step 46.
+
+**After the summit: feedback and "volunteer again?"**
+([summit_followup_screen.dart](lib/screens/summit_followup_screen.dart),
+[summit_followup_setup.sql](supabase/summit_followup_setup.sql)). Opens once
+the summit date is set and the last session of that day has ended (Pacific),
+via `summit_feedback_open()`. The app then shows the question once per launch
+until it's answered, and keeps a row under Profile → Settings to answer or
+change it later:
+- **Experts** rate 1 to 5, with an optional comment, three things: the app,
+  the summit overall, and each session they served in as an expert
+  (`registrations.participation_type = 'expert'`). Stored in
+  `expert_feedback`. Session feedback lands in *External fdbk* on the rows of
+  every volunteer who managed that session. App and summit feedback are
+  stored but not on the hours sheet.
+- **Volunteers and admins** answer *Would you like to volunteer for EAF in
+  the future?* Yes / No, stored in `eaf_future_interest`.
+Writes go through `submit_expert_feedback` / `set_eaf_future_interest`, which
+check the role and that feedback is open.
 
 **Check-in pass + QR front desk.** Every signed-in user's Profile shows a
 **Check-in pass** card right under their contact card
@@ -586,10 +662,12 @@ primary-colored.
   **parent / spectator** (open to anyone — the last covers non-participating
   middle-schoolers), and the two gated roles **volunteer** and **admin**.
   Collection is kept minimal: participants give school + grade (required) and
-  an optional mobile; volunteers give a mobile number only; experts give area
+  an optional mobile; volunteers give a mobile number and an optional
+  **student ID** (digits only, goes on the hours sheet); experts give area
   of expertise + a required one-line bio (the placeholder cycles through
   example bios) and an optional mobile, noted as used only to reach them
-  day-of; admins give a mobile number (required); parents/spectators give
+  day-of; admins give a mobile number (required), an optional student ID and
+  an optional grade; parents/spectators give
   nothing extra. The participant
   and expert phone fields note the number isn't shown publicly (true:
   `profiles` RLS is own-row only; the one other reader is the organizers of
@@ -601,8 +679,12 @@ primary-colored.
   declared per role in [lib/models/user_profile.dart](lib/models/user_profile.dart),
   so the sign-up flow customizes itself. A volunteer's **subtype** (EAF
   ambassador / parent / student) and permissions come from the sheet, not the
-  picker. *(Per-subtype onboarding questions are a planned refinement — see
-  Roadmap.)*
+  picker. Because the subtype is only known after sign-up, **student volunteers
+  and EAF ambassadors** are asked their **grade** (required, for the hours
+  sheet) on a screen right after sign-up, like the missing-phone prompt; parent
+  volunteers are never asked. Edit profile shows the same field
+  (`UserProfile.formFields`). *(Other per-subtype onboarding questions are a
+  planned refinement, see Roadmap.)*
 - **Gated management roles.** Anyone can be a participant/expert/parent
   (expert sign-up will be gated next; see Roadmap), but
   **volunteer** and **admin** are verified against an allowlist synced from two
@@ -1144,9 +1226,12 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   volunteer subtype (EAF ambassador / parent / student). Deferred: the subtype
   currently arrives from the sheet *after* sign-up, so all volunteers share one
   questionnaire for now (see [user_profile.dart](lib/models/user_profile.dart)).
+- **Set the summit date** once the organizers confirm it (one SQL update, see
+  Volunteer hours above), and **connect the real hours spreadsheet**
+  (`HOURS_SHEET_ID`, shared with the service account as Editor).
 - Team formation; spectator seats; check-in dashboard; pre-summit milestone
-  reminders; sponsor blocks; post-event social posts; server-rendered
-  certificate / feedback PDFs.
+  reminders; sponsor blocks; post-event social posts. (Volunteer certificates
+  were dropped: not needed.)
 
 ## Android
 Builds and runs on Android; a release APK has been verified against live

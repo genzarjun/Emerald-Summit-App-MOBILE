@@ -296,6 +296,43 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     only posting with attachments fails. Safe to re-run. *(Run on the dev
     project.)*
 
+44. `supabase/volunteer_hours_setup.sql`: **volunteer hour logs** behind
+    Profile → *Track volunteer hours*. Adds the `volunteer_hour_logs` table
+    (start, end, description; end after start, 24 hours max, 1–500 character
+    description), `is_volunteer_or_admin()`, and owner-only RLS where only
+    volunteers and admins can add or edit. Summit-day hours aren't stored; the
+    app counts them from `session_volunteers`. Without it the hours screen
+    shows a load error. Safe to re-run.
+
+45. `supabase/summit_followup_setup.sql`: the **summit date** and the
+    post-summit follow-ups. `summit_settings` (one row; `summit_date` null
+    until the organizers confirm it; set with
+    `update public.summit_settings set summit_date = 'YYYY-MM-DD';`),
+    `summit_feedback_open()` (true once the last session of summit day has
+    ended, Pacific) and `fetch_summit_status()`; `expert_feedback` (1 to 5
+    rating + optional comment for the app, the summit, and each session the
+    expert served in) behind `submit_expert_feedback`; `eaf_future_interest`
+    (volunteers/admins: volunteer for EAF again? yes/no) behind
+    `set_eaf_future_interest`. Both RPCs check the role and that feedback is
+    open. Safe to re-run. *(Run on the dev project.)*
+46. `supabase/hours_sheet_sync.sql`: keeps the **volunteer hours Google Sheet**
+    in sync. A `private` schema (no API access) holds `hours_sheet_sync`
+    (function URL, shared secret, dirty flag); triggers on hour logs, session
+    assignments, session times, volunteer/admin profiles, feedback and the
+    summit date mark it dirty; the `sync-hours-sheet` pg_cron job (every
+    minute) calls the function while dirty, and hourly regardless. After
+    running it, once:
+    - deploy `supabase functions deploy sync-hours-sheet --no-verify-jwt`;
+    - pick a random secret, set it as the function secret `HOURS_SYNC_SECRET`
+      and insert it with the function URL into `private.hours_sheet_sync`
+      (the SQL is in the file's header comment). Keep it out of git;
+    - create the spreadsheet, share it with `GOOGLE_SERVICE_ACCOUNT_EMAIL` as
+      **Editor** (ownership isn't needed), and set `HOURS_SHEET_ID` (optional
+      `HOURS_SHEET_TAB`, default first tab). The function writes the header
+      row itself, so an empty sheet is fine.
+    Until `HOURS_SHEET_ID` is set the function returns "skipped". *(Run,
+    deployed and secret set on the dev project; no sheet connected yet.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 
