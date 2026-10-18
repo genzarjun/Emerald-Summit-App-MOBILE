@@ -63,7 +63,10 @@ Home header** (Uber-style), not a bottom-bar tab.
   an animated shimmer sweep (echoing the website wordmark); the quote card wipes
   down on first view.
 - **Schedule** — the user's full personal schedule (formerly the "My Day" first
-  tab; the in-app header still reads "My Day"). Shows **everything they're
+  tab; the in-app header still reads "My Day"). A **Your day** card at the top
+  ([your_day_card.dart](lib/widgets/your_day_card.dart)) shows the first session
+  (or the next one on summit day), sessions and time booked, how many open
+  sessions still fit around them, and days until the summit. Below it, it shows **everything they're
   committed to**, each tagged with **how they joined**: sessions they registered
   for (from `registrations`) show **Participating**, **Spectating**, or
   **Expert** (the `participation_type`), and sessions they're **Managing**
@@ -79,10 +82,7 @@ Home header** (Uber-style), not a bottom-bar tab.
 - **Discover** — catalog of the disciplines → each discipline's sessions → a
   **vibrant, tabbed session page.** Reads live from Supabase (`disciplines` +
   `sessions_with_counts` view).
-  - **Discover tab:** a **Your day** card (first session up, or the next one
-    on summit day; sessions booked, time booked, how many open sessions still
-    fit around them, days until the summit, and an **Open schedule** link), a
-    **search box** across every session (title, track, room, expert,
+  - **Discover tab:** a **search box** across every session (title, track, room, expert,
     discipline), then one full-width listing per discipline showing a few of
     its real session titles, its start time and how many sessions are open.
   - **Each discipline has its own personality**
@@ -736,13 +736,14 @@ lib/
   widgets/checkin_pass_card.dart  Profile "Check-in pass": the user's QR + front-desk status
   widgets/discipline_vibe.dart  Per-discipline personality: palette, motif, border flow, haptics, theme
   widgets/discipline_effects.dart  Ambient motifs, flowing screen border, portal route
+  widgets/your_day_card.dart  My Day summary: first/next session, time booked, sessions that still fit
   screens/
     splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
     dashboard_screen.dart   Home launchpad (greeting, photo slideshow, quote, up-next, action grid, links)
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate), phone_required_screen
     schedule_screen.dart    Schedule tab (personal schedule; header reads "My Day")
-    discover_screen.dart    Your day card, session search, discipline listings (+ admin "New discipline")
+    discover_screen.dart    Session search and discipline listings (+ admin "New discipline")
     discipline_screen.dart  A discipline's themed page: filters, time-grouped sessions (+ mentor/admin edit)
     session_detail_screen.dart   Tabbed session page: Session/Participants/Experts/Volunteers (permission-gated)
     session_editor_screen.dart   Create/edit a session (admin/ambassador; room dropdown, hero/gallery, content blocks)
