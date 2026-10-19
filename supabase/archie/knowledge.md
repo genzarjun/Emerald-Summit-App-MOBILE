@@ -179,12 +179,12 @@ These are from Summit '26. The '27 list is UNCONFIRMED. Always make clear this i
 * **Rules for a log:** The end time has to be after the start time, and you can't log time that hasn't happened yet. The description can be up to 500 characters.
 * **Fixing a mistake:** Tap a log to edit it, or use the trash icon on that screen to delete it.
 * **Where hours go:** The app sends everyone's hours to EAF's president for review.
-* **Student ID and grade:** Volunteers and admins can add an optional student ID when they sign up. Student volunteers and EAF ambassadors are asked their grade right after sign-up. Parent volunteers are never asked their grade, and for admins it's optional. Both can be changed in **Profile → Edit profile**. They appear on the volunteer timecard.
+* **Student ID and grade:** Volunteers and admins can add an optional student ID when they sign up. Student volunteers and EAF ambassadors are asked their grade right after sign-up. Parent volunteers are never asked their grade, and for admins it's optional. Both can be changed in **Profile → Edit profile**. They are sent with your hours to EAF's president for review.
 * **There is no volunteer hours certificate** in the app.
 
 ### After the summit
 
-* After the last session on summit day ends, the app asks **experts** to rate three things from 1 to 5, with an optional comment: the app, the summit overall, and each session they served in as an expert. Their feedback on a session goes on the volunteer timecard of the volunteers who managed that session.
+* After the last session on summit day ends, the app asks **experts** to rate three things from 1 to 5, with an optional comment: the app, the summit overall, and each session they served in as an expert. Their feedback on a session is sent to EAF's president for review, along with the hours of the volunteers who managed that session.
 * The app asks **volunteers and admins**: "Would you like to volunteer for EAF in the future?" (yes or no).
 * Both can be answered or changed later under **Profile**. These questions don't appear before the summit date is set.
 
