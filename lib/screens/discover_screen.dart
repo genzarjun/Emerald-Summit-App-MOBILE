@@ -321,7 +321,7 @@ class _SearchResults extends StatelessWidget {
     final results = [
       for (final d in appState.disciplines)
         for (final s in d.sessions)
-          if ([s.title, s.track, s.room, s.expertName, d.name]
+          if ([s.title, s.track, s.room, d.name]
               .any((f) => f.toLowerCase().contains(q)))
             (d, s),
     ]..sort((a, b) => a.$2.startMinutes.compareTo(b.$2.startMinutes));

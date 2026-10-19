@@ -195,11 +195,25 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
   MyProject? _project;
   bool _projectLoaded = false;
 
+  /// Approved experts registered for this session. The "Expert" line only
+  /// shows once at least one has signed up.
+  List<String> _experts = const [];
+
   @override
   void initState() {
     super.initState();
     _loadPhotos();
     _loadProject();
+    _loadExperts();
+  }
+
+  /// Best-effort: without it the page just leaves out the Expert line.
+  Future<void> _loadExperts() async {
+    try {
+      final names =
+          await expertsRepository.fetchSessionExperts(widget.session.id);
+      if (mounted) setState(() => _experts = names);
+    } catch (_) {}
   }
 
   Future<void> _loadProject() async {
@@ -645,7 +659,10 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     );
     if (!mounted) return;
     messenger.hideCurrentSnackBar();
-    if (s.id == widget.session.id) _loadProject();
+    if (s.id == widget.session.id) {
+      _loadProject();
+      _loadExperts();
+    }
     switch (result.outcome) {
       case AddOutcome.added:
         messenger.showSnackBar(
@@ -814,10 +831,12 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               _InfoRow(icon: Icons.schedule, text: current.timeLabel),
               if (kSessionRoomsEnabled)
                 _InfoRow(icon: Icons.place, text: current.room),
-              _InfoRow(
-                icon: Icons.person,
-                text: 'Expert: ${current.expertName}',
-              ),
+              if (_experts.isNotEmpty)
+                _InfoRow(
+                  icon: Icons.person,
+                  text: '${_experts.length == 1 ? 'Expert' : 'Experts'}: '
+                      '${_experts.join(', ')}',
+                ),
               _InfoRow(
                 icon: Icons.groups,
                 text: current.isFull

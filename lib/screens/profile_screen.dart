@@ -7,6 +7,7 @@ import '../widgets/checkin_pass_card.dart';
 import 'archie_insights_screen.dart';
 import 'auth/onboarding_screen.dart';
 import 'edit_profile_screen.dart';
+import 'expert_approvals_screen.dart';
 import 'front_desk_screen.dart';
 import 'my_assignments_screen.dart';
 import 'rooms_manager_screen.dart';
@@ -254,6 +255,18 @@ class _VisibilityCard extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                           builder: (_) => const FrontDeskScreen()),
+                    ),
+                  ),
+                if (appState.isAdmin)
+                  ListTile(
+                    leading: Icon(Icons.verified_user_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Expert approvals'),
+                    subtitle: const Text('Approve or decline expert sign-ups'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const ExpertApprovalsScreen()),
                     ),
                   ),
                 if (appState.isAdmin)

@@ -335,6 +335,45 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 }
 
+/// Expert approval RPCs (`supabase/expert_approval.sql`).
+class SupabaseExpertsRepository implements ExpertsRepository {
+  SupabaseExpertsRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<List<String>> fetchSessionExperts(String sessionId) async {
+    final res = await _client.rpc(
+      'session_experts',
+      params: {'p_session_id': sessionId},
+    );
+    return [for (final name in res as List) name as String];
+  }
+
+  @override
+  Future<List<ExpertRequest>> fetchRequests() async {
+    final res = await _client.rpc('fetch_expert_requests');
+    return [
+      for (final row in res as List)
+        ExpertRequest.fromMap((row as Map).cast<String, dynamic>()),
+    ];
+  }
+
+  @override
+  Future<bool> review(String userId, {required bool approve}) async {
+    final res = await _client.rpc(
+      'review_expert',
+      params: {'p_user_id': userId, 'p_approve': approve},
+    );
+    return res != 'not_pending';
+  }
+
+  @override
+  Future<void> acknowledgeDecline() async {
+    await _client.rpc('acknowledge_expert_decline');
+  }
+}
+
 /// Announcements feed + Realtime. Realtime is best-effort: connection errors
 /// are swallowed and never reach the UI.
 class SupabaseAnnouncementsRepository implements AnnouncementsRepository {

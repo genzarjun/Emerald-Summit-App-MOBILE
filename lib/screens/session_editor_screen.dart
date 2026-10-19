@@ -27,7 +27,6 @@ class SessionEditorScreen extends StatefulWidget {
 
 class _SessionEditorScreenState extends State<SessionEditorScreen> {
   late final TextEditingController _title;
-  late final TextEditingController _expert;
   /// Start/end as typed in 12-hour form (`h:mm`), with their AM/PM choice.
   /// Saved as 24-hour `HH:mm`, which conflict checks and sorting rely on.
   late final TextEditingController _start;
@@ -85,7 +84,6 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     final s = widget.session;
     _title = TextEditingController(text: s?.title ?? '');
     _roomId = s?.roomId;
-    _expert = TextEditingController(text: s?.expertName ?? '');
     final (start, startPm) = s == null ? ('', false) : to12HourTime(s.start);
     final (end, endPm) = s == null ? ('', false) : to12HourTime(s.end);
     _start = TextEditingController(text: start);
@@ -174,7 +172,6 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   void dispose() {
     for (final c in [
       _title,
-      _expert,
       _start,
       _end,
       _capacity,
@@ -330,7 +327,6 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       'discipline_id': widget.discipline.id,
       'title': title,
       if (!_roomLocked) ...{'room_id': _roomId, 'room': roomName},
-      'expert_name': _expert.text.trim(),
       'start_time': start,
       'end_time': end,
       'capacity': capacity,
@@ -541,7 +537,6 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                 _field(_title, 'Title'),
                 if (_roomLocked) _lockedNotice(theme),
                 _roomDropdown(),
-                _field(_expert, 'Expert / speaker'),
                 _timeField(
                   _start,
                   'Start time',

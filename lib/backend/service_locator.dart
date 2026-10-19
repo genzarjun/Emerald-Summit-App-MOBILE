@@ -49,6 +49,7 @@ VolunteerHoursRepository get volunteerHoursRepository =>
     getIt<VolunteerHoursRepository>();
 SummitRepository get summitRepository => getIt<SummitRepository>();
 ArchieRepository get archieRepository => getIt<ArchieRepository>();
+ExpertsRepository get expertsRepository => getIt<ExpertsRepository>();
 
 /// Description of the active backend, for UI copy.
 BackendDescriptor get backendInfo => getIt<BackendDescriptor>();

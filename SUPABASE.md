@@ -337,6 +337,20 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     *(Run, deployed and connected on the dev project; `HOURS_SHEET_TAB` is
     set to `Volunteer Hours`, so renaming that tab needs the secret updated.)*
 
+47. `supabase/expert_approval.sql`: **expert accounts need an admin's
+    approval.** Adds `profiles.expert_status` (`pending` / `approved` /
+    `declined`) and `expert_requested_at`; rewrites `enforce_role_allowlist`
+    so picking Expert makes an account pending and nothing but
+    `review_expert()` can approve it; makes every existing expert pending;
+    posts each admin a personal notice per waiting expert; adds
+    `fetch_expert_requests()` / `review_expert()` (admin only),
+    `acknowledge_expert_decline()`, and `session_experts()` (approved experts
+    registered for a session, for the session page). Redefines
+    `register_for_session` (same signature as participant_deadline.sql) to
+    refuse expert sign-ups from anyone who isn't an approved expert. Run
+    before shipping the current app, or expert accounts can't get past the
+    waiting screen. Safe to re-run. *(Run on the dev project 2026-10-19.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

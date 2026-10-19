@@ -406,7 +406,7 @@ async function loadCatalogContext(db: SupabaseClient): Promise<CatalogContext> {
     // Only the columns Archie uses — keeps each question's database egress
     // small (no hero images, gallery data, participant questions, etc.).
     db.from("sessions_with_counts")
-      .select("id, title, discipline_name, start_time, end_time, room, expert_name, description, page_blocks, capacity, enrolled")
+      .select("id, title, discipline_name, start_time, end_time, room, description, page_blocks, capacity, enrolled")
       .order("start_time").order("id"),
     loadBroadcastAnnouncements(db),
   ]);
@@ -424,7 +424,6 @@ async function loadCatalogContext(db: SupabaseClient): Promise<CatalogContext> {
       `- [${s.id}] "${s.title}" — ${s.discipline_name}`,
       `${s.start_time}–${s.end_time}`,
       s.room ? `room: ${s.room}` : null,
-      s.expert_name ? `expert: ${s.expert_name}` : null,
     ].filter(Boolean);
     lines.push(parts.join(" · "));
     const desc = String(s.description ?? "").trim();

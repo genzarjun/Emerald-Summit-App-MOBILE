@@ -165,10 +165,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       // Editing from Profile: pop back to where we came from.
       if (_editing && mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-              content: Text('You’re now a ${appState.userRole}.')));
+        // A new expert lands on the waiting screen, which says it all.
+        if (!appState.needsExpertApproval) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+                content: Text('You’re now a ${appState.userRole}.')));
+        }
       }
     } catch (e) {
       if (!mounted) return;

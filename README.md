@@ -90,7 +90,7 @@ Home header** (Uber-style), not a bottom-bar tab.
 - **Discover** — catalog of the disciplines → each discipline's sessions → a
   **vibrant, tabbed session page.** Reads live from Supabase (`disciplines` +
   `sessions_with_counts` view).
-  - **Discover tab:** a **search box** across every session (title, track, room, expert,
+  - **Discover tab:** a **search box** across every session (title, track, room,
     discipline), then one full-width listing per discipline showing a few of
     its real session titles, its start time and how many sessions are open.
   - **Each discipline has its own personality**
@@ -131,8 +131,10 @@ Home header** (Uber-style), not a bottom-bar tab.
   bar** at the top:
   - **Session** (everyone) — the rich page: a big **hero photo** on top (the
     explicit hero, or the first gallery photo when none is set), a **photo
-    gallery**, the time/room/expert/seats info (the room is hidden for now — see
-    [Session rooms: locked](#session-rooms-locked)),
+    gallery**, the time/room/seats info (the room is hidden for now — see
+    [Session rooms: locked](#session-rooms-locked)), an **Expert** line naming
+    the approved experts registered for the session (only once at least one
+    has; from `session_experts()`, not a typed-in name),
     the description, and any
     **editor-authored content sections** (ordered `{title, body}` blocks). **Add
     to my day** is **role-aware**: it opens a chooser whose options depend on the
@@ -247,7 +249,9 @@ Home header** (Uber-style), not a bottom-bar tab.
   will you be presenting?"*). It stays a required default question, and blank
   or reset falls back to *"What is your project name?"*. The form, the
   join-team confirmation (which then shows the question + the team's answer)
-  and the leave-team dialog all use the session's wording. The editor also has a **Teams** dropdown: *Teams of up to 2–8* (default 4) or
+  and the leave-team dialog all use the session's wording. There's no expert
+  field: the session page names whoever registered as an expert instead (the
+  old `sessions.expert_name` column is left in place but unused). The editor also has a **Teams** dropdown: *Teams of up to 2–8* (default 4) or
   *No teams allowed — solo only*. Lowering the limit or turning teams off
   never removes anyone — full teams just stop taking members, and people
   already on a team in a now-solo-only session can keep it or go solo, but no
@@ -718,8 +722,27 @@ primary-colored.
   volunteers are never asked. Edit profile shows the same field
   (`UserProfile.formFields`). *(Other per-subtype onboarding questions are a
   planned refinement, see Roadmap.)*
-- **Gated management roles.** Anyone can be a participant/expert/parent
-  (expert sign-up will be gated next; see Roadmap), but
+- **Expert approval.** Anyone can *pick* Expert, but the account starts
+  **pending** and the app shows only an **Awaiting approval** screen
+  ([expert_pending_screen.dart](lib/screens/auth/expert_pending_screen.dart)):
+  their name, expertise and email; *"If your account isn't approved within 48
+  hours, email us at president@ehsacademics.org"* (tap to email); **Check
+  again** (also re-checks when the app returns to the foreground); **Sign up as
+  something else** (reopens the role picker); and Sign out. Every admin gets a
+  personal *"Expert waiting for approval"* notice and reviews them in
+  **Profile → Expert approvals**
+  ([expert_approvals_screen.dart](lib/screens/expert_approvals_screen.dart)):
+  name, expertise, bio, email, phone, sign-up time, **Approve** / **Decline**.
+  Approving opens the app for them (with a *"Your expert account is
+  approved"* notice). Declining (after a confirm) turns the account into a
+  participant, removes any expert sign-ups, and shows them a one-time *"Your
+  expert request wasn't approved"* note pointing at the same email. Only an
+  approved expert can register as an expert for a session
+  (`expert_not_approved` otherwise). Experts who signed up before this were
+  made pending too. Backend:
+  [expert_approval.sql](supabase/expert_approval.sql).
+- **Gated management roles.** Anyone can be a participant/parent (experts need
+  an admin's approval, above), but
   **volunteer** and **admin** are verified against an allowlist synced from two
   Google Sheets (see "Roles & permissions" below). Picking a gated role you're
   not listed for is blocked with *"You aren't eligible to sign up as a
@@ -1078,7 +1101,10 @@ test/widget_test.dart       Widget tests
     size so the in-memory cache doesn't thrash while the slideshow loops.
   - Seed the six disciplines + sample sessions with
     [seed_catalog.sql](supabase/seed_catalog.sql).
-- **Roles & permissions.** Five roles: `participant`, `expert`,
+- **Roles & permissions.** Five roles: `participant`, `expert` (needs an
+  admin's approval: `profiles.expert_status` is `pending` / `approved` /
+  `declined`, owned by the same enforcement trigger, so only `review_expert()`
+  can approve; see [expert_approval.sql](supabase/expert_approval.sql)),
   `parentSpectator` (open — the "Parent / Spectator" role, which auto-spectates
   any session it adds), `volunteer`, `admin` (gated). *(The `parentSpectator`
   stored value was renamed from `parent` — see
@@ -1336,9 +1362,6 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
     own at launch or when it comes back to the foreground.
 - Per-session **attendance roster marking stays toggle-based** (no QR) — QR
   is only for summit-wide front-desk check-in.
-- **Gate the expert role.** Expert sign-up is open to anyone today. Planned:
-  verify experts before they get the role, like volunteers and admins. Archie's
-  knowledge base already tells users expert sign-up will soon need approval.
 - **Per-subtype volunteer onboarding** — tailor the sign-up questionnaire to the
   volunteer subtype (EAF ambassador / parent / student). Deferred: the subtype
   currently arrives from the sheet *after* sign-up, so all volunteers share one

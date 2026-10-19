@@ -921,3 +921,38 @@ class SampleAuthService implements AuthService {
   @override
   Future<void> signOut() async {}
 }
+
+/// In-memory expert approval. Nothing is waiting by default; tests seed
+/// [requests] and [sessionExperts].
+class SampleExpertsRepository implements ExpertsRepository {
+  SampleExpertsRepository({
+    List<ExpertRequest>? requests,
+    Map<String, List<String>>? sessionExperts,
+  })  : requests = requests ?? [],
+        sessionExperts = sessionExperts ?? {};
+
+  final List<ExpertRequest> requests;
+  final Map<String, List<String>> sessionExperts;
+
+  /// userId → true (approved) / false (declined), in review order.
+  final Map<String, bool> reviewed = {};
+
+  @override
+  Future<List<String>> fetchSessionExperts(String sessionId) async =>
+      sessionExperts[sessionId] ?? const [];
+
+  @override
+  Future<List<ExpertRequest>> fetchRequests() async => List.of(requests);
+
+  @override
+  Future<bool> review(String userId, {required bool approve}) async {
+    final before = requests.length;
+    requests.removeWhere((r) => r.userId == userId);
+    if (requests.length == before) return false;
+    reviewed[userId] = approve;
+    return true;
+  }
+
+  @override
+  Future<void> acknowledgeDecline() async {}
+}

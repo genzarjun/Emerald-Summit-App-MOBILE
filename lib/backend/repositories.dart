@@ -72,6 +72,8 @@ String? projectProblemMessage(String? outcome) => switch (outcome) {
         'You own this team. Choose a teammate to take over before you leave.',
       'invalid_new_owner' =>
         "That person isn't on your team anymore. Pick someone else.",
+      'expert_not_approved' =>
+        'Only approved expert accounts can serve as an expert.',
       _ => null,
     };
 
@@ -141,7 +143,7 @@ abstract interface class CatalogRepository {
 /// Session authoring for mentors/admins. Authorization is enforced by the
 /// backend, so an unauthorized write is rejected even if the UI is bypassed.
 abstract interface class ContentRepository {
-  /// Map keys: discipline_id, title, track, room, expert_name, start_time,
+  /// Map keys: discipline_id, title, track, room, start_time,
   /// end_time, capacity, description, sponsor.
   /// Throws [SessionWriteDeniedException] when the backend refuses the caller.
   Future<void> createSession(Map<String, dynamic> data);
@@ -214,6 +216,57 @@ abstract interface class ScheduleRepository {
   /// stay registered for the session with no project answer, and are notified.
   /// Throws [TeamCodeException] if it's refused.
   Future<void> removeTeamMember(String sessionId, String userId);
+}
+
+/// An expert account waiting for an admin's approval.
+class ExpertRequest {
+  const ExpertRequest({
+    required this.userId,
+    required this.fullName,
+    required this.email,
+    this.expertise,
+    this.bio,
+    this.phone,
+    this.requestedAt,
+  });
+
+  final String userId;
+  final String fullName;
+  final String email;
+  final String? expertise;
+  final String? bio;
+  final String? phone;
+  final DateTime? requestedAt;
+
+  factory ExpertRequest.fromMap(Map<String, dynamic> row) => ExpertRequest(
+        userId: row['user_id'] as String,
+        fullName: (row['full_name'] ?? '') as String,
+        email: (row['email'] ?? '') as String,
+        expertise: row['expertise'] as String?,
+        bio: row['bio'] as String?,
+        phone: row['phone'] as String?,
+        requestedAt: row['requested_at'] == null
+            ? null
+            : DateTime.parse(row['requested_at'] as String).toLocal(),
+      );
+}
+
+/// Expert approval and the experts shown on a session page. The backend
+/// enforces who may do what (see `supabase/expert_approval.sql`).
+abstract interface class ExpertsRepository {
+  /// Names of the approved experts registered for [sessionId].
+  Future<List<String>> fetchSessionExperts(String sessionId);
+
+  /// Admin only: expert accounts waiting for approval, oldest first.
+  Future<List<ExpertRequest>> fetchRequests();
+
+  /// Admin only: approves or declines [userId]. Returns false when there was
+  /// nothing to review (another admin got there first, or the person picked a
+  /// different role).
+  Future<bool> review(String userId, {required bool approve});
+
+  /// Clears the signed-in user's "your expert request was declined" note.
+  Future<void> acknowledgeDecline();
 }
 
 /// The signed-in user's own profile row.

@@ -4,6 +4,7 @@ import '../../app_state.dart';
 import '../../backend/service_locator.dart';
 import '../root_nav.dart';
 import '../summit_followup_screen.dart';
+import 'expert_pending_screen.dart';
 import 'grade_required_screen.dart';
 import 'onboarding_screen.dart';
 import 'phone_required_screen.dart';
@@ -13,6 +14,7 @@ import 'sign_in_screen.dart';
 ///
 ///   no session          → [SignInScreen]
 ///   session, no profile → [OnboardingScreen]
+///   expert not yet approved by an admin → [ExpertPendingScreen]
 ///   volunteer/admin with no mobile number → [PhoneRequiredScreen]
 ///   student volunteer / ambassador with no grade → [GradeRequiredScreen]
 ///   session, onboarded  → the app ([RootNav])
@@ -62,6 +64,10 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
   /// The post-summit question opens by itself once per launch.
   bool _followUpShown = false;
 
+  /// The "expert request declined" note is shown once per launch until the
+  /// person closes it, which clears it for good.
+  bool _declineShown = false;
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +87,10 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
         }
         if (!appState.isOnboarded) {
           return const OnboardingScreen();
+        }
+        // Expert accounts wait for an admin's approval before using the app.
+        if (appState.needsExpertApproval) {
+          return const ExpertPendingScreen();
         }
         // Volunteers and admins must have a number on file for the volunteer
         // hub; anyone who onboarded before that was required adds it now.
@@ -114,6 +124,12 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
             );
           });
         }
+        if (appState.expertRequestDeclined && !_declineShown) {
+          _declineShown = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showExpertDeclined();
+          });
+        }
         // After the summit: ask experts for feedback and volunteers/admins
         // whether they'd volunteer again, once per launch until answered.
         if (appState.followUpPending && !_followUpShown) {
@@ -125,5 +141,31 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
         return const RootNav();
       },
     );
+  }
+
+  Future<void> _showExpertDeclined() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.info_outline),
+        title: const Text("Your expert request wasn't approved"),
+        content: const Text(
+          'An admin reviewed your sign-up and did not approve it as an expert '
+          'account, so your account is now a participant account. If you '
+          'think this is a mistake, email president@ehsacademics.org.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    try {
+      await appState.acknowledgeExpertDecline();
+    } catch (_) {
+      // Shown again on the next launch; nothing else depends on it.
+    }
   }
 }

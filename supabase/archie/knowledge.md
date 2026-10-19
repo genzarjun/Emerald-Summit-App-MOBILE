@@ -166,7 +166,7 @@ These are from Summit '26. The '27 list is UNCONFIRMED. Always make clear this i
 ## 8. Volunteering, experts, and sponsorship
 
 * **Volunteers:** High school students and adults. The day is split into a morning shift and an afternoon shift. Choose the Volunteer role when you sign up in the app. Whether volunteers can also attend sessions is UNCONFIRMED.
-* **Experts:** Choose the Expert role when you sign up in the app. Right now anyone can sign up as an expert; expert sign-up will soon need approval. Experts review presentations and give feedback.
+* **Experts:** Choose the Expert role when you sign up in the app. An admin then checks the sign-up and approves the account; until then the app only shows a screen saying the account is awaiting approval. If it isn't approved within 48 hours, email president@ehsacademics.org. Experts review presentations and give feedback.
 * **Sponsors and academic partners:** No sponsorship tiers. Email president@ehsacademics.org. EAF is a 501(c)(3), so contributions may be tax-deductible; donors should consult a tax professional.
 
 ### Volunteer hours in the app
@@ -347,7 +347,7 @@ They count only after each session has ended on summit day. Until then, includin
 Open Profile → Track volunteer hours and tap the log. You can change it there, or tap the trash icon to delete it.
 
 **How do I become an expert?**
-Choose the Expert role when you sign up in the app. Right now anyone can do this; expert sign-up will soon need approval.
+Choose the Expert role when you sign up in the app. An admin has to approve the account before you can use it. If it isn't approved within 48 hours, email president@ehsacademics.org.
 
 **How can my company sponsor?**
 There are no sponsorship tiers. Email president@ehsacademics.org.

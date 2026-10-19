@@ -45,6 +45,23 @@ extension VolunteerSubtypeX on VolunteerSubtype {
   }
 }
 
+/// Where an expert account is in admin review (`profiles.expert_status`).
+/// Server-owned: picking Expert makes an account [pending], and only an
+/// admin's review moves it on. [declined] means an admin said no; the account
+/// is a participant again and is shown a one-time note.
+enum ExpertStatus {
+  pending,
+  approved,
+  declined;
+
+  static ExpertStatus? fromId(String? id) {
+    for (final s in values) {
+      if (s.name == id) return s;
+    }
+    return null;
+  }
+}
+
 /// One extra field collected during onboarding for a given role. The [key]
 /// is where the answer lands in `profiles.details` (a jsonb bag), so roles
 /// can ask for different things without a column per field.
@@ -97,7 +114,8 @@ extension SummitRoleX on SummitRole {
   String get blurb => switch (this) {
         SummitRole.participant =>
           'Build your schedule and follow your summit day.',
-        SummitRole.expert => 'Lead a session or speak at the summit.',
+        SummitRole.expert => 'Lead a session or speak at the summit. An '
+            'admin approves expert accounts before they can be used.',
         SummitRole.parentSpectator => 'Follow along and stay in the loop.',
         SummitRole.volunteer =>
           'Help run the summit: EAF ambassadors, parent and student volunteers.',
@@ -272,6 +290,7 @@ class UserProfile {
     this.canEditSessions = false,
     this.canPostAnnouncements = false,
     this.canCheckInFrontDesk = false,
+    this.expertStatus,
     List<String>? managedDisciplines,
     Map<String, dynamic>? details,
   })  : managedDisciplines = managedDisciplines ?? const [],
@@ -302,6 +321,9 @@ class UserProfile {
   final bool canEditSessions;
   final bool canPostAnnouncements;
   final bool canCheckInFrontDesk;
+
+  /// Admin review of an expert account; null for other roles. Server-owned.
+  final ExpertStatus? expertStatus;
 
   /// Discipline ids a volunteer may manage, or `['*']` for a volunteer who
   /// manages every discipline. Set by the server (the allowlist enforcement
@@ -359,6 +381,7 @@ class UserProfile {
         canEditSessions: (row['can_edit_sessions'] ?? false) as bool,
         canPostAnnouncements: (row['can_post_announcements'] ?? false) as bool,
         canCheckInFrontDesk: (row['can_check_in_front_desk'] ?? false) as bool,
+        expertStatus: ExpertStatus.fromId(row['expert_status'] as String?),
         managedDisciplines:
             (row['managed_disciplines'] as List?)?.cast<String>() ?? const [],
         details: (row['details'] as Map?)?.cast<String, dynamic>() ?? {},

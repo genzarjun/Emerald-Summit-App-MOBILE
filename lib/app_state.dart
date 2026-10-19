@@ -803,6 +803,36 @@ class AppState extends ChangeNotifier {
     return '${p.details['grade'] ?? ''}'.trim().isEmpty;
   }
 
+  /// True when the account picked Expert and no admin has approved it yet.
+  /// The auth gate shows only the waiting screen until then.
+  bool get needsExpertApproval {
+    final p = profile;
+    return p != null &&
+        p.onboarded &&
+        p.role == SummitRole.expert &&
+        p.expertStatus != ExpertStatus.approved;
+  }
+
+  /// True after an admin declined this account's expert request, until the
+  /// person has seen the note ([acknowledgeExpertDecline]).
+  bool get expertRequestDeclined =>
+      profile?.expertStatus == ExpertStatus.declined;
+
+  /// Clears the declined note on the server and locally.
+  Future<void> acknowledgeExpertDecline() async {
+    await expertsRepository.acknowledgeDecline();
+    await refreshProfile();
+  }
+
+  /// Re-reads the signed-in profile, e.g. to see whether an admin has
+  /// approved a waiting expert account.
+  Future<void> refreshProfile() async {
+    final p = await profileRepository.fetchMine();
+    if (p == null) return;
+    profile = p;
+    notifyListeners();
+  }
+
   /// Saves [grade] into the signed-in profile's details (the prompt shown
   /// when [needsGrade]). Keeps every other answer as is.
   Future<void> saveGrade(String grade) => updateProfileInfo(
