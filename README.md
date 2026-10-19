@@ -761,7 +761,7 @@ the app to see it.
 | My Day on summit day | `_timeline` in [schedule_screen.dart](lib/screens/schedule_screen.dart) | **Now** / **Next** tags; ended sessions move into the collapsed **Past** group. |
 | Volunteer hours, summit day | `summitSessionCounted()` in [models.dart](lib/models/models.dart), [volunteer_hours_screen.dart](lib/screens/volunteer_hours_screen.dart) | Each managed session counts once it ends that day. The screen note names the date. |
 | Hours sheet | `sync-hours-sheet` function | Adds a summit-day row per managed session once it ends (Pacific). |
-| Feedback and "volunteer again?" | `summit_feedback_open()` in [summit_followup_setup.sql](supabase/summit_followup_setup.sql), [summit_followup_screen.dart](lib/screens/summit_followup_screen.dart), Profile → Settings | Opens on summit day once the latest `end_time` across **all** sessions has passed (Pacific); today that's 3:30 PM, set by Engineering Exhibit. Adding a later session moves it. The app picks it up at its next launch or sign-in (it doesn't re-check on resume). |
+| Feedback and "volunteer again?" | `summit_feedback_open()` in [summit_followup_setup.sql](supabase/summit_followup_setup.sql), [summit_followup_screen.dart](lib/screens/summit_followup_screen.dart), Profile → Settings | Opens on summit day once the latest `end_time` across **all** sessions has passed (Pacific); today that's 3:30 PM, set by Engineering Exhibit. Adding a later session moves it. The app re-checks at launch, at sign-in and every time it comes back to the foreground (`didChangeAppLifecycleState` in [root_nav.dart](lib/screens/root_nav.dart)), and the auth gate then asks the question. Planned: a push notification / announcement the moment it opens (see Roadmap). |
 | Archie's live context | `archie-chat` function | Tells volunteers and admins the date and which sessions count yet; tells experts whether they've sent feedback once it opens. |
 
 **4. Edit these by hand** (they still say "January 2027"):
@@ -1307,7 +1307,11 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
     account stored as a function secret).
   - Foreground messages reuse the existing in-app banner
     ([lib/widgets/in_app_banner.dart](lib/widgets/in_app_banner.dart)).
-  - Also planned: per-user "next session" reminders; email fan-out.
+  - Also planned: per-user "next session" reminders; email fan-out; and a
+    push / announcement to experts, volunteers and admins **when post-summit
+    feedback opens** (on summit day once the last session ends, i.e. when
+    `summit_feedback_open()` turns true). Until then the app finds out on its
+    own at launch or when it comes back to the foreground.
 - Per-session **attendance roster marking stays toggle-based** (no QR) — QR
   is only for summit-wide front-desk check-in.
 - **Gate the expert role.** Expert sign-up is open to anyone today. Planned:
