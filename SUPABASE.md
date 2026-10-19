@@ -341,8 +341,9 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     approval.** Adds `profiles.expert_status` (`pending` / `approved` /
     `declined`) and `expert_requested_at`; rewrites `enforce_role_allowlist`
     so picking Expert makes an account pending and nothing but
-    `review_expert()` can approve it; makes every existing expert pending;
-    posts each admin a personal notice per waiting expert; adds
+    `review_expert()` can approve it; makes every existing expert pending
+    (no per-sign-up notice to admins; re-running also removes the one an
+    earlier version of the file added); adds
     `fetch_expert_requests()` / `review_expert()` (admin only),
     `acknowledge_expert_decline()`, and `session_experts()` (approved experts
     registered for a session, for the session page). Redefines

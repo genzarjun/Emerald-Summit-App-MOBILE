@@ -13,8 +13,8 @@
 --     can approve it. Everything else in the trigger is unchanged from
 --     role_allowlist_v2.sql.
 --  3. Existing expert accounts become pending too, so every expert is
---     reviewed. Admins get a personal notice for each.
---  4. Admins get a personal notice whenever someone new is waiting.
+--     reviewed.
+--  4. Admins are NOT sent a notice per sign-up; they check Expert approvals.
 --  5. fetch_expert_requests() / review_expert() for the admin screen, and
 --     acknowledge_expert_decline() for the declined person's note.
 --  6. session_experts(): names of the approved experts registered for a
@@ -100,35 +100,13 @@ create trigger profiles_enforce_role
   before insert or update on public.profiles
   for each row execute function public.enforce_role_allowlist();
 
--- 4. Tell admins when someone is waiting (created before the backfill below,
---    so existing experts show up in their feed too) --------------------------
-create or replace function public.notify_admins_expert_request()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  if new.expert_status = 'pending' and new.onboarded
-     and (tg_op = 'INSERT'
-          or old.expert_status is distinct from 'pending'
-          or not old.onboarded) then
-    insert into public.announcements
-      (title, body, author, audience, pinned, discipline_id, created_by,
-       target_user_id)
-    select 'Expert waiting for approval',
-           format('%s signed up as an expert. Approve or decline them in '
-                  'Profile, under Expert approvals.',
-                  coalesce(nullif(btrim(new.full_name), ''), new.email,
-                           'Someone')),
-           'Emerald Summit', 'Personal', false, null, new.id, a.id
-      from public.profiles a
-     where a.role = 'admin';
-  end if;
-  return null;
-end;
-$$;
-
+-- 4. No notice to admins per sign-up (there are several admins). They see
+--    who is waiting in Profile → Expert approvals. Drop the earlier version's
+--    trigger and the notices it posted.
 drop trigger if exists profiles_expert_request_notice on public.profiles;
-create trigger profiles_expert_request_notice
-  after insert or update on public.profiles
-  for each row execute function public.notify_admins_expert_request();
+drop function if exists public.notify_admins_expert_request();
+delete from public.announcements
+ where title = 'Expert waiting for approval' and audience = 'Personal';
 
 -- 3. Existing experts need approval too ----------------------------------------
 -- The trigger turns a null status on an expert into 'pending'.

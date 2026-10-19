@@ -728,9 +728,9 @@ primary-colored.
   their name, expertise and email; *"If your account isn't approved within 48
   hours, email us at president@ehsacademics.org"* (tap to email); **Check
   again** (also re-checks when the app returns to the foreground); **Sign up as
-  something else** (reopens the role picker); and Sign out. Every admin gets a
-  personal *"Expert waiting for approval"* notice and reviews them in
-  **Profile → Expert approvals**
+  something else** (reopens the role picker); and Sign out. Admins aren't
+  sent a notice per sign-up (there are several admins); they review waiting
+  experts in **Profile → Expert approvals**
   ([expert_approvals_screen.dart](lib/screens/expert_approvals_screen.dart)):
   name, expertise, bio, email, phone, sign-up time, **Approve** / **Decline**.
   Approving opens the app for them (with a *"Your expert account is
