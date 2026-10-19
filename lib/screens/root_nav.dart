@@ -13,8 +13,34 @@ import 'archie_screen.dart';
 /// pushed from the Home tiles. Profile lives
 /// behind the avatar in the [DashboardScreen] header (Uber-style), so it isn't
 /// a bottom-bar destination.
-class RootNav extends StatelessWidget {
+class RootNav extends StatefulWidget {
   const RootNav({super.key});
+
+  @override
+  State<RootNav> createState() => _RootNavState();
+}
+
+class _RootNavState extends State<RootNav> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Re-checks the summit status each time the app comes back to the
+  /// foreground, so post-summit feedback (and the countdown, hours and My Day
+  /// states that follow the summit date) catch up without a relaunch. The
+  /// auth gate shows the feedback question as soon as it opens.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) appState.loadSummitStatus();
+  }
 
   static const _screens = [
     DashboardScreen(),

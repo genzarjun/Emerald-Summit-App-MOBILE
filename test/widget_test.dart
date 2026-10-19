@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:emerald_summit/app_state.dart';
 import 'package:emerald_summit/backend/service_locator.dart';
 import 'package:emerald_summit/main.dart';
+import 'package:emerald_summit/screens/discover_screen.dart';
 
 void main() {
   // Register a backend before each test. With no credentials in the test
@@ -41,6 +42,17 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('TechVerse'), findsWidgets);
+    // The last discipline sits below the fold; scroll the Discover list to it.
+    await tester.scrollUntilVisible(
+      find.text('MathVerse'),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(DiscoverScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     expect(find.text('MathVerse'), findsWidgets);
   });
 }

@@ -19,6 +19,9 @@ IconData disciplineIcon(String key) => switch (key) {
       'music_note' => Icons.music_note,
       'engineering' => Icons.engineering,
       'calculate' => Icons.calculate,
+      'gavel' => Icons.gavel,
+      'lightbulb' => Icons.lightbulb_outline,
+      'trending_up' => Icons.trending_up,
       _ => Icons.category,
     };
 

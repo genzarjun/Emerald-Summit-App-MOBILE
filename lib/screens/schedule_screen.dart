@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../data/sample_data.dart';
 import '../models/models.dart';
+import '../widgets/day_summary.dart';
 import 'discover_screen.dart';
 import 'session_detail_screen.dart';
 
@@ -44,14 +45,115 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           if (entries.isEmpty) return const _EmptyPlan();
           return RefreshIndicator(
             onRefresh: _refresh,
-            child: ListView.separated(
+            child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              itemCount: entries.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, i) => _ScheduleCard(entry: entries[i]),
+              children: _timeline(context, entries),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// The summary line, then each session in time order with the free time
+/// between them. On summit day the current and next sessions are tagged, and
+/// finished ones move into a collapsed "Past" group at the bottom.
+List<Widget> _timeline(BuildContext context, List<ScheduleEntry> entries) {
+  final now = DateTime.now();
+  final date = appState.summitStatus.date;
+  final today = date != null && DateUtils.isSameDay(date, now);
+  final nowMinutes = now.hour * 60 + now.minute;
+  bool ended(ScheduleEntry e) => today && e.session.endMinutes <= nowMinutes;
+
+  final upcoming = entries.where((e) => !ended(e)).toList();
+  final past = entries.where(ended).toList();
+  final nextIndex = today
+      ? upcoming.indexWhere((e) => e.session.startMinutes > nowMinutes)
+      : -1;
+
+  final out = <Widget>[const DaySummary(), const SizedBox(height: 12)];
+  if (upcoming.isEmpty && past.isNotEmpty) {
+    out.add(const Padding(
+      padding: EdgeInsets.fromLTRB(4, 4, 4, 12),
+      child: Text("That's the end of your day. Your sessions are under Past."),
+    ));
+  }
+  for (var i = 0; i < upcoming.length; i++) {
+    final s = upcoming[i].session;
+    if (i > 0) {
+      final gap = s.startMinutes - upcoming[i - 1].session.endMinutes;
+      out.add(gap >= 15 ? _FreeTime(minutes: gap) : const SizedBox(height: 12));
+    }
+    final live = today && s.startMinutes <= nowMinutes;
+    out.add(_ScheduleCard(
+      entry: upcoming[i],
+      tag: live ? 'Now' : i == nextIndex ? 'Next' : null,
+    ));
+  }
+  if (past.isNotEmpty) {
+    out.add(const SizedBox(height: 16));
+    out.add(_PastGroup(entries: past));
+  }
+  return out;
+}
+
+/// Sessions that have already ended today, collapsed under "Past".
+class _PastGroup extends StatelessWidget {
+  const _PastGroup({required this.entries});
+  final List<ScheduleEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Theme(
+      // No divider lines above and below the expanded group.
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+        childrenPadding: EdgeInsets.zero,
+        title: Text(
+          'Past  ·  ${entries.length}',
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        children: [
+          for (final e in entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Opacity(opacity: .6, child: _ScheduleCard(entry: e)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A quiet divider between two sessions saying how long the break is.
+class _FreeTime extends StatelessWidget {
+  const _FreeTime({required this.minutes});
+  final int minutes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 4, 10),
+      child: Row(
+        children: [
+          Icon(Icons.coffee_outlined, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(
+            '${formatMinutes(minutes)} free',
+            style: theme.textTheme.labelMedium?.copyWith(color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Divider(height: 1, color: theme.colorScheme.outlineVariant),
+          ),
+        ],
       ),
     );
   }
@@ -121,14 +223,24 @@ class _EmptyPlan extends StatelessWidget {
 }
 
 class _ScheduleCard extends StatelessWidget {
-  const _ScheduleCard({required this.entry});
+  const _ScheduleCard({required this.entry, this.tag});
   final ScheduleEntry entry;
+
+  /// "Now" or "Next" on summit day; null otherwise.
+  final String? tag;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final session = entry.session;
     return Card(
+      margin: EdgeInsets.zero,
+      shape: tag == null
+          ? null
+          : RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+            ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => Navigator.of(context).push(
@@ -164,19 +276,23 @@ class _ScheduleCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(session.title,
-                              style: theme.textTheme.titleMedium),
+                    if (tag != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          tag!,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        _RoleChip(entry: entry),
-                      ],
-                    ),
+                      ),
+                    Text(session.title, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 4),
                     Text('${session.disciplineName} · ${session.room}',
                         style: theme.textTheme.bodySmall),
+                    const SizedBox(height: 8),
+                    _RoleChip(entry: entry),
                   ],
                 ),
               ),

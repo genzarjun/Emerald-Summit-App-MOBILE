@@ -23,7 +23,8 @@ class _DisciplineEditorScreenState extends State<DisciplineEditorScreen> {
   static const _iconKeys = [
     'terminal', 'precision_manufacturing', 'biotech', 'rocket_launch',
     'palette', 'functions', 'science', 'public', 'psychology', 'music_note',
-    'engineering', 'calculate', 'category',
+    'engineering', 'calculate', 'gavel', 'lightbulb', 'trending_up',
+    'category',
   ];
 
   static final _slugRe = RegExp(r'^[a-z0-9_]+$');
