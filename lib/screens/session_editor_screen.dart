@@ -1359,22 +1359,25 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               decoration: InputDecoration(
                 labelText: label,
                 hintText: hint,
+                // A disabled toggle doesn't show its choice, so a locked time
+                // spells out AM/PM in the box instead.
+                suffixText: _timesLocked ? (pm ? 'PM' : 'AM') : null,
                 border: const OutlineInputBorder(),
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          SegmentedButton<bool>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: false, label: Text('AM')),
-              ButtonSegment(value: true, label: Text('PM')),
-            ],
-            selected: {pm},
-            onSelectionChanged: _busy || _timesLocked
-                ? null
-                : (sel) => onPmChanged(sel.first),
-          ),
+          if (!_timesLocked) ...[
+            const SizedBox(width: 12),
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: false, label: Text('AM')),
+                ButtonSegment(value: true, label: Text('PM')),
+              ],
+              selected: {pm},
+              onSelectionChanged: _busy ? null : (sel) => onPmChanged(sel.first),
+            ),
+          ],
         ],
       ),
     );
