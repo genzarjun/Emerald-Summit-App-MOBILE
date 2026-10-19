@@ -226,6 +226,11 @@ class ProjectChoice {
       };
 }
 
+/// Session times and rooms are locked while this is false: editors can't change
+/// them, and the session page and registration screen don't show them. Turn it
+/// back on once the schedule is final.
+const bool kSessionTimesAndRoomsEnabled = false;
+
 /// The default team size limit for a session (editors can change it).
 const int kDefaultMaxTeamSize = 4;
 

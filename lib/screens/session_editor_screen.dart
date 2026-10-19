@@ -72,6 +72,12 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
 
   bool get _isEditing => widget.session != null;
 
+  /// While [kSessionTimesAndRoomsEnabled] is off, the room can't be set and an
+  /// existing session's times can't change. A new session still needs times,
+  /// since the row can't be saved without them.
+  bool get _roomLocked => !kSessionTimesAndRoomsEnabled;
+  bool get _timesLocked => !kSessionTimesAndRoomsEnabled && _isEditing;
+
   /// Photo/hero editing needs the session id, which only exists after the row is
   /// created. On a brand-new session, save first, then reopen to add photos.
   String? get _sessionId => widget.session?.id;
@@ -294,15 +300,17 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       setState(() => _error = 'Title is required.');
       return;
     }
-    if (start == null || end == null) {
-      setState(
-        () => _error = 'Use times like 10:00 or 1:30, then pick AM or PM.',
-      );
-      return;
-    }
-    if (end.compareTo(start) <= 0) {
-      setState(() => _error = 'End time must be after the start time.');
-      return;
+    if (!_timesLocked) {
+      if (start == null || end == null) {
+        setState(
+          () => _error = 'Use times like 10:00 or 1:30, then pick AM or PM.',
+        );
+        return;
+      }
+      if (end.compareTo(start) <= 0) {
+        setState(() => _error = 'End time must be after the start time.');
+        return;
+      }
     }
     if (capacity == null || capacity <= 0) {
       setState(() => _error = 'Capacity must be a positive number.');
@@ -322,14 +330,13 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         : _rooms.firstWhere((r) => r.id == _roomId).name;
     // `track` and `sponsor` are no longer editable (a "track" IS a session), so
     // they're omitted here — on an edit that leaves any existing values intact.
+    // Locked fields are left out, so an edit keeps whatever the row has.
     final data = <String, dynamic>{
       'discipline_id': widget.discipline.id,
       'title': title,
-      'room_id': _roomId,
-      'room': roomName,
+      if (!_roomLocked) ...{'room_id': _roomId, 'room': roomName},
       'expert_name': _expert.text.trim(),
-      'start_time': start,
-      'end_time': end,
+      if (!_timesLocked) ...{'start_time': start, 'end_time': end},
       'capacity': capacity,
       'max_team_size': _maxTeamSize,
       'participant_deadline': _participantDeadline?.toUtc().toIso8601String(),
@@ -373,14 +380,15 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     }
 
     final timeChanged =
+        !_timesLocked &&
         _isEditing &&
         (start != normalized(widget.session!.start) ||
             end != normalized(widget.session!.end));
     if (timeChanged && id != null) {
       final affected = await appState.previewSessionTimeConflicts(
         id,
-        start,
-        end,
+        start!,
+        end!,
       );
       if (!mounted) return;
       if (affected > 0) {
@@ -536,6 +544,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                 ),
                 const SizedBox(height: 16),
                 _field(_title, 'Title'),
+                if (_roomLocked) _lockedNotice(theme),
                 _roomDropdown(),
                 _field(_expert, 'Expert / speaker'),
                 _timeField(
@@ -711,6 +720,41 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     );
   }
 
+  /// Says why the room (and, on an existing session, the times) can't be
+  /// changed.
+  Widget _lockedNotice(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _timesLocked
+                    ? "Times and rooms are locked for now, so they can't be "
+                        'changed here.'
+                    : "Rooms are locked for now. Set the times below; they "
+                        "can't be changed after you save.",
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Sentinel value for the "＋ Add a room…" dropdown entry.
   static const String _addRoomSentinel = '__add_room__';
 
@@ -758,7 +802,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             ),
           ),
         ],
-        onChanged: _busy
+        onChanged: _busy || _roomLocked
             ? null
             : (v) {
                 if (v == _addRoomSentinel) {
@@ -1310,7 +1354,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
           Expanded(
             child: TextField(
               controller: controller,
-              enabled: !_busy,
+              enabled: !_busy && !_timesLocked,
               keyboardType: TextInputType.datetime,
               decoration: InputDecoration(
                 labelText: label,
@@ -1327,7 +1371,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               ButtonSegment(value: true, label: Text('PM')),
             ],
             selected: {pm},
-            onSelectionChanged: _busy ? null : (sel) => onPmChanged(sel.first),
+            onSelectionChanged: _busy || _timesLocked
+                ? null
+                : (sel) => onPmChanged(sel.first),
           ),
         ],
       ),

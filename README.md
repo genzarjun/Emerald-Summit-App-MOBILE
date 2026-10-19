@@ -131,7 +131,9 @@ Home header** (Uber-style), not a bottom-bar tab.
   bar** at the top:
   - **Session** (everyone) — the rich page: a big **hero photo** on top (the
     explicit hero, or the first gallery photo when none is set), a **photo
-    gallery**, the time/room/expert/seats info, the description, and any
+    gallery**, the time/room/expert/seats info (time and room are hidden for
+    now — see [Session times and rooms: locked](#session-times-and-rooms-locked)),
+    the description, and any
     **editor-authored content sections** (ordered `{title, body}` blocks). **Add
     to my day** is **role-aware**: it opens a chooser whose options depend on the
     signed-in role — participants & volunteers pick **Participate** or
@@ -258,8 +260,9 @@ Home header** (Uber-style), not a bottom-bar tab.
   has already passed. Photos are **uploaded in-app**
   (`image_picker`) into a per-session folder in the public `session_photos`
   Storage bucket; hero/gallery editing needs the session id, so on a brand-new
-  session you save first, then reopen to add photos. The editor still ties a
-  session to a **room** picked from the admin catalog — and if the needed room
+  session you save first, then reopen to add photos. The editor ties a
+  session to a **room** picked from the admin catalog (locked for now, along
+  with times — see [Session times and rooms: locked](#session-times-and-rooms-locked)) — and if the needed room
   isn't listed, an **"Add a room…"** option in that dropdown creates it inline
   (admins and session-editing ambassadors; INSERT-only, backend-enforced)
   without leaving the page. Admins also get **New discipline** and **New
@@ -729,6 +732,29 @@ primary-colored.
 
 Brand colors and type follow spec section 03 (Emerald `#0C7A55`, Deep Emerald
 `#0A5F43`, Ink `#16211C`, Mist `#EEF5F1`, system fonts).
+
+## Session times and rooms: locked
+
+**Status: locked** (since 2026-10-18). The owner will say when to turn this
+back on; don't flip it without being asked. One switch controls it:
+`kSessionTimesAndRoomsEnabled` in [models.dart](lib/models/models.dart),
+currently `false`. While it's off:
+
+- **Session editor:** the room dropdown is disabled on every session, and the
+  start/end times are disabled on existing sessions. A **new** session still
+  takes times, because `start_time`/`end_time` are NOT NULL and a shared
+  placeholder would make every new session clash with the others. A lock note
+  sits above the room field. Locked columns are left out of the save, so an
+  edit never changes them.
+- **Session page** hides the time and room rows and the times on its
+  suggested-session cards; the **registration screen** header drops the time.
+- **Still shown elsewhere:** the discipline session list, Discover, Schedule,
+  Home and the roster/volunteer screens still show times and rooms, and
+  conflict checks still run on the saved times.
+- **UI only.** RLS still allows editors to write these columns; the lock is
+  in the app, not the database.
+
+Setting the constant to `true` restores the fields and the displays.
 
 ## Summit date: what changes when it's set
 
