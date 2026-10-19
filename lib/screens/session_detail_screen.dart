@@ -811,10 +811,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               ],
               Text(current.title, style: theme.textTheme.headlineSmall),
               const SizedBox(height: 16),
-              if (kSessionTimesAndRoomsEnabled) ...[
-                _InfoRow(icon: Icons.schedule, text: current.timeLabel),
+              _InfoRow(icon: Icons.schedule, text: current.timeLabel),
+              if (kSessionRoomsEnabled)
                 _InfoRow(icon: Icons.place, text: current.room),
-              ],
               _InfoRow(
                 icon: Icons.person,
                 text: 'Expert: ${current.expertName}',
@@ -1084,8 +1083,8 @@ class _SuggestedSessionCardState extends State<_SuggestedSessionCard> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${kSessionTimesAndRoomsEnabled ? '${s.timeLabel} · ' : ''}'
-                      '${s.seatsLeft} seat${s.seatsLeft == 1 ? '' : 's'} left',
+                      '${s.timeLabel} · ${s.seatsLeft} '
+                      'seat${s.seatsLeft == 1 ? '' : 's'} left',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

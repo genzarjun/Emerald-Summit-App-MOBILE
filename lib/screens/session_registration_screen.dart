@@ -275,10 +275,7 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
             Text(widget.session.title, style: theme.textTheme.titleLarge),
             const SizedBox(height: 2),
             Text(
-              kSessionTimesAndRoomsEnabled
-                  ? '${widget.session.disciplineName} · '
-                      '${widget.session.timeLabel}'
-                  : widget.session.disciplineName,
+              '${widget.session.disciplineName} · ${widget.session.timeLabel}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
