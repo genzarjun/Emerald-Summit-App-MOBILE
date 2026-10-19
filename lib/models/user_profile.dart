@@ -58,6 +58,7 @@ class ProfileField {
     this.lines = 1,
     this.required = false,
     this.keyboardType = TextInputType.text,
+    this.digitsOnly = false,
   });
 
   final String key;
@@ -76,6 +77,9 @@ class ProfileField {
   final int lines;
   final bool required;
   final TextInputType keyboardType;
+
+  /// True when only digits may be typed (e.g. a student ID).
+  final bool digitsOnly;
 }
 
 extension SummitRoleX on SummitRole {
@@ -96,7 +100,7 @@ extension SummitRoleX on SummitRole {
         SummitRole.expert => 'Lead a session or speak at the summit.',
         SummitRole.parentSpectator => 'Follow along and stay in the loop.',
         SummitRole.volunteer =>
-          'Help run the summit — EAF ambassadors, parent and student volunteers.',
+          'Help run the summit: EAF ambassadors, parent and student volunteers.',
         SummitRole.admin => 'Manage the summit, announcements, and content.',
       };
 
@@ -134,6 +138,23 @@ extension SummitRoleX on SummitRole {
   static const _adminPhoneNote = 'Your phone number will be visible to '
       'volunteers and other admins the day of for communication with them.';
 
+  /// The grade question for student volunteers and EAF ambassadors.
+  static const volunteerGradeField = ProfileField(
+    key: 'grade',
+    label: 'Grade',
+    required: true,
+    hint: 'e.g. 11',
+    helper: _gradeNote,
+    keyboardType: TextInputType.number,
+    digitsOnly: true,
+  );
+
+  static const _gradeNote = 'Goes on your volunteer hours record.';
+
+  /// Shown under the volunteer / admin student ID field.
+  static const _studentIdNote =
+      'If you have one, it goes on your volunteer hours record.';
+
   /// Whether this role must have a mobile number on file. Volunteers and
   /// admins do, because the volunteer hub is how the team reaches them; an
   /// account that onboarded before this was required is asked on sign-in.
@@ -170,6 +191,13 @@ extension SummitRoleX on SummitRole {
                 hint: 'For day-of coordination',
                 helper: _volunteerPhoneNote,
                 keyboardType: TextInputType.phone),
+            ProfileField(
+                key: 'student_id',
+                label: 'Student ID (optional)',
+                hint: 'Numbers only',
+                helper: _studentIdNote,
+                keyboardType: TextInputType.number,
+                digitsOnly: true),
           ],
         SummitRole.expert => const [
             ProfileField(
@@ -205,6 +233,20 @@ extension SummitRoleX on SummitRole {
                 hint: 'For day-of coordination',
                 helper: _adminPhoneNote,
                 keyboardType: TextInputType.phone),
+            ProfileField(
+                key: 'student_id',
+                label: 'Student ID (optional)',
+                hint: 'Numbers only',
+                helper: _studentIdNote,
+                keyboardType: TextInputType.number,
+                digitsOnly: true),
+            ProfileField(
+                key: 'grade',
+                label: 'Grade (optional)',
+                hint: 'e.g. 12',
+                helper: _gradeNote,
+                keyboardType: TextInputType.number,
+                digitsOnly: true),
           ],
       };
 
@@ -284,6 +326,22 @@ class UserProfile {
     return managedDisciplines.contains('*') ||
         managedDisciplines.contains(disciplineId);
   }
+
+  /// Student volunteers and EAF ambassadors must give a grade (it goes on the
+  /// volunteer hours sheet). Parent volunteers don't; admins may.
+  bool get needsGrade =>
+      role == SummitRole.volunteer &&
+      (volunteerSubtype == VolunteerSubtype.studentVolunteer ||
+          volunteerSubtype == VolunteerSubtype.eafAmbassador);
+
+  /// The sign-up fields this account edits on Edit profile: its role's
+  /// [SummitRoleX.onboardingFields], plus a required grade for student
+  /// volunteers and EAF ambassadors (asked after sign-up, once the subtype is
+  /// known).
+  List<ProfileField> get formFields => [
+    ...role.onboardingFields,
+    if (needsGrade) SummitRoleX.volunteerGradeField,
+  ];
 
   /// Role-specific answers (phone, school, bio…) → `profiles.details` jsonb.
   final Map<String, dynamic> details;

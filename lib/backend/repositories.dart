@@ -385,6 +385,44 @@ abstract interface class AssignmentRepository {
   Future<AssignmentResult> setManage(String sessionId, bool manage);
 }
 
+/// The signed-in volunteer's or admin's own manual hour logs. Rows are scoped
+/// to the owner, and only volunteers and admins may add or edit (enforced
+/// server-side).
+abstract interface class VolunteerHoursRepository {
+  /// The caller's logs, newest first.
+  Future<List<VolunteerHourLog>> fetchMine();
+
+  Future<void> add(DateTime startedAt, DateTime endedAt, String description);
+
+  Future<void> update(
+    String id,
+    DateTime startedAt,
+    DateTime endedAt,
+    String description,
+  );
+
+  Future<void> delete(String id);
+}
+
+/// The summit date and the post-summit follow-ups: expert feedback and the
+/// volunteers' "volunteer for EAF again?" answer. Writes are role-checked and
+/// only accepted once feedback is open (enforced server-side).
+abstract interface class SummitRepository {
+  Future<SummitStatus> fetchStatus();
+
+  /// The signed-in expert's saved feedback (empty if none yet).
+  Future<List<ExpertFeedback>> fetchMyFeedback();
+
+  /// Saves the expert's feedback, replacing earlier answers for the same
+  /// app / summit / session.
+  Future<void> submitFeedback(List<ExpertFeedback> items);
+
+  /// The signed-in volunteer's or admin's answer, or null if not answered.
+  Future<bool?> fetchMyEafInterest();
+
+  Future<void> setEafInterest(bool yes);
+}
+
 /// Attendance: per-session rosters (for session-assigned volunteers) and the
 /// summit-wide front-desk directory (for front-desk-capable volunteers). Every
 /// method is gated server-side.

@@ -10,11 +10,13 @@ import 'edit_profile_screen.dart';
 import 'front_desk_screen.dart';
 import 'my_assignments_screen.dart';
 import 'rooms_manager_screen.dart';
+import 'summit_followup_screen.dart';
+import 'volunteer_hours_screen.dart';
 import 'volunteer_hub_screen.dart';
 
-/// "Profile" tab — the user's contact card, role, notification settings,
-/// and volunteer hours / certificate (spec section 04 — Profiles &
-/// contact cards, Volunteer hours & certificates).
+/// "Profile" tab — the user's contact card, role, and settings, with
+/// role-gated shortcuts (volunteer hours, volunteer hub, front desk…) under
+/// Settings (spec section 04 — Profiles & contact cards).
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -33,8 +35,6 @@ class ProfileScreen extends StatelessWidget {
           _PassSection(),
           SizedBox(height: 16),
           _VisibilityCard(),
-          SizedBox(height: 16),
-          _VolunteerCard(),
         ],
       ),
     );
@@ -192,6 +192,44 @@ class _VisibilityCard extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                           builder: (_) => const MyAssignmentsScreen()),
+                    ),
+                  ),
+                if (appState.summitStatus.feedbackOpen && appState.isExpert)
+                  ListTile(
+                    leading: Icon(Icons.rate_review_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Summit feedback'),
+                    subtitle: Text(appState.myFeedback.isEmpty
+                        ? 'Tell us how the summit went'
+                        : 'Sent. Tap to change it'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => openSummitFollowUp(context),
+                  ),
+                if (appState.summitStatus.feedbackOpen &&
+                    (appState.isVolunteer || appState.isAdmin))
+                  ListTile(
+                    leading: Icon(Icons.volunteer_activism_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Volunteer for EAF again?'),
+                    subtitle: Text(switch (appState.myEafInterest) {
+                      null => 'Let us know',
+                      true => 'You said yes. Tap to change',
+                      false => 'You said no. Tap to change',
+                    }),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => openSummitFollowUp(context),
+                  ),
+                if (appState.isVolunteer || appState.isAdmin)
+                  ListTile(
+                    leading: Icon(Icons.timer_outlined,
+                        color: theme.colorScheme.primary),
+                    title: const Text('Track volunteer hours'),
+                    subtitle:
+                        const Text('Your logged hours and summit-day hours'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const VolunteerHoursScreen()),
                     ),
                   ),
                 if (appState.isVolunteer || appState.isAdmin)
@@ -380,58 +418,6 @@ class _SegmentLabel extends StatelessWidget {
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: Text(text, maxLines: 1, softWrap: false),
-    );
-  }
-}
-
-class _VolunteerCard extends StatelessWidget {
-  const _VolunteerCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: appState,
-      builder: (context, _) {
-        final theme = Theme.of(context);
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Volunteer hours', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text('${appState.volunteerHours}',
-                        style: theme.textTheme.displaySmall
-                            ?.copyWith(color: theme.colorScheme.primary)),
-                    const SizedBox(width: 6),
-                    Text('hours logged', style: theme.textTheme.bodyMedium),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text('Generating your signed certificate…'),
-                        ),
-                      );
-                  },
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
-                  label: const Text('Download certificate'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

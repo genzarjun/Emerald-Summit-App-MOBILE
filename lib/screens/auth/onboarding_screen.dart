@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app_state.dart';
 import '../../backend/service_locator.dart';
@@ -336,6 +337,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _fieldControllers[field.key],
             enabled: !_busy,
             keyboardType: field.keyboardType,
+            inputFormatters: field.digitsOnly
+                ? [FilteringTextInputFormatter.digitsOnly]
+                : null,
             minLines: field.lines,
             maxLines: field.lines,
             textInputAction: TextInputAction.next,

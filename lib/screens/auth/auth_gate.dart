@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app_state.dart';
 import '../../backend/service_locator.dart';
 import '../root_nav.dart';
+import '../summit_followup_screen.dart';
+import 'grade_required_screen.dart';
 import 'onboarding_screen.dart';
 import 'phone_required_screen.dart';
 import 'sign_in_screen.dart';
@@ -12,6 +14,7 @@ import 'sign_in_screen.dart';
 ///   no session          → [SignInScreen]
 ///   session, no profile → [OnboardingScreen]
 ///   volunteer/admin with no mobile number → [PhoneRequiredScreen]
+///   student volunteer / ambassador with no grade → [GradeRequiredScreen]
 ///   session, onboarded  → the app ([RootNav])
 ///
 /// Rebuilds automatically whenever the backend's auth state changes (sign-in,
@@ -56,6 +59,9 @@ class _ProfileLoader extends StatefulWidget {
 }
 
 class _ProfileLoaderState extends State<_ProfileLoader> {
+  /// The post-summit question opens by itself once per launch.
+  bool _followUpShown = false;
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +87,11 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
         if (appState.needsPhoneNumber) {
           return const PhoneRequiredScreen();
         }
+        // Student volunteers and EAF ambassadors need a grade for the hours
+        // sheet; their subtype is only known after sign-up, so ask here.
+        if (appState.needsGrade) {
+          return const GradeRequiredScreen();
+        }
         // A dev-login test account was auto-assigned its role — tell the tester
         // once, as the final "sign-in step", before the app proper.
         final notice = appState.consumeTestAccountNotice();
@@ -101,6 +112,14 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
                 ],
               ),
             );
+          });
+        }
+        // After the summit: ask experts for feedback and volunteers/admins
+        // whether they'd volunteer again, once per launch until answered.
+        if (appState.followUpPending && !_followUpShown) {
+          _followUpShown = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) openSummitFollowUp(context);
           });
         }
         return const RootNav();

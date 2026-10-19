@@ -178,7 +178,7 @@ These are from Summit '26. The '27 list is UNCONFIRMED. Always make clear this i
   * **Everything else is logged by hand:** planning meetings, setup, outreach, and other work before or after the summit. Tap **Add hours**, pick the date, start time, and end time, and write what you did. The app works out the length.
 * **Rules for a log:** The end time has to be after the start time, and you can't log time that hasn't happened yet. The description can be up to 500 characters.
 * **Fixing a mistake:** Tap a log to edit it, or use the trash icon on that screen to delete it.
-* **Where hours go:** The app sends everyone's hours to EAF's volunteer timecard automatically, within about a minute of a change. Each log is one row, and each session managed on summit day is one row.
+* **Where hours go:** The app sends everyone's hours to EAF's president for review.
 * **Student ID and grade:** Volunteers and admins can add an optional student ID when they sign up. Student volunteers and EAF ambassadors are asked their grade right after sign-up. Parent volunteers are never asked their grade, and for admins it's optional. Both can be changed in **Profile → Edit profile**. They appear on the volunteer timecard.
 * **There is no volunteer hours certificate** in the app.
 

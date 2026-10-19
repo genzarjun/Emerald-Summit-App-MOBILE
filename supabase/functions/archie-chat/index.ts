@@ -478,13 +478,21 @@ function describeAnnouncement(a: AnnouncementRow): string {
 }
 
 async function loadPersonalContext(db: SupabaseClient, userId: string): Promise<string> {
-  const [profile, regs, managing, personalNews] = await Promise.all([
+  const [profile, regs, managing, personalNews, hourLogs, summit, eafInterest, feedback] = await Promise.all([
     db.from("profiles").select("full_name, role").eq("id", userId).maybeSingle(),
     db.from("registrations").select("*").eq("user_id", userId),
     db.from("session_volunteers").select("session_id").eq("user_id", userId),
     db.from("announcements").select(ANNOUNCEMENT_COLUMNS)
       .eq("target_user_id", userId)
       .order("created_at", { ascending: false }).limit(10),
+    // Volunteer hours + post-summit follow-ups. RLS returns only the caller's
+    // own rows; other roles just get nothing back.
+    db.from("volunteer_hour_logs").select("started_at, ended_at, description")
+      .eq("user_id", userId).order("started_at", { ascending: false }),
+    db.rpc("fetch_summit_status"),
+    db.from("eaf_future_interest").select("wants_to_volunteer")
+      .eq("user_id", userId).maybeSingle(),
+    db.from("expert_feedback").select("kind").eq("expert_id", userId),
   ]);
   const ids = new Set<string>();
   for (const r of regs.data ?? []) ids.add(r.session_id);
@@ -524,8 +532,87 @@ async function loadPersonalContext(db: SupabaseClient, userId: string): Promise<
   if (personal.length) {
     lines.push("Personal notices sent only to them (News tab):", ...personal.map(describeAnnouncement));
   }
+
+  const role = profile.data?.role;
+  const status = (summit.data ?? {}) as { summit_date?: string | null; feedback_open?: boolean };
+  if (role === "volunteer" || role === "admin") {
+    lines.push(...describeHours(
+      (hourLogs.data ?? []) as HourLogRow[],
+      (managing.data ?? []).map((m) => titles.get(m.session_id)).filter(Boolean) as SessionTimes[],
+      status.summit_date ?? null,
+    ));
+    if (status.feedback_open) {
+      const answer = eafInterest.data?.wants_to_volunteer;
+      lines.push(`"Would you like to volunteer for EAF in the future?" (asked after the summit): ${
+        answer == null ? "not answered yet (Profile → Volunteer for EAF again?)" : answer ? "they said yes" : "they said no"
+      }.`);
+    }
+  }
+  if (role === "expert" && status.feedback_open) {
+    lines.push((feedback.data ?? []).length
+      ? "They have sent their post-summit feedback (they can change it under Profile → Summit feedback)."
+      : "They haven't sent their post-summit feedback yet (Profile → Summit feedback).");
+  }
   lines.push("</user_context>");
   return lines.join("\n");
+}
+
+type HourLogRow = { started_at: string; ended_at: string; description: string };
+type SessionTimes = { title: string; start_time: string; end_time: string };
+
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/** Minutes as hours, like the app: 150 → "2.5", 180 → "3". */
+const hoursText = (minutes: number) =>
+  (minutes / 60).toFixed(2).replace(/\.?0+$/, "");
+
+const pacific = (iso: string, opts: Intl.DateTimeFormatOptions) =>
+  new Date(iso).toLocaleString("en-US", { timeZone: "America/Los_Angeles", ...opts });
+
+/** The caller's volunteer hours, counted the same way as the app's hours
+ * screen: manual logs plus summit-day sessions they manage, which only count
+ * once the summit date is set and the session has ended on it. */
+function describeHours(logs: HourLogRow[], sessions: SessionTimes[], summitDate: string | null): string[] {
+  const nowPacific = new Date().toLocaleString("sv-SE", { timeZone: "America/Los_Angeles" }).slice(0, 16);
+  const counted = (s: SessionTimes) =>
+    summitDate != null && `${summitDate} ${s.end_time.slice(0, 5)}` <= nowPacific;
+
+  const loggedMinutes = logs.reduce(
+    (sum, l) => sum + Math.max(0, Math.round((Date.parse(l.ended_at) - Date.parse(l.started_at)) / 60000)), 0);
+  const summitMinutes = sessions.filter(counted)
+    .reduce((sum, s) => sum + Math.max(0, toMinutes(s.end_time) - toMinutes(s.start_time)), 0);
+
+  const out = [
+    "Their volunteer hours (Profile → Track volunteer hours; only volunteers and admins have this):",
+    `- Total: ${hoursText(loggedMinutes + summitMinutes)} hours (${hoursText(loggedMinutes)} logged by them, ${hoursText(summitMinutes)} on summit day).`,
+    summitDate
+      ? `- Summit date: ${summitDate}. Sessions they manage count automatically once each one ends that day.`
+      : "- The summit date isn't set yet, so summit-day hours aren't counted yet. Sessions they manage will count automatically once each one ends on summit day.",
+  ];
+  if (sessions.length) {
+    out.push("- Summit-day sessions they manage:");
+    for (const s of sessions) {
+      const mins = Math.max(0, toMinutes(s.end_time) - toMinutes(s.start_time));
+      out.push(`  - "${s.title}" ${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}, ${hoursText(mins)} hours, ${counted(s) ? "counted" : "not counted yet"}`);
+    }
+  } else {
+    out.push("- They don't manage any sessions yet, so they have no summit-day hours.");
+  }
+  if (logs.length) {
+    out.push(`- Their logs (${logs.length}, newest first${logs.length > 15 ? ", showing 15" : ""}):`);
+    for (const l of logs.slice(0, 15)) {
+      const mins = Math.max(0, Math.round((Date.parse(l.ended_at) - Date.parse(l.started_at)) / 60000));
+      out.push(`  - ${pacific(l.started_at, { month: "short", day: "numeric", year: "numeric" })}, ${
+        pacific(l.started_at, { hour: "numeric", minute: "2-digit" })}–${
+        pacific(l.ended_at, { hour: "numeric", minute: "2-digit" })}, ${hoursText(mins)} hours: ${truncate(l.description, 120)}`);
+    }
+  } else {
+    out.push("- They haven't logged any hours yet.");
+  }
+  return out;
 }
 
 async function checkDailyLimit(db: SupabaseClient): Promise<boolean> {

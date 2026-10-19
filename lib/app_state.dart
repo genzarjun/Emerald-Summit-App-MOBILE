@@ -420,6 +420,62 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---- Summit date + post-summit follow-ups --------------------------------
+  /// The summit date and whether feedback is open, from `summit_settings`.
+  SummitStatus summitStatus = SummitStatus.unknown;
+
+  /// The expert's saved feedback, and the volunteer's / admin's "volunteer for
+  /// EAF again?" answer (null until answered). Loaded once feedback opens.
+  List<ExpertFeedback> myFeedback = const [];
+  bool? myEafInterest;
+
+  /// Sessions the signed-in user registered for as an expert.
+  List<Session> get myExpertSessions => [
+    for (final s in allSessions)
+      if (_myRegistrations[s.id] == ParticipationType.expert) s,
+  ]..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
+
+  bool get isExpert => profile?.role == SummitRole.expert;
+
+  /// True when this user has a post-summit question waiting: an expert who
+  /// hasn't given feedback, or a volunteer/admin who hasn't said whether
+  /// they'd volunteer again.
+  bool get followUpPending {
+    if (!summitStatus.feedbackOpen) return false;
+    if (isExpert) return myFeedback.isEmpty;
+    if (isVolunteer || isAdmin) return myEafInterest == null;
+    return false;
+  }
+
+  /// Loads the summit status, and the user's own follow-up answers once
+  /// feedback is open. Failures keep the last known values.
+  Future<void> loadSummitStatus() async {
+    try {
+      summitStatus = await summitRepository.fetchStatus();
+      if (summitStatus.feedbackOpen) {
+        if (isExpert) myFeedback = await summitRepository.fetchMyFeedback();
+        if (isVolunteer || isAdmin) {
+          myEafInterest = await summitRepository.fetchMyEafInterest();
+        }
+      }
+    } catch (_) {
+      // Offline: keep what we had.
+    }
+    notifyListeners();
+  }
+
+  Future<void> submitFeedback(List<ExpertFeedback> items) async {
+    await summitRepository.submitFeedback(items);
+    myFeedback = await summitRepository.fetchMyFeedback();
+    notifyListeners();
+  }
+
+  Future<void> setEafInterest(bool yes) async {
+    await summitRepository.setEafInterest(yes);
+    myEafInterest = yes;
+    notifyListeners();
+  }
+
   // ---- Announcements (News feed + live events) -----------------------------
   List<Announcement> announcements = const [];
   bool announcementsLoading = false;
@@ -720,7 +776,6 @@ class AppState extends ChangeNotifier {
   // Display source for the profile screen. Synced from [profile] on load; the
   // demo defaults apply only in sample mode.
   bool notificationsEnabled = true;
-  double volunteerHours = 6.5;
 
   String get userName =>
       (profile?.fullName.isNotEmpty ?? false) ? profile!.fullName : _demoName;
@@ -737,6 +792,23 @@ class AppState extends ChangeNotifier {
     if (p == null || !p.onboarded || !p.role.requiresPhone) return false;
     return '${p.details['phone'] ?? ''}'.trim().isEmpty;
   }
+
+  /// True when a student volunteer or EAF ambassador has no grade on file.
+  /// Their subtype comes from the allowlist after sign-up, so the auth gate
+  /// asks for it then (parent volunteers are never asked; admins may add one
+  /// at sign-up, optional).
+  bool get needsGrade {
+    final p = profile;
+    if (p == null || !p.onboarded || !p.needsGrade) return false;
+    return '${p.details['grade'] ?? ''}'.trim().isEmpty;
+  }
+
+  /// Saves [grade] into the signed-in profile's details (the prompt shown
+  /// when [needsGrade]). Keeps every other answer as is.
+  Future<void> saveGrade(String grade) => updateProfileInfo(
+    fullName: profile!.fullName,
+    details: {...profile!.details, 'grade': grade},
+  );
 
   // ---- Role helpers --------------------------------------------------------
   bool get isAdmin => profile?.role == SummitRole.admin;
@@ -851,7 +923,6 @@ class AppState extends ChangeNotifier {
       }
       if (profile != null) {
         notificationsEnabled = profile!.notificationsEnabled;
-        volunteerHours = profile!.volunteerHours;
       }
     } finally {
       profileLoading = false;
@@ -862,6 +933,7 @@ class AppState extends ChangeNotifier {
     await loadAnnouncements();
     await loadReadAnnouncements();
     await loadMyAssignments();
+    await loadSummitStatus();
     await loadGallery();
     subscribeAnnouncements();
   }
@@ -925,7 +997,6 @@ class AppState extends ChangeNotifier {
     // by the role_allowlist trigger) are reflected locally, not just what we sent.
     profile = await profileRepository.fetchMine() ?? updated;
     notificationsEnabled = profile!.notificationsEnabled;
-    volunteerHours = profile!.volunteerHours;
     notifyListeners();
   }
 
@@ -955,6 +1026,9 @@ class AppState extends ChangeNotifier {
     await _unsubscribeAnnouncements();
     await authService.signOut();
     profile = null;
+    summitStatus = SummitStatus.unknown;
+    myFeedback = const [];
+    myEafInterest = null;
     _myRegistrations.clear();
     _disciplines = const [];
     announcements = const [];

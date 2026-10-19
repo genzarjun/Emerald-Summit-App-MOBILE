@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../models/user_profile.dart';
 
 /// Profile → Edit profile: change the name and the role's sign-up answers
 /// (phone, school, grade, expertise, bio…) without re-running onboarding. The
-/// fields come from [SummitRoleX.onboardingFields], so each role edits what
+/// fields come from [UserProfile.formFields], so each role edits what
 /// it was asked at sign-up, with the same required rules and notes. Changing
 /// the role itself stays under "Change role".
 class EditProfileScreen extends StatefulWidget {
@@ -16,12 +17,14 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late final SummitRole _role = appState.profile!.role;
+  /// This account's fields, including grade for student volunteers and
+  /// ambassadors ([UserProfile.formFields]).
+  late final List<ProfileField> _fields = appState.profile!.formFields;
   late final _nameController = TextEditingController(
     text: appState.profile!.fullName,
   );
   late final Map<String, TextEditingController> _fieldControllers = {
-    for (final f in _role.onboardingFields)
+    for (final f in _fields)
       f.key: TextEditingController(
         text: '${appState.profile!.details[f.key] ?? ''}',
       ),
@@ -45,7 +48,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() => _error = 'Please enter your name.');
       return;
     }
-    for (final f in _role.onboardingFields) {
+    for (final f in _fields) {
       if (f.required && _fieldControllers[f.key]!.text.trim().isEmpty) {
         setState(() => _error = '${f.label} is required.');
         return;
@@ -59,7 +62,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     // Start from what's saved so answers this role isn't asked (e.g. from a
     // previous role) survive; clearing an optional field removes it.
     final details = {...appState.profile!.details};
-    for (final f in _role.onboardingFields) {
+    for (final f in _fields) {
       final value = _fieldControllers[f.key]!.text.trim();
       if (value.isEmpty) {
         details.remove(f.key);
@@ -112,11 +115,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  for (final f in _role.onboardingFields) ...[
+                  for (final f in _fields) ...[
                     TextField(
                       controller: _fieldControllers[f.key],
                       enabled: !_busy,
                       keyboardType: f.keyboardType,
+                      inputFormatters: f.digitsOnly
+                          ? [FilteringTextInputFormatter.digitsOnly]
+                          : null,
                       minLines: f.lines,
                       maxLines: f.lines,
                       textInputAction: TextInputAction.next,

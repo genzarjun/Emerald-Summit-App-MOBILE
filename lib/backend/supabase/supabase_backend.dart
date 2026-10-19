@@ -49,6 +49,9 @@ class SupabaseBackend {
           SupabaseAssignmentRepository(client))
       ..registerSingleton<AttendanceRepository>(
           SupabaseAttendanceRepository(client))
+      ..registerSingleton<SummitRepository>(SupabaseSummitRepository(client))
+      ..registerSingleton<VolunteerHoursRepository>(
+          SupabaseVolunteerHoursRepository(client))
       ..registerSingleton<ArchieRepository>(SupabaseArchieRepository(client));
   }
 }

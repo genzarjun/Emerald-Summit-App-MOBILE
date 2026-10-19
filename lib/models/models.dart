@@ -1156,3 +1156,151 @@ class MyCheckinStatus {
     );
   }
 }
+
+/// One manual volunteer-hours entry (a row in `volunteer_hour_logs`): when the
+/// volunteer started and stopped, and what they did. Summit-day hours aren't
+/// stored as logs; they're counted from the sessions the volunteer manages
+/// (see [summitDayMinutes]).
+class VolunteerHourLog {
+  const VolunteerHourLog({
+    required this.id,
+    required this.startedAt,
+    required this.endedAt,
+    required this.description,
+  });
+
+  final String id;
+  final DateTime startedAt;
+  final DateTime endedAt;
+  final String description;
+
+  /// Whole minutes worked (end minus start), never negative.
+  int get minutes {
+    final m = endedAt.difference(startedAt).inMinutes;
+    return m < 0 ? 0 : m;
+  }
+
+  factory VolunteerHourLog.fromMap(Map<String, dynamic> row) =>
+      VolunteerHourLog(
+        id: row['id'].toString(),
+        startedAt: DateTime.parse(row['started_at'] as String).toLocal(),
+        endedAt: DateTime.parse(row['ended_at'] as String).toLocal(),
+        description: (row['description'] ?? '') as String,
+      );
+}
+
+/// Minutes a volunteer is credited for managing [session] on summit day: its
+/// end minus its start, or 0 if the times are out of order.
+int summitDayMinutes(Session session) {
+  final m = session.endMinutes - session.startMinutes;
+  return m < 0 ? 0 : m;
+}
+
+/// True once [session] has ended on [date] (the summit day), so its hours
+/// count. Always false while the date isn't set.
+bool summitSessionCounted(Session session, DateTime? date, DateTime now) {
+  if (date == null) return false;
+  final end = DateTime(
+    date.year,
+    date.month,
+    date.day,
+  ).add(Duration(minutes: session.endMinutes));
+  return !now.isBefore(end);
+}
+
+/// A length of time as "2 hr 30 min", "45 min", or "3 hr".
+String formatMinutes(int minutes) {
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  if (h == 0) return '$m min';
+  if (m == 0) return '$h hr';
+  return '$h hr $m min';
+}
+
+/// Minutes as hours with at most two decimals and no trailing zeros:
+/// 150 → "2.5", 180 → "3", 100 → "1.67".
+String formatHours(int minutes) {
+  final s = (minutes / 60).toStringAsFixed(2);
+  return s.replaceFirst(RegExp(r'\.?0+$'), '');
+}
+
+/// A clock time like "3:05 PM" (local time).
+String formatClock(DateTime d) {
+  final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  final m = d.minute.toString().padLeft(2, '0');
+  return '$h:$m ${d.hour >= 12 ? 'PM' : 'AM'}';
+}
+
+/// A day like "Sat, Oct 17", adding the year when it isn't the current one.
+String formatDay(DateTime d) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final year = d.year == DateTime.now().year ? '' : ', ${d.year}';
+  return '${days[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}$year';
+}
+
+/// The summit date (from `summit_settings`, null until the organizers set it)
+/// and whether post-summit feedback is open (after the last session of summit
+/// day has ended).
+class SummitStatus {
+  const SummitStatus({this.date, this.feedbackOpen = false});
+
+  final DateTime? date;
+  final bool feedbackOpen;
+
+  static const unknown = SummitStatus();
+
+  factory SummitStatus.fromMap(Map<String, dynamic> row) {
+    final d = row['summit_date'] as String?;
+    return SummitStatus(
+      date: d == null ? null : DateTime.parse(d),
+      feedbackOpen: row['feedback_open'] == true,
+    );
+  }
+}
+
+/// What an expert's feedback is about.
+enum FeedbackKind { app, summit, session }
+
+/// One rating (1 to 5) plus an optional comment from an expert, about the app,
+/// the summit overall, or one session they served in ([sessionId]).
+class ExpertFeedback {
+  const ExpertFeedback({
+    required this.kind,
+    this.sessionId,
+    required this.rating,
+    this.comment = '',
+  });
+
+  final FeedbackKind kind;
+  final String? sessionId;
+  final int rating;
+  final String comment;
+
+  factory ExpertFeedback.fromMap(Map<String, dynamic> row) => ExpertFeedback(
+    kind: FeedbackKind.values.byName(row['kind'] as String),
+    sessionId: row['session_id']?.toString(),
+    rating: (row['rating'] as num).toInt(),
+    comment: (row['comment'] ?? '') as String,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'kind': kind.name,
+    'session_id': sessionId,
+    'rating': rating,
+    'comment': comment,
+  };
+}

@@ -597,6 +597,86 @@ class SampleRoomsRepository implements RoomsRepository {
   }
 }
 
+/// In-memory manual hour logs for demo mode and tests.
+class SampleVolunteerHoursRepository implements VolunteerHoursRepository {
+  SampleVolunteerHoursRepository(this._store);
+
+  final SampleStore _store;
+
+  @override
+  Future<List<VolunteerHourLog>> fetchMine() async =>
+      [..._store.hourLogs]..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+
+  @override
+  Future<void> add(
+    DateTime startedAt,
+    DateTime endedAt,
+    String description,
+  ) async {
+    _store.hourLogs.add(
+      VolunteerHourLog(
+        id: 'log-${DateTime.now().microsecondsSinceEpoch}',
+        startedAt: startedAt,
+        endedAt: endedAt,
+        description: description,
+      ),
+    );
+  }
+
+  @override
+  Future<void> update(
+    String id,
+    DateTime startedAt,
+    DateTime endedAt,
+    String description,
+  ) async {
+    final i = _store.hourLogs.indexWhere((l) => l.id == id);
+    if (i < 0) return;
+    _store.hourLogs[i] = VolunteerHourLog(
+      id: id,
+      startedAt: startedAt,
+      endedAt: endedAt,
+      description: description,
+    );
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _store.hourLogs.removeWhere((l) => l.id == id);
+  }
+}
+
+/// In-memory summit status and follow-ups for demo mode and tests.
+class SampleSummitRepository implements SummitRepository {
+  SampleSummitRepository(this._store);
+
+  final SampleStore _store;
+
+  @override
+  Future<SummitStatus> fetchStatus() async => _store.summitStatus;
+
+  @override
+  Future<List<ExpertFeedback>> fetchMyFeedback() async => [
+    ..._store.expertFeedback,
+  ];
+
+  @override
+  Future<void> submitFeedback(List<ExpertFeedback> items) async {
+    for (final item in items) {
+      _store.expertFeedback.removeWhere(
+        (f) => f.kind == item.kind && f.sessionId == item.sessionId,
+      );
+      _store.expertFeedback.add(item);
+    }
+  }
+
+  @override
+  Future<bool?> fetchMyEafInterest() async => _store.eafInterest;
+
+  @override
+  Future<void> setEafInterest(bool yes) async => _store.eafInterest = yes;
+}
+
 /// In-memory volunteer↔session assignments, replicating the server overlap
 /// guard: an assignment is refused if the target session's time overlaps any of
 /// that volunteer's other assignments OR the demo user's personal registrations.

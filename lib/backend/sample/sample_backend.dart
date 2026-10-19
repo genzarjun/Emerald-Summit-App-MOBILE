@@ -33,6 +33,9 @@ class SampleBackend {
           SampleAssignmentRepository(store))
       ..registerSingleton<AttendanceRepository>(
           SampleAttendanceRepository(store))
+      ..registerSingleton<SummitRepository>(SampleSummitRepository(store))
+      ..registerSingleton<VolunteerHoursRepository>(
+          SampleVolunteerHoursRepository(store))
       ..registerSingleton<ArchieRepository>(SampleArchieRepository());
   }
 }

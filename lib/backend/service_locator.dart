@@ -45,6 +45,9 @@ SessionMediaRepository get sessionMediaRepository =>
 RoomsRepository get roomsRepository => getIt<RoomsRepository>();
 AssignmentRepository get assignmentRepository => getIt<AssignmentRepository>();
 AttendanceRepository get attendanceRepository => getIt<AttendanceRepository>();
+VolunteerHoursRepository get volunteerHoursRepository =>
+    getIt<VolunteerHoursRepository>();
+SummitRepository get summitRepository => getIt<SummitRepository>();
 ArchieRepository get archieRepository => getIt<ArchieRepository>();
 
 /// Description of the active backend, for UI copy.

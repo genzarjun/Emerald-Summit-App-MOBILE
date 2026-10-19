@@ -53,6 +53,16 @@ class SampleStore {
     ];
   }
 
+  /// The demo user's manual volunteer hour logs.
+  final List<VolunteerHourLog> hourLogs = [];
+
+  /// Summit date + whether feedback is open. Unknown (no date) by default.
+  SummitStatus summitStatus = SummitStatus.unknown;
+
+  /// The demo expert's feedback and the demo volunteer's EAF answer.
+  final List<ExpertFeedback> expertFeedback = [];
+  bool? eafInterest;
+
   /// The signed-in volunteer's own assignments (session ids). Empty in demo.
   final Set<String> myAssignedSessionIds = {};
 

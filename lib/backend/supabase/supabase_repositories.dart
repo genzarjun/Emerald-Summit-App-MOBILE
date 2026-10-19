@@ -863,6 +863,115 @@ class SupabaseAssignmentRepository implements AssignmentRepository {
   }
 }
 
+/// Manual volunteer hour logs, read and written straight against
+/// `volunteer_hour_logs`. RLS keeps every row to its owner and only lets
+/// volunteers and admins write.
+class SupabaseVolunteerHoursRepository implements VolunteerHoursRepository {
+  SupabaseVolunteerHoursRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<List<VolunteerHourLog>> fetchMine() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return const [];
+    final rows = await _client
+        .from('volunteer_hour_logs')
+        .select('id, started_at, ended_at, description')
+        .eq('user_id', uid)
+        .order('started_at', ascending: false);
+    return rows.map((r) => VolunteerHourLog.fromMap(r)).toList();
+  }
+
+  @override
+  Future<void> add(
+    DateTime startedAt,
+    DateTime endedAt,
+    String description,
+  ) async {
+    await _client.from('volunteer_hour_logs').insert({
+      'started_at': startedAt.toUtc().toIso8601String(),
+      'ended_at': endedAt.toUtc().toIso8601String(),
+      'description': description,
+    });
+  }
+
+  @override
+  Future<void> update(
+    String id,
+    DateTime startedAt,
+    DateTime endedAt,
+    String description,
+  ) async {
+    await _client
+        .from('volunteer_hour_logs')
+        .update({
+          'started_at': startedAt.toUtc().toIso8601String(),
+          'ended_at': endedAt.toUtc().toIso8601String(),
+          'description': description,
+        })
+        .eq('id', id);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _client.from('volunteer_hour_logs').delete().eq('id', id);
+  }
+}
+
+/// Summit date + follow-ups. Reads are RLS-scoped to the caller; writes go
+/// through `submit_expert_feedback` / `set_eaf_future_interest`, which check
+/// the role and that feedback is open.
+class SupabaseSummitRepository implements SummitRepository {
+  SupabaseSummitRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<SummitStatus> fetchStatus() async {
+    final res = await _client.rpc('fetch_summit_status');
+    return SummitStatus.fromMap((res as Map).cast<String, dynamic>());
+  }
+
+  @override
+  Future<List<ExpertFeedback>> fetchMyFeedback() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return const [];
+    final rows = await _client
+        .from('expert_feedback')
+        .select('kind, session_id, rating, comment')
+        .eq('expert_id', uid);
+    return rows.map((r) => ExpertFeedback.fromMap(r)).toList();
+  }
+
+  @override
+  Future<void> submitFeedback(List<ExpertFeedback> items) async {
+    await _client.rpc(
+      'submit_expert_feedback',
+      params: {
+        'p_items': [for (final i in items) i.toMap()],
+      },
+    );
+  }
+
+  @override
+  Future<bool?> fetchMyEafInterest() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    final row = await _client
+        .from('eaf_future_interest')
+        .select('wants_to_volunteer')
+        .eq('user_id', uid)
+        .maybeSingle();
+    return row?['wants_to_volunteer'] as bool?;
+  }
+
+  @override
+  Future<void> setEafInterest(bool yes) async {
+    await _client.rpc('set_eaf_future_interest', params: {'p_yes': yes});
+  }
+}
+
 /// Attendance: session rosters + mark, and the front-desk attendee directory +
 /// check-in. Every call is a SECURITY DEFINER RPC that enforces the right gate
 /// (session assignment / discipline editor, or the front-desk capability)
