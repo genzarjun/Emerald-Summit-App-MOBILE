@@ -53,7 +53,8 @@ void main() {
   testWidgets('prefills the name and sign-up answers', (tester) async {
     await pumpEditor(tester);
     expect(find.text('Alex Rivera'), findsOneWidget);
-    expect(find.text('Emerald High'), findsOneWidget);
+    // The old typed "Emerald High" opens on the listed school.
+    expect(find.text('Emerald High School'), findsOneWidget);
     expect(find.text('11'), findsOneWidget);
     expect(find.text('alex@example.com'), findsOneWidget);
   });
@@ -70,7 +71,7 @@ void main() {
     expect(p.fullName, 'Alex R.');
     expect(p.role, SummitRole.participant);
     expect(p.details, {
-      'school': 'Emerald High',
+      'school': 'Emerald High School',
       'grade': '12',
       'phone': '925 555 0123',
       'old_answer': 'kept',
@@ -80,10 +81,64 @@ void main() {
 
   testWidgets('a required answer cannot be cleared', (tester) async {
     await pumpEditor(tester);
-    await tester.enterText(field('School'), '');
+    await tester.enterText(field('Grade'), '');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Grade is required.'), findsOneWidget);
+    expect(appState.profile!.details['grade'], '11');
+  });
+
+  testWidgets('Other opens a box for a school that is not listed', (
+    tester,
+  ) async {
+    await pumpEditor(tester);
+    await tester.tap(find.text('Emerald High School'));
+    await tester.pumpAndSettle();
+    // The menu opens on the current school; Other is at the bottom.
+    await tester.scrollUntilVisible(
+      find.text('Other (not listed)'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Other (not listed)').last);
+    await tester.pumpAndSettle();
+
+    // Other with nothing typed counts as no answer.
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(find.text('School is required.'), findsOneWidget);
-    expect(appState.profile!.details['school'], 'Emerald High');
+
+    await tester.enterText(field('School name'), 'Irvington High School');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(appState.profile!.details['school'], 'Irvington High School');
+  });
+
+  testWidgets('a saved school that is not listed opens on Other', (
+    tester,
+  ) async {
+    appState.profile!.details['school'] = 'Irvington High School';
+    await pumpEditor(tester);
+    expect(find.text('Other (not listed)'), findsOneWidget);
+    expect(field('School name'), findsOneWidget);
+    expect(find.text('Irvington High School'), findsOneWidget);
+  });
+
+  testWidgets('parents and spectators may leave the school blank', (
+    tester,
+  ) async {
+    appState.profile = UserProfile(
+      id: 'u2',
+      email: 'pat@example.com',
+      fullName: 'Pat Kim',
+      role: SummitRole.parentSpectator,
+      onboarded: true,
+    );
+    await pumpEditor(tester);
+    expect(find.text('School (optional)'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Profile saved.'), findsOneWidget);
+    expect(appState.profile!.details.containsKey('school'), isFalse);
   });
 }

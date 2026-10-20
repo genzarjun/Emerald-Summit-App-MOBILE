@@ -239,6 +239,12 @@ Home header** (Uber-style), not a bottom-bar tab.
     copy, **Call** / **Text**). Admins also **assign/unassign** here; for
     organizers and editors it's read-only, so they can see and reach their
     co-workers. Emails stay admin-only.
+  - **Metrics** (same gate as Participants)
+    ([session_metrics_view.dart](lib/widgets/session_metrics_view.dart)):
+    headline counts (registered, schools, marked present), bars by school and
+    by grade, and a grades × schools grid. Filters: everyone / participating /
+    spectating (experts are left out). Counted on the device from
+    `fetch_session_roster`, so it needs no extra SQL.
   A plain participant sees only the Session tab. Admins and EAF ambassadors who
   can edit the session's discipline get **Edit** controls (an AppBar pencil + an
   inline button) that open the editor for the whole page — base fields plus the
@@ -504,6 +510,23 @@ Home header** (Uber-style), not a bottom-bar tab.
   Plus **Change role** (re-runs the gated role picker) and sign-out. Other roles
   see nothing about volunteer hours.
 
+**Metrics** ([metrics_screen.dart](lib/screens/metrics_screen.dart)), admins
+only, from Profile → **Metrics**. Filters: participants (default), parents &
+spectators, or everyone. Shows headline counts (signed up, schools, in a
+session, session sign-ups), sign-ups by school, a **schools × disciplines**
+grid (people from each school registered for at least one session in that
+discipline; expert registrations are left out), interest by discipline, a
+**schools × grades** grid, and sign-ups by grade. Grid cells are shaded by
+size, print their number, and show a sentence when tapped. Every count is
+distinct people, so someone in two Tech sessions counts once under Tech. Data
+comes from `fetch_summit_metrics()`
+([summit_metrics.sql](supabase/summit_metrics.sql), admin only): every
+onboarded account's role, school and grade (no names or contact details) plus
+every registration with its discipline. The counting happens in the app
+([metrics.dart](lib/models/metrics.dart)). Grade answers fold into 9–12
+("11th" and "Junior" both count as 11), Other, or blank. *(Not run on the dev
+project yet; until it is, the screen says it couldn't load.)*
+
 **Volunteer hours** ([lib/screens/volunteer_hours_screen.dart](lib/screens/volunteer_hours_screen.dart)),
 opened from Profile → Settings → **Track volunteer hours**, for volunteers and
 admins only. The total adds up two sources:
@@ -712,8 +735,13 @@ primary-colored.
   of expertise + a required one-line bio (the placeholder cycles through
   example bios) and an optional mobile, noted as used only to reach them
   day-of; admins give a mobile number (required), an optional student ID and
-  an optional grade; parents/spectators give
-  nothing extra. The participant
+  an optional grade; parents/spectators give an optional school.
+  **School is a dropdown** ([school_picker.dart](lib/widgets/school_picker.dart))
+  of Tri-Valley high schools ([schools.dart](lib/models/schools.dart): Dublin,
+  Pleasanton, Livermore, San Ramon, Danville) plus **Other**, which opens a
+  text box. The saved value is the school's name; an older typed answer like
+  "Dublin High" opens on the listed school, and metrics fold variants
+  ("Cal High", "DVHS") into the listed name. The participant
   and expert phone fields note the number isn't shown publicly (true:
   `profiles` RLS is own-row only; the one other reader is the organizers of
   sessions the person registered for, via the roster profile sheet). The

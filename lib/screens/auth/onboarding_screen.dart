@@ -7,6 +7,7 @@ import '../../app_state.dart';
 import '../../backend/repositories.dart';
 import '../../backend/service_locator.dart';
 import '../../models/user_profile.dart';
+import '../../widgets/school_picker.dart';
 
 /// First-run account setup, shown once after a user's first sign-in (while
 /// `profiles.onboarded` is false).
@@ -438,6 +439,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 20),
         ],
         for (final field in fields) ...[
+          if (field.schoolPicker)
+            SchoolPicker(
+              // Keyed by role so a role switch rebuilds it from the answer.
+              key: ValueKey('school-${_role.id}'),
+              field: field,
+              controller: _fieldControllers[field.key]!,
+              enabled: !_busy,
+            )
+          else
           TextField(
             controller: _fieldControllers[field.key],
             enabled: !_busy,

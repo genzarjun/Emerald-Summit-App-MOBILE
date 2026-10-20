@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 
+import '../../models/metrics.dart';
 import '../../models/models.dart';
 import '../../models/user_profile.dart';
 import '../repositories.dart';
@@ -1135,5 +1136,18 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
       },
     );
     return controller.stream;
+  }
+}
+
+/// Admin metrics: one admin-gated RPC (`summit_metrics.sql`).
+class SupabaseMetricsRepository implements MetricsRepository {
+  SupabaseMetricsRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<SummitMetrics> fetchSummitMetrics() async {
+    final res = await _client.rpc('fetch_summit_metrics');
+    return SummitMetrics.fromMap((res as Map).cast<String, dynamic>());
   }
 }

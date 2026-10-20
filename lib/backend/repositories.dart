@@ -15,6 +15,7 @@ library;
 
 import 'dart:typed_data';
 
+import '../models/metrics.dart';
 import '../models/models.dart';
 import '../models/user_profile.dart';
 
@@ -716,4 +717,13 @@ abstract interface class ArchieRepository {
   /// Admin only: recent question → answer pairs across all users, with no
   /// user identity attached. Newest first.
   Future<List<ArchieExchange>> recentExchanges({int limit = 100});
+}
+
+/// Summit-wide counts for the admin Metrics screen. Per-session metrics come
+/// from [AttendanceRepository.fetchSessionRoster] instead, which already
+/// carries each registrant's school and grade.
+abstract interface class MetricsRepository {
+  /// Every onboarded account (role, school, grade; no names) and every
+  /// registration. Admins only; anyone else gets an error.
+  Future<SummitMetrics> fetchSummitMetrics();
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../models/user_profile.dart';
+import '../widgets/school_picker.dart';
 
 /// Profile → Edit profile: change the name and the role's sign-up answers
 /// (phone, school, grade, expertise, bio…) without re-running onboarding. The
@@ -116,26 +117,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   const SizedBox(height: 14),
                   for (final f in _fields) ...[
-                    TextField(
-                      controller: _fieldControllers[f.key],
-                      enabled: !_busy,
-                      keyboardType: f.keyboardType,
-                      inputFormatters: f.digitsOnly
-                          ? [FilteringTextInputFormatter.digitsOnly]
-                          : null,
-                      minLines: f.lines,
-                      maxLines: f.lines,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: f.label,
-                        hintText:
-                            f.hint ?? (f.hints.isEmpty ? null : f.hints.first),
-                        hintMaxLines: f.lines,
-                        helperText: f.helper,
-                        helperMaxLines: 3,
-                        border: const OutlineInputBorder(),
+                    if (f.schoolPicker)
+                      SchoolPicker(
+                        field: f,
+                        controller: _fieldControllers[f.key]!,
+                        enabled: !_busy,
+                      )
+                    else
+                      TextField(
+                        controller: _fieldControllers[f.key],
+                        enabled: !_busy,
+                        keyboardType: f.keyboardType,
+                        inputFormatters: f.digitsOnly
+                            ? [FilteringTextInputFormatter.digitsOnly]
+                            : null,
+                        minLines: f.lines,
+                        maxLines: f.lines,
+                        textInputAction: TextInputAction.next,
+                        decoration: InputDecoration(
+                          labelText: f.label,
+                          hintText:
+                              f.hint ??
+                              (f.hints.isEmpty ? null : f.hints.first),
+                          hintMaxLines: f.lines,
+                          helperText: f.helper,
+                          helperMaxLines: 3,
+                          border: const OutlineInputBorder(),
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 14),
                   ],
                   _ReadOnlyRow(label: 'Email', value: profile.email),

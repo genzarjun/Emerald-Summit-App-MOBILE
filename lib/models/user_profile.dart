@@ -76,6 +76,7 @@ class ProfileField {
     this.required = false,
     this.keyboardType = TextInputType.text,
     this.digitsOnly = false,
+    this.schoolPicker = false,
   });
 
   final String key;
@@ -97,6 +98,10 @@ class ProfileField {
 
   /// True when only digits may be typed (e.g. a student ID).
   final bool digitsOnly;
+
+  /// True for the school question: a dropdown of Tri-Valley high schools
+  /// (`schools.dart`) with an "Other" choice that opens a text box.
+  final bool schoolPicker;
 }
 
 extension SummitRoleX on SummitRole {
@@ -138,7 +143,7 @@ extension SummitRoleX on SummitRole {
   /// Kept deliberately minimal: we only collect what the summit actually uses.
   /// Volunteers and admins give a number for day-of coordination (shared in
   /// the volunteer hub); experts give a one-line bio (and optionally a number
-  /// we'll only use day-of); parents/spectators need nothing extra.
+  /// we'll only use day-of); parents/spectators may give a school.
   ///
   /// TODO(volunteer-subtypes): tailor these per [VolunteerSubtype] once the
   /// subtype is known at onboarding (deferred — the subtype currently arrives
@@ -192,7 +197,7 @@ extension SummitRoleX on SummitRole {
                 key: 'school',
                 label: 'School',
                 required: true,
-                hint: 'e.g. Emerald High'),
+                schoolPicker: true),
             ProfileField(
                 key: 'grade', label: 'Grade', required: true, hint: 'e.g. 11'),
             ProfileField(
@@ -242,7 +247,13 @@ extension SummitRoleX on SummitRole {
                     'necessary. $_phonePrivacyNote',
                 keyboardType: TextInputType.phone),
           ],
-        SummitRole.parentSpectator => const [],
+        SummitRole.parentSpectator => const [
+            ProfileField(
+                key: 'school',
+                label: 'School (optional)',
+                helper: "For a parent, your student's school.",
+                schoolPicker: true),
+          ],
         SummitRole.admin => const [
             ProfileField(
                 key: 'phone',

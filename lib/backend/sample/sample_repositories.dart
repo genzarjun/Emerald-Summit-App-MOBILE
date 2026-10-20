@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../models/metrics.dart';
 import '../../models/models.dart';
 import '../../models/user_profile.dart';
 import '../auth_service.dart';
@@ -964,4 +965,38 @@ class SampleExpertsRepository implements ExpertsRepository {
 
   @override
   Future<void> acknowledgeDecline() async {}
+}
+
+/// Demo metrics, built from the sample rosters.
+class SampleMetricsRepository implements MetricsRepository {
+  SampleMetricsRepository(this._store);
+
+  final SampleStore _store;
+
+  @override
+  Future<SummitMetrics> fetchSummitMetrics() async {
+    final people = <String, MetricsPerson>{};
+    final registrations = <MetricsRegistration>[];
+    for (final MapEntry(key: sessionId, value: roster)
+        in _store.rosters.entries) {
+      final session = _store.sessionById(sessionId);
+      for (final e in roster) {
+        people[e.userId] ??= MetricsPerson(
+          id: e.userId,
+          role: SummitRoleX.fromId(e.role),
+          school: schoolLabel(e.details['school']),
+          grade: gradeLabel(e.details['grade']),
+        );
+        registrations.add(MetricsRegistration(
+          userId: e.userId,
+          sessionId: sessionId,
+          disciplineId: session?.disciplineId ?? '',
+          disciplineName: session?.disciplineName ?? '',
+          type: e.participationType,
+        ));
+      }
+    }
+    return SummitMetrics(
+        people: people.values.toList(), registrations: registrations);
+  }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
+import '../widgets/session_metrics_view.dart';
 import 'session_editor_screen.dart';
 import 'session_registration_screen.dart';
 import 'session_roster_screen.dart';
@@ -21,6 +22,8 @@ import 'session_volunteers_screen.dart';
 ///     attendance.
 ///   * **Volunteers** (admins, the session's organizers, and its editors) — who's
 ///     organizing the session, with their numbers; admins also assign/unassign.
+///   * **Metrics** (same people as Participants) — the schools and grades of
+///     the people registered.
 /// Anyone who can edit the session's discipline also gets an Edit action that
 /// opens the editor for the main page.
 class SessionDetailScreen extends StatefulWidget {
@@ -117,6 +120,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
           tabs.add(const Tab(text: 'Volunteers'));
           views.add(SessionVolunteersView(
               session: current, canAssign: appState.isAdmin));
+        }
+        if (canSeeRoster) {
+          tabs.add(const Tab(text: 'Metrics'));
+          views.add(SessionMetricsView(session: current));
         }
 
         final actions = <Widget>[
