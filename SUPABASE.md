@@ -362,7 +362,9 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     screen, one rolling notice per admin with the waiting count
     (`refresh_expert_queue_notice`), and `profiles.expert_queue_seen_at` for
     the Home badge. Redefines `review_expert` so declining leaves expert
-    sign-ups to the role trigger. Safe to re-run. *(Run on the dev project
+    sign-ups to the role trigger. Also posts every other admin a *"A session
+    lost a manager"* notice when a role change ends someone's managing.
+    Safe to re-run. *(Run on the dev project
     2026-10-19.)*
 
 49. `supabase/summit_metrics.sql`: **admin metrics.** Adds

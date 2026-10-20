@@ -801,7 +801,12 @@ primary-colored.
   allowlist sync alike. Before saving, **Change role** shows a box listing
   exactly what will happen to each session (`preview_role_change`, the same
   code with no writes), plus the approval note when switching to Expert; the
-  schedule reloads after saving.
+  schedule reloads after saving. When someone stops managing sessions this
+  way (a volunteer or admin moving to another role), every other admin gets
+  one notice, *"A session lost a manager"*, naming the person, the old and
+  new roles and the sessions, marking any that now have **nobody managing
+  them**, and pointing to the session's Volunteers tab to assign someone.
+  The Change role box tells the volunteer the admins will be told.
 - **Gated management roles.** Anyone can be a participant/parent (experts need
   an admin's approval, above), but
   **volunteer** and **admin** are verified against an allowlist synced from two

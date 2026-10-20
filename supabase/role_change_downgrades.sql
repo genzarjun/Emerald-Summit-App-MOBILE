@@ -26,6 +26,10 @@
 --  5. profiles.expert_queue_seen_at: when the admin last opened Profile. The
 --     app's red badge on the Home avatar shows while a waiting expert signed
 --     up after that.
+--  6. When someone stops managing sessions because of a role change (a
+--     volunteer or admin moving to another role, by Change role or the sheet
+--     sync), every other admin gets one notice listing those sessions and
+--     which of them now have nobody managing them.
 
 -- 1. The downgrade (dry run or for real) ---------------------------------------
 -- Returns a list of what changes, one item per session:
@@ -137,11 +141,55 @@ $$;
 revoke execute on function public.apply_role_change(uuid, text, boolean)
   from public, anon, authenticated;
 
+create or replace function public.role_label(p_role text)
+returns text language sql immutable as $$
+  select case p_role
+    when 'participant'     then 'Participant'
+    when 'expert'          then 'Expert'
+    when 'parentSpectator' then 'Parent / Spectator'
+    when 'volunteer'       then 'Volunteer'
+    when 'admin'           then 'Admin'
+    else coalesce(p_role, 'another role') end;
+$$;
+
 create or replace function public.profiles_role_downgrade()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_items    jsonb;
+  v_sessions text;
+  v_count    int;
+  v_name     text;
 begin
-  if new.role is distinct from old.role then
-    perform public.apply_role_change(new.id, new.role, false);
+  if new.role is not distinct from old.role then
+    return null;
+  end if;
+  v_items := public.apply_role_change(new.id, new.role, false);
+
+  -- 6. Sessions they stopped managing → tell the other admins.
+  select count(*),
+         string_agg(format('"%s"%s', i->>'title',
+                    case when not exists (
+                           select 1 from public.session_volunteers sv
+                            where sv.session_id = (i->>'session_id')::uuid)
+                         then ' (nobody is managing it now)' else '' end),
+                    ', ')
+    into v_count, v_sessions
+    from jsonb_array_elements(v_items) i
+   where i->>'from' = 'managing';
+  if v_count > 0 then
+    v_name := coalesce(nullif(btrim(new.full_name), ''), new.email, 'Someone');
+    insert into public.announcements
+      (title, body, author, audience, pinned, discipline_id, created_by,
+       target_user_id)
+    select case when v_count = 1 then 'A session lost a manager'
+                else 'Sessions lost a manager' end,
+           format('%s changed from %s to %s, so they no longer manage %s. '
+                  || 'Assign someone else on the session''s Volunteers tab.',
+                  v_name, public.role_label(old.role),
+                  public.role_label(new.role), v_sessions),
+           'Emerald Summit', 'Personal', false, null, new.id, a.id
+      from public.profiles a
+     where a.role = 'admin' and a.id <> new.id;
   end if;
   return null;
 end;

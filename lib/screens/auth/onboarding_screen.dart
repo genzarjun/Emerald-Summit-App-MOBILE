@@ -402,6 +402,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         'way you do now:',
                 style: body),
             for (final c in changes) line(describeRoleChange(c)),
+            if (changes.any((c) => c.from == 'managing')) ...[
+              const SizedBox(height: 10),
+              Text(
+                  "The admins will be told you're no longer managing these "
+                  'sessions, so they can find someone else.',
+                  style: body),
+            ],
           ],
         ],
       ),
