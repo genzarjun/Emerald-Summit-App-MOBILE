@@ -75,7 +75,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    await tester.tap(find.text('Pick your school'));
+    await tester.tap(find.text('School'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Emerald High School').last);
     await tester.pumpAndSettle();

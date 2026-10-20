@@ -89,7 +89,6 @@ class _SchoolPickerState extends State<SchoolPicker> {
             helperMaxLines: 3,
             border: const OutlineInputBorder(),
           ),
-          hint: const Text('Pick your school'),
           selectedItemBuilder: (_) => [
             for (final v in values)
               Text(labelOf(v), overflow: TextOverflow.ellipsis),

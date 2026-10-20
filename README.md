@@ -498,7 +498,9 @@ Home header** (Uber-style), not a bottom-bar tab.
   ([edit_profile_screen.dart](lib/screens/edit_profile_screen.dart), also a
   row under Settings): edit your name and your role's sign-up answers (phone,
   school, grade, expertise, bio…), prefilled, with the same required rules
-  and notes as sign-up; answers from a previous role are kept, a cleared
+  and notes as sign-up (school uses the same dropdown, so participants and
+  parents/spectators can switch schools, type one under Other, or, for
+  parents/spectators, clear it with None); answers from a previous role are kept, a cleared
   optional field is removed, and email + role are shown read-only (role
   changes stay under **Change role**), notifications toggle, an **Appearance** picker (Light / Dark /
   System, saved per device — see Theming below; on narrow screens or large
@@ -524,8 +526,8 @@ comes from `fetch_summit_metrics()`
 onboarded account's role, school and grade (no names or contact details) plus
 every registration with its discipline. The counting happens in the app
 ([metrics.dart](lib/models/metrics.dart)). Grade answers fold into 9–12
-("11th" and "Junior" both count as 11), Other, or blank. *(Not run on the dev
-project yet; until it is, the screen says it couldn't load.)*
+("11th" and "Junior" both count as 11), Other, or blank. *(Run on the dev
+project 2026-10-20.)*
 
 **Volunteer hours** ([lib/screens/volunteer_hours_screen.dart](lib/screens/volunteer_hours_screen.dart)),
 opened from Profile → Settings → **Track volunteer hours**, for volunteers and

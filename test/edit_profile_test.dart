@@ -141,4 +141,52 @@ void main() {
     expect(find.text('Profile saved.'), findsOneWidget);
     expect(appState.profile!.details.containsKey('school'), isFalse);
   });
+
+  testWidgets('a participant can switch to another listed school', (
+    tester,
+  ) async {
+    await pumpEditor(tester);
+    await tester.tap(find.text('Emerald High School'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dublin High School').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Profile saved.'), findsOneWidget);
+    expect(appState.profile!.details['school'], 'Dublin High School');
+  });
+
+  testWidgets('a parent can set a school and later clear it', (tester) async {
+    appState.profile = UserProfile(
+      id: 'u2',
+      email: 'pat@example.com',
+      fullName: 'Pat Kim',
+      role: SummitRole.parentSpectator,
+      onboarded: true,
+    );
+    await pumpEditor(tester);
+    await tester.tap(find.text('School (optional)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Amador Valley High School').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(appState.profile!.details['school'], 'Amador Valley High School');
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Amador Valley High School'), findsOneWidget);
+    await tester.tap(find.text('Amador Valley High School'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('None'),
+      -200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('None').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(appState.profile!.details.containsKey('school'), isFalse);
+  });
 }

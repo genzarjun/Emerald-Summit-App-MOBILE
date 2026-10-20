@@ -372,7 +372,7 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     onboarded account's role, school and grade (no names, emails or phones)
     plus every registration with its discipline, as one jsonb. The session
     Metrics tab needs nothing new (it reads `fetch_session_roster`). Safe to
-    re-run. *(Not run on the dev project yet.)*
+    re-run. *(Run on the dev project 2026-10-20.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
