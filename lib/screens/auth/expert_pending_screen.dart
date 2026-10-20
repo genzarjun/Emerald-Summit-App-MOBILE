@@ -11,7 +11,8 @@ import 'onboarding_screen.dart';
 class ExpertPendingScreen extends StatefulWidget {
   const ExpertPendingScreen({super.key});
 
-  static const contactEmail = 'president@ehsacademics.org';
+  /// Who to email about expert approval.
+  static const contactEmail = 'nysha.singhal@ehsacademics.org';
 
   @override
   State<ExpertPendingScreen> createState() => _ExpertPendingScreenState();

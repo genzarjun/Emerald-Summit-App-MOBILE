@@ -715,6 +715,8 @@ class AppState extends ChangeNotifier {
   void _onAnnouncementInserted(AnnouncementEvent event) {
     // A delete-for-everyone: drop it from the local feed immediately, no banner.
     if (event.deleted) {
+      // The admins' "experts waiting" notice is removed when the queue empties.
+      if (isAdmin) loadExpertRequests();
       final next = announcements.where((a) => a.id != event.id).toList();
       if (next.length != announcements.length) {
         announcements = next;
@@ -728,6 +730,7 @@ class AppState extends ChangeNotifier {
     // my assignments so the Schedule + "managing" list update live too.
     if (event.targetUserId != null && event.targetUserId == _myUserId) {
       loadMyAssignments();
+      if (event.title == expertQueueNoticeTitle) loadExpertRequests();
     }
     // Don't banner the poster, or if they muted notifications.
     if (event.createdBy != null &&
@@ -817,6 +820,58 @@ class AppState extends ChangeNotifier {
   /// person has seen the note ([acknowledgeExpertDecline]).
   bool get expertRequestDeclined =>
       profile?.expertStatus == ExpertStatus.declined;
+
+  // ---- Expert approvals (admins) --------------------------------------------
+  /// Experts waiting for an admin's approval. Empty for non-admins.
+  List<ExpertRequest> expertRequests = const [];
+
+  /// The title of the rolling admin notice (`refresh_expert_queue_notice`).
+  static const expertQueueNoticeTitle = 'Experts waiting for approval';
+
+  int get pendingExpertCount => expertRequests.length;
+
+  /// True while an expert has been waiting since the admin last opened
+  /// Profile: drives the red count on the Home avatar.
+  bool get hasUnseenExpertRequests {
+    if (!isAdmin || expertRequests.isEmpty) return false;
+    final seen = profile?.expertQueueSeenAt;
+    if (seen == null) return true;
+    return expertRequests.any(
+        (r) => r.requestedAt == null || r.requestedAt!.isAfter(seen));
+  }
+
+  Future<void> loadExpertRequests() async {
+    if (!isAdmin) {
+      if (expertRequests.isNotEmpty) {
+        expertRequests = const [];
+        notifyListeners();
+      }
+      return;
+    }
+    try {
+      expertRequests = await expertsRepository.fetchRequests();
+      notifyListeners();
+    } catch (_) {
+      // Keep what we had; it refreshes on the next resume or notice.
+    }
+  }
+
+  /// Clears the Home badge: the admin has opened Profile.
+  Future<void> markExpertQueueSeen() async {
+    final p = profile;
+    if (p == null || !isAdmin || !hasUnseenExpertRequests) return;
+    final now = DateTime.now().toUtc();
+    p.expertQueueSeenAt = now;
+    notifyListeners();
+    try {
+      await profileRepository
+          .patch({'expert_queue_seen_at': now.toIso8601String()});
+    } catch (_) {}
+  }
+
+  /// What switching to [role] would do to the user's sessions.
+  Future<List<RoleChangeItem>> previewRoleChange(SummitRole role) =>
+      profileRepository.previewRoleChange(role);
 
   /// Clears the declined note on the server and locally.
   Future<void> acknowledgeExpertDecline() async {
@@ -965,6 +1020,7 @@ class AppState extends ChangeNotifier {
     await loadMyAssignments();
     await loadSummitStatus();
     await loadGallery();
+    await loadExpertRequests();
     subscribeAnnouncements();
   }
 
@@ -1021,6 +1077,7 @@ class AppState extends ChangeNotifier {
   /// Saves the finished onboarding profile and marks the user onboarded, so
   /// the auth gate moves them into the app.
   Future<void> completeOnboarding(UserProfile updated) async {
+    final previousRole = profile?.onboarded == true ? profile?.role : null;
     updated.onboarded = true;
     await profileRepository.save(updated);
     // Re-read so the server's enforced role + volunteer scope/capabilities (set
@@ -1028,6 +1085,14 @@ class AppState extends ChangeNotifier {
     profile = await profileRepository.fetchMine() ?? updated;
     notificationsEnabled = profile!.notificationsEnabled;
     notifyListeners();
+    // A role change can move sessions down to spectating (or drop managed
+    // ones) on the server; pull the schedule so it shows right away.
+    if (previousRole != null && previousRole != profile!.role) {
+      await loadCatalog();
+      await loadSchedule();
+      await loadMyAssignments();
+      await loadExpertRequests();
+    }
   }
 
   /// Saves [phone] into the signed-in profile's details (the prompt shown
@@ -1068,6 +1133,7 @@ class AppState extends ChangeNotifier {
     _dismissedAnnouncementIds.clear();
     _readStateLoaded = false;
     myAssignedSessionIds = const {};
+    expertRequests = const [];
     rooms = const [];
     _isTestAccountSession = false;
     _testAccountNotice = null;

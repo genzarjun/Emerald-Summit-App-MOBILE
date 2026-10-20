@@ -149,10 +149,11 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.info_outline),
         title: const Text("Your expert request wasn't approved"),
-        content: const Text(
+        content: Text(
           'An admin reviewed your sign-up and did not approve it as an expert '
           'account, so your account is now a participant account. If you '
-          'think this is a mistake, email president@ehsacademics.org.',
+          'think this is a mistake, email '
+          '${ExpertPendingScreen.contactEmail}.',
         ),
         actions: [
           FilledButton(

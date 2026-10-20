@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app_state.dart';
 import '../backend/repositories.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
@@ -35,6 +36,7 @@ class _ExpertApprovalsScreenState extends State<ExpertApprovalsScreen> {
     });
     try {
       final list = await expertsRepository.fetchRequests();
+      appState.expertRequests = list;
       if (!mounted) return;
       setState(() {
         _requests = list;
@@ -84,6 +86,8 @@ class _ExpertApprovalsScreenState extends State<ExpertApprovalsScreen> {
     setState(() => _busy.add(r.userId));
     try {
       final done = await expertsRepository.review(r.userId, approve: approve);
+      // Keeps the counts on Profile and the Home avatar in step.
+      appState.loadExpertRequests();
       if (!mounted) return;
       setState(() {
         _busy.remove(r.userId);

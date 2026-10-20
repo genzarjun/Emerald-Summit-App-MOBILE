@@ -555,6 +555,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                   _capacity,
                   'Capacity',
                   keyboardType: TextInputType.number,
+                  helper: 'Participants, spectators and experts all count '
+                      'toward capacity. The people managing the session '
+                      "don't.",
                 ),
                 _deadlineField(theme),
                 _field(_description, 'Description', maxLines: 4),
@@ -1367,6 +1370,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     TextEditingController controller,
     String label, {
     String? hint,
+    String? helper,
     int maxLines = 1,
     TextInputType? keyboardType,
   }) {
@@ -1380,6 +1384,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
+          helperText: helper,
+          helperMaxLines: 3,
           border: const OutlineInputBorder(),
         ),
       ),

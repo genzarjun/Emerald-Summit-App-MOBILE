@@ -18,8 +18,21 @@ import 'volunteer_hub_screen.dart';
 /// "Profile" tab — the user's contact card, role, and settings, with
 /// role-gated shortcuts (volunteer hours, volunteer hub, front desk…) under
 /// Settings (spec section 04 — Profiles & contact cards).
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Opening Profile clears the red count on the Home avatar. The count beside
+    // Expert approvals stays while anyone is waiting.
+    appState.markExpertQueueSeen();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +276,19 @@ class _VisibilityCard extends StatelessWidget {
                         color: theme.colorScheme.primary),
                     title: const Text('Expert approvals'),
                     subtitle: const Text('Approve or decline expert sign-ups'),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (appState.pendingExpertCount > 0)
+                          Badge(
+                            label: Text('${appState.pendingExpertCount}'),
+                            largeSize: 22,
+                            textStyle: theme.textTheme.labelMedium,
+                          ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                           builder: (_) => const ExpertApprovalsScreen()),

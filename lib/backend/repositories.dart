@@ -269,6 +269,66 @@ abstract interface class ExpertsRepository {
   Future<void> acknowledgeDecline();
 }
 
+/// What a role change does to one of the person's sessions
+/// (`preview_role_change`). Moving to a role that can't participate, serve as
+/// an expert or manage moves that session down to spectating.
+class RoleChangeItem {
+  const RoleChangeItem({
+    required this.sessionId,
+    required this.title,
+    required this.from,
+    required this.to,
+    this.team,
+  });
+
+  final String sessionId;
+  final String title;
+
+  /// `participant`, `expert` or `managing`.
+  final String from;
+
+  /// `spectator`; `dropped` (managing a full session: removed from the day);
+  /// or `unchanged` (they were also registered, so only the managing ends).
+  final String to;
+
+  /// What happens to their team, if they were on one.
+  final RoleChangeTeam? team;
+
+  factory RoleChangeItem.fromMap(Map<String, dynamic> m) => RoleChangeItem(
+        sessionId: m['session_id'] as String,
+        title: (m['title'] ?? '') as String,
+        from: (m['from'] ?? '') as String,
+        to: (m['to'] ?? 'spectator') as String,
+        team: m['team'] == null
+            ? null
+            : RoleChangeTeam.fromMap((m['team'] as Map).cast()),
+      );
+}
+
+/// The team side of a [RoleChangeItem].
+class RoleChangeTeam {
+  const RoleChangeTeam({
+    required this.action,
+    required this.projectName,
+    this.toName,
+    this.code,
+  });
+
+  /// `handed_off` (to [toName]), `deleted` (nobody else on it; [code] stops
+  /// working) or `left`.
+  final String action;
+  final String projectName;
+  final String? toName;
+  final String? code;
+
+  factory RoleChangeTeam.fromMap(Map<String, dynamic> m) => RoleChangeTeam(
+        action: (m['action'] ?? 'left') as String,
+        projectName: (m['project_name'] ?? '') as String,
+        toName: m['to_name'] as String?,
+        code: m['code'] as String?,
+      );
+}
+
 /// The signed-in user's own profile row.
 abstract interface class ProfileRepository {
   /// Loads the current user's profile, or null if nobody is signed in.
@@ -279,6 +339,10 @@ abstract interface class ProfileRepository {
 
   /// Updates just the given fields on the current user's row.
   Future<void> patch(Map<String, dynamic> fields);
+
+  /// What switching to [role] would do to the user's sessions. Nothing is
+  /// changed; the database applies the same rules when the role is saved.
+  Future<List<RoleChangeItem>> previewRoleChange(SummitRole role);
 }
 
 /// The announcements feed, plus an optional live event stream.

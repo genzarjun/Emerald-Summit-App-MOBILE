@@ -421,7 +421,16 @@ class SampleProfileRepository implements ProfileRepository {
     if (fields.containsKey('volunteer_hours')) {
       p.volunteerHours = (fields['volunteer_hours'] as num).toDouble();
     }
+    if (fields.containsKey('expert_queue_seen_at')) {
+      p.expertQueueSeenAt =
+          DateTime.parse(fields['expert_queue_seen_at'] as String);
+    }
   }
+
+  /// Demo mode has no sessions the role change would move.
+  @override
+  Future<List<RoleChangeItem>> previewRoleChange(SummitRole role) async =>
+      const [];
 }
 
 class SampleAnnouncementsRepository implements AnnouncementsRepository {

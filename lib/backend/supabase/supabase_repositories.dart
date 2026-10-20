@@ -333,6 +333,18 @@ class SupabaseProfileRepository implements ProfileRepository {
     if (user == null) return;
     await _client.from('profiles').update(fields).eq('id', user.id);
   }
+
+  @override
+  Future<List<RoleChangeItem>> previewRoleChange(SummitRole role) async {
+    final res = await _client.rpc(
+      'preview_role_change',
+      params: {'p_role': role.id},
+    );
+    return [
+      for (final m in (res as List? ?? const []))
+        RoleChangeItem.fromMap((m as Map).cast<String, dynamic>()),
+    ];
+  }
 }
 
 /// Expert approval RPCs (`supabase/expert_approval.sql`).

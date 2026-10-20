@@ -291,6 +291,7 @@ class UserProfile {
     this.canPostAnnouncements = false,
     this.canCheckInFrontDesk = false,
     this.expertStatus,
+    this.expertQueueSeenAt,
     List<String>? managedDisciplines,
     Map<String, dynamic>? details,
   })  : managedDisciplines = managedDisciplines ?? const [],
@@ -324,6 +325,10 @@ class UserProfile {
 
   /// Admin review of an expert account; null for other roles. Server-owned.
   final ExpertStatus? expertStatus;
+
+  /// Admins: when they last opened Profile. The red badge on the Home avatar
+  /// shows while an expert has been waiting for approval since then.
+  DateTime? expertQueueSeenAt;
 
   /// Discipline ids a volunteer may manage, or `['*']` for a volunteer who
   /// manages every discipline. Set by the server (the allowlist enforcement
@@ -382,6 +387,9 @@ class UserProfile {
         canPostAnnouncements: (row['can_post_announcements'] ?? false) as bool,
         canCheckInFrontDesk: (row['can_check_in_front_desk'] ?? false) as bool,
         expertStatus: ExpertStatus.fromId(row['expert_status'] as String?),
+        expertQueueSeenAt: row['expert_queue_seen_at'] == null
+            ? null
+            : DateTime.parse(row['expert_queue_seen_at'] as String),
         managedDisciplines:
             (row['managed_disciplines'] as List?)?.cast<String>() ?? const [],
         details: (row['details'] as Map?)?.cast<String, dynamic>() ?? {},

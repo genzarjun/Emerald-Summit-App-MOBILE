@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app_state.dart';
+import '../../backend/repositories.dart';
 import '../../backend/service_locator.dart';
 import '../../models/user_profile.dart';
 
@@ -38,6 +39,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   bool _busy = false;
   String? _error;
+
+  /// When changing role: what the switch does to the person's sessions
+  /// (participating / expert / managing moved down to spectating). Null when
+  /// not loaded or not a change.
+  List<RoleChangeItem>? _roleChanges;
+
+  /// True when an existing account is switching to a different role.
+  bool get _changingRole => _editing && _role != appState.profile?.role;
 
   /// Advances every few seconds so fields with several example [ProfileField.hints]
   /// cycle through them.
@@ -122,8 +131,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() => _busy = false);
     }
 
+    // Show exactly what the switch does to their sessions before they save.
+    List<RoleChangeItem>? changes;
+    if (_changingRole) {
+      setState(() {
+        _busy = true;
+        _error = null;
+      });
+      try {
+        changes = await appState.previewRoleChange(_role);
+      } catch (_) {
+        changes = null;
+      }
+      if (!mounted) return;
+      _busy = false;
+    }
+
     setState(() {
       _error = null;
+      _roleChanges = changes;
       _syncFieldControllers();
       _step = 1;
     });
@@ -164,14 +190,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       // First-time: the auth gate rebuilds on notify and shows the app.
       // Editing from Profile: pop back to where we came from.
       if (_editing && mounted) {
-        Navigator.of(context).pop();
-        // A new expert lands on the waiting screen, which says it all.
-        if (!appState.needsExpertApproval) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(
-                content: Text('You’re now a ${appState.userRole}.')));
+        // A new expert goes straight to the waiting screen: close everything
+        // opened on top of the app so the auth gate's screen shows.
+        if (appState.needsExpertApproval) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          return;
         }
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+              content: Text('You’re now a ${appState.userRole}.')));
       }
     } catch (e) {
       if (!mounted) return;
@@ -309,6 +338,75 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  /// Spells out what switching role does: an expert needs approval, and each
+  /// session the new role can't keep the same way moves down to spectating.
+  Widget _roleChangeNotice(ThemeData theme) {
+    final changes = _roleChanges ?? const <RoleChangeItem>[];
+    final toExpert = _role == SummitRole.expert;
+    if (changes.isEmpty && !toExpert) return const SizedBox.shrink();
+    final scheme = theme.colorScheme;
+    final body = theme.textTheme.bodyMedium?.copyWith(
+      color: scheme.onTertiaryContainer,
+    );
+    Widget line(String text) => Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('•  ', style: body),
+              Expanded(child: Text(text, style: body)),
+            ],
+          ),
+        );
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.tertiary, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.swap_horiz, color: scheme.onTertiaryContainer),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Switching to ${_role.label}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: scheme.onTertiaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (toExpert) ...[
+            const SizedBox(height: 10),
+            Text(
+                'Expert accounts need an admin to approve them. Until then, '
+                "you'll only see a screen saying your account is awaiting "
+                'approval.',
+                style: body),
+          ],
+          if (changes.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+                _role == SummitRole.parentSpectator
+                    ? 'As a ${_role.label}, you can only spectate. These '
+                        'sessions change:'
+                    : 'Some of your sessions change, because '
+                        "${_rolePlural(_role)} can't take part in them the "
+                        'way you do now:',
+                style: body),
+            for (final c in changes) line(describeRoleChange(c)),
+          ],
+        ],
+      ),
+    );
+  }
+
   // ---- Step 2: role-specific details ---------------------------------------
   Widget _stepTwo(BuildContext context) {
     final theme = Theme.of(context);
@@ -335,6 +433,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
+        if (_changingRole) ...[
+          _roleChangeNotice(theme),
+          const SizedBox(height: 20),
+        ],
         for (final field in fields) ...[
           TextField(
             controller: _fieldControllers[field.key],
@@ -393,4 +495,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ],
     );
   }
+}
+
+/// The role as a plain plural noun for sentences ("experts can't…").
+String _rolePlural(SummitRole role) => switch (role) {
+      SummitRole.participant => 'participants',
+      SummitRole.expert => 'experts',
+      SummitRole.parentSpectator => 'parents and spectators',
+      SummitRole.volunteer => 'volunteers',
+      SummitRole.admin => 'admins',
+    };
+
+/// One plain sentence for what a role change does to a session.
+String describeRoleChange(RoleChangeItem c) {
+  final title = '"${c.title}"';
+  final base = switch ((c.from, c.to)) {
+    ('managing', 'dropped') =>
+      "$title: you'll stop managing it. It's full, so it will be removed "
+          'from your day.',
+    ('managing', 'unchanged') =>
+      "$title: you'll stop managing it. You stay registered for it.",
+    ('managing', _) => "$title: you'll stop managing it and spectate instead.",
+    ('expert', _) =>
+      "$title: you'll go from serving as an expert to spectating.",
+    _ => "$title: you'll go from participating to spectating.",
+  };
+  final team = c.team;
+  if (team == null) return base;
+  final project = '"${team.projectName}"';
+  return switch (team.action) {
+    'handed_off' =>
+      '$base Your team $project goes to ${team.toName ?? 'a teammate'}.',
+    'deleted' => '$base Nobody else has joined your team $project, so it '
+        'will be deleted and its code '
+        '${team.code == null ? '' : '${team.code} '}will stop working.',
+    _ => "$base You'll leave the team $project.",
+  };
 }

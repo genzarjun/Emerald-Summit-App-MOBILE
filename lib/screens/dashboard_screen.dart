@@ -335,9 +335,21 @@ class _AvatarButton extends StatelessWidget {
               .take(2)
               .map((p) => p[0].toUpperCase())
               .join();
+    // Admins: a red count while experts have been waiting since they last
+    // opened Profile.
+    final waiting = appState.hasUnseenExpertRequests
+        ? appState.pendingExpertCount
+        : 0;
     return Tooltip(
-      message: 'Profile',
-      child: InkWell(
+      message: waiting > 0
+          ? 'Profile: $waiting waiting for expert approval'
+          : 'Profile',
+      child: Badge(
+        isLabelVisible: waiting > 0,
+        label: Text('$waiting'),
+        largeSize: 20,
+        offset: const Offset(2, -2),
+        child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: () =>
             Navigator.of(context)
@@ -360,6 +372,7 @@ class _AvatarButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

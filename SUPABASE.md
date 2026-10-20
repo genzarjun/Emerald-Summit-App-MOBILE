@@ -352,6 +352,19 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     before shipping the current app, or expert accounts can't get past the
     waiting screen. Safe to re-run. *(Run on the dev project 2026-10-19.)*
 
+48. `supabase/role_change_downgrades.sql`: **role changes move sessions down
+    to spectating**, and the admins' **"Experts waiting for approval"**
+    notice. A `profiles` trigger on role changes (`apply_role_change`)
+    turns participating / expert / managing rows the new role can't keep
+    into spectating (leaving the team: handed to the teammate who joined
+    first, or deleted if no one else is on it; a full managed session is
+    dropped instead). Adds `preview_role_change(role)` for the Change role
+    screen, one rolling notice per admin with the waiting count
+    (`refresh_expert_queue_notice`), and `profiles.expert_queue_seen_at` for
+    the Home badge. Redefines `review_expert` so declining leaves expert
+    sign-ups to the role trigger. Safe to re-run. *(Run on the dev project
+    2026-10-19.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

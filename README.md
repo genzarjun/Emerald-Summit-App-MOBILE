@@ -249,7 +249,9 @@ Home header** (Uber-style), not a bottom-bar tab.
   will you be presenting?"*). It stays a required default question, and blank
   or reset falls back to *"What is your project name?"*. The form, the
   join-team confirmation (which then shows the question + the team's answer)
-  and the leave-team dialog all use the session's wording. There's no expert
+  and the leave-team dialog all use the session's wording. The **Capacity**
+  field notes that participants, spectators and experts all count toward it
+  and the people managing the session don't. There's no expert
   field: the session page names whoever registered as an expert instead (the
   old `sessions.expert_name` column is left in place but unused). The editor also has a **Teams** dropdown: *Teams of up to 2–8* (default 4) or
   *No teams allowed — solo only*. Lowering the limit or turning teams off
@@ -446,8 +448,14 @@ Home header** (Uber-style), not a bottom-bar tab.
     function reads it with the service role, caches it ~5 minutes, strips HTML
     comments (editor notes), and puts it right after the persona, inside the
     cached prefix. **To update: edit the file, upload it to the bucket as
-    `knowledge.md` — no redeploy.** (A file bundled with the function was
-    avoided because dashboard and CLI deploys handle extra files differently.)
+    `knowledge.md` — no redeploy.** From the CLI: `supabase storage rm
+    ss:///archie/knowledge.md --linked --experimental`, then `supabase storage
+    cp supabase/archie/knowledge.md ss:///archie/knowledge.md --linked
+    --experimental` (`cp` refuses to overwrite). (A file bundled with the
+    function was avoided because dashboard and CLI deploys handle extra files
+    differently.) *(Dev has the 2026-10-19 version: expert approval with
+    nysha.singhal@ehsacademics.org, and changing roles. The function was
+    redeployed the same day without the old `expert_name` column.)*
     Don't copy session times/rooms/seats into it; those come live from the app.
   - **The persona** is the `PERSONA` constant in
     [index.ts](supabase/functions/archie-chat/index.ts) (identity, sources and
@@ -726,21 +734,46 @@ primary-colored.
   **pending** and the app shows only an **Awaiting approval** screen
   ([expert_pending_screen.dart](lib/screens/auth/expert_pending_screen.dart)):
   their name, expertise and email; *"If your account isn't approved within 48
-  hours, email us at president@ehsacademics.org"* (tap to email); **Check
+  hours, email us at nysha.singhal@ehsacademics.org"* (tap to email); **Check
   again** (also re-checks when the app returns to the foreground); **Sign up as
-  something else** (reopens the role picker); and Sign out. Admins aren't
-  sent a notice per sign-up (there are several admins); they review waiting
-  experts in **Profile → Expert approvals**
-  ([expert_approvals_screen.dart](lib/screens/expert_approvals_screen.dart)):
-  name, expertise, bio, email, phone, sign-up time, **Approve** / **Decline**.
-  Approving opens the app for them (with a *"Your expert account is
-  approved"* notice). Declining (after a confirm) turns the account into a
-  participant, removes any expert sign-ups, and shows them a one-time *"Your
-  expert request wasn't approved"* note pointing at the same email. Only an
+  something else** (reopens the role picker); and Sign out. Switching to
+  Expert from **Change role** lands on that screen right away.
+  - **How admins find out:** one rolling personal notice per admin,
+    *"Experts waiting for approval"* with the current count (*"2 experts are
+    waiting…"*), not one per sign-up. A new waiting expert replaces it so it's
+    unread again; a review updates the count; it's deleted once nobody is
+    waiting. A **red count on the Home avatar** shows while an expert has
+    signed up since the admin last opened Profile (opening Profile clears it,
+    stored as `profiles.expert_queue_seen_at`), and a red count **beside
+    Expert approvals** shows while anyone is waiting. *(When OS push
+    notifications are built, send a push alongside this notice; see Roadmap.)*
+  - **Review:** **Profile → Expert approvals**
+    ([expert_approvals_screen.dart](lib/screens/expert_approvals_screen.dart)):
+    name, expertise, bio, email, phone, sign-up time, **Approve** /
+    **Decline**. Approving opens the app for them (with a *"Your expert
+    account is approved"* notice). Declining (after a confirm) turns the
+    account into a participant, moves its expert sign-ups to spectating (see
+    *Role changes* below), and shows a one-time *"Your expert request wasn't
+    approved"* note pointing at the same email. Only an
   approved expert can register as an expert for a session
   (`expert_not_approved` otherwise). Experts who signed up before this were
   made pending too. Backend:
-  [expert_approval.sql](supabase/expert_approval.sql).
+  [expert_approval.sql](supabase/expert_approval.sql) and
+  [role_change_downgrades.sql](supabase/role_change_downgrades.sql).
+- **Role changes move sessions down to spectating.** When someone's role
+  changes, any session they're in a way the new role can't be becomes
+  **spectating**: participating needs participant, volunteer or admin;
+  serving as an expert needs expert; managing needs volunteer or admin. A
+  participant leaving their team: a team with other members goes to the
+  teammate who joined first (they get the usual owner notice); a team with
+  no one else is deleted and its code stops working. Managing a session
+  that's full drops it from their day instead; if they were also registered
+  for it, they just stop managing. A database trigger on `profiles.role`
+  does this, so it covers **Change role**, a declined expert and the
+  allowlist sync alike. Before saving, **Change role** shows a box listing
+  exactly what will happen to each session (`preview_role_change`, the same
+  code with no writes), plus the approval note when switching to Expert; the
+  schedule reloads after saving.
 - **Gated management roles.** Anyone can be a participant/parent (experts need
   an admin's approval, above), but
   **volunteer** and **admin** are verified against an allowlist synced from two
@@ -1355,6 +1388,11 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
     account stored as a function secret).
   - Foreground messages reuse the existing in-app banner
     ([lib/widgets/in_app_banner.dart](lib/widgets/in_app_banner.dart)).
+  - **Expert approvals:** also push the admins' *"Experts waiting for
+    approval"* notice (posted by `refresh_expert_queue_notice` in
+    [role_change_downgrades.sql](supabase/role_change_downgrades.sql)). The
+    webhook on `announcements` INSERT covers it, since a new waiting expert
+    re-inserts the notice; it only needs to send to `target_user_id`.
   - Also planned: per-user "next session" reminders; email fan-out; and a
     push / announcement to experts, volunteers and admins **when post-summit
     feedback opens** (on summit day once the last session ends, i.e. when

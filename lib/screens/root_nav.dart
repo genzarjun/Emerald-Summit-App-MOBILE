@@ -39,7 +39,10 @@ class _RootNavState extends State<RootNav> with WidgetsBindingObserver {
   /// auth gate shows the feedback question as soon as it opens.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) appState.loadSummitStatus();
+    if (state == AppLifecycleState.resumed) {
+      appState.loadSummitStatus();
+      appState.loadExpertRequests();
+    }
   }
 
   static const _screens = [
