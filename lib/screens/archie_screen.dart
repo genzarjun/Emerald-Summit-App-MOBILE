@@ -301,7 +301,11 @@ class _ArchieScreenState extends State<ArchieScreen>
   void _settle(_ChatMessage reply) {
     _typer.stop();
     if (mounted) setState(() => _active = null);
-    if (reply.failed || reply.text.trim().isEmpty) return;
+    // A reply cut off by an error isn't saved: Retry asks again, and saving
+    // both would put the question in the history twice.
+    if (reply.failed || reply.error != null || reply.text.trim().isEmpty) {
+      return;
+    }
     final index = _messages.indexOf(reply);
     if (index < 1) return;
     final question = _messages[index - 1].text;
@@ -404,6 +408,9 @@ class _ArchieScreenState extends State<ArchieScreen>
       _scrollToBottom();
     } catch (_) {
       if (!mounted) return;
+      // The stream was already cut above; settle the reply in progress so the
+      // composer doesn't stay stuck on Stop.
+      _stop();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Couldn't open that chat.")));
@@ -1251,7 +1258,18 @@ class _WelcomeState extends State<_Welcome> with TickerProviderStateMixin {
   late final _bob = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Holds still when the system asks for reduced motion.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _bob.stop();
+    } else if (!_bob.isAnimating) {
+      _bob.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -1487,6 +1505,8 @@ class _ArchieReply extends StatelessWidget {
                   data: active ? '$shown ●' : shown,
                   selectable: !active,
                   styleSheet: _markdownStyle(context),
+                  // Answers never load images: a URL in one could carry data out.
+                  imageBuilder: (_, _, _) => const SizedBox.shrink(),
                   onTapLink: (_, href, _) => _openLink(context, href),
                 ),
               if (m.failed || (m.error != null && m.settled))
@@ -1862,7 +1882,11 @@ class _ErrorRow extends StatelessWidget {
 
 Future<void> _openLink(BuildContext context, String? href) async {
   final uri = href == null ? null : Uri.tryParse(href);
-  if (uri == null) return;
+  // Answers can be shaped by web pages Archie reads, so only web and email
+  // links open; tel:, sms: and app schemes are ignored.
+  if (uri == null || !const {'http', 'https', 'mailto'}.contains(uri.scheme)) {
+    return;
+  }
   final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(

@@ -373,7 +373,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   **typing reveal** (a ticker paces the text and speeds up when behind) with
   matching **haptics** (a light tap as it starts and ends, soft throttled ticks
   while it types), markdown
-  rendering, **source chips** for the web pages it cited, copy, retry, and New
+  rendering (answers never load images, and only web and email links open,
+  since web pages Archie reads can shape its output), **source chips** for the web pages it cited, copy, retry, and New
   chat. The header has **Your chats** (history) flush right; **New chat**
   slides in beside it only once a conversation exists. It follows the app's
   **appearance**: black with a faint emerald glow, green cards and navy chat
@@ -1007,7 +1008,9 @@ test/widget_test.dart       Widget tests
       - Set **Email OTP Length** (Auth → Providers → Email) to **6**; the app's
         code field tolerates up to 10 so a mismatch never truncates silently.
   - App-side auth lives in [lib/screens/auth/](lib/screens/auth/) (`auth_gate`
-    routes sign-in → onboarding → app) against the abstract `AuthService`; the
+    routes sign-in → onboarding → app; if the profile can't be read it shows
+    *Try again* instead of onboarding, which would overwrite the saved
+    answers) against the abstract `AuthService`; the
     Supabase implementation is
     [lib/backend/supabase/supabase_auth_service.dart](lib/backend/supabase/supabase_auth_service.dart).
 - **Data model (SQL in [`supabase/`](supabase/)).** Run the files in
@@ -1028,7 +1031,10 @@ test/widget_test.dart       Widget tests
     [session_participation_setup.sql](supabase/session_participation_setup.sql)
   - `registrations` — the personal schedule (RLS: each user only their own).
     Adds/removes go through the **`register_for_session` RPC**, the single
-    server-side enforcer of capacity + no-time-overlap; it also records the
+    server-side enforcer of capacity + no-time-overlap (clients have no
+    INSERT grant). It locks the session row while it counts seats, and takes
+    `p_intent` (`add` / `remove`): the app sends what the button said, so a
+    stale screen can't flip a registration the other way. It also records the
     `participation_type` (`participant`/`spectator`/`expert`) and the
     participant's `answers` (jsonb, keyed by question id), plus their project:
     `project_mode` (`solo`/`team`; null for spectators/experts and older
@@ -1039,6 +1045,7 @@ test/widget_test.dart       Widget tests
     `update_registration_answers` is superseded). Gains `attended` /
     `attended_at` / `marked_by` for session attendance.
     [registrations_setup.sql](supabase/registrations_setup.sql),
+    [registrations_lockdown.sql](supabase/registrations_lockdown.sql),
     [session_participation_setup.sql](supabase/session_participation_setup.sql),
     [registration_answers_edit.sql](supabase/registration_answers_edit.sql),
     [teams_setup.sql](supabase/teams_setup.sql)
@@ -1189,8 +1196,11 @@ test/widget_test.dart       Widget tests
     `managed_disciplines`, `volunteer_subtype`, and the three capability flags —
     setting them from the sheet (applying subtype defaults for blank capability
     cells: EAF ambassadors edit sessions by default; parents/students don't;
-    announcements + front-desk are opt-in). Self-elevation via a crafted API
-    call is impossible.
+    announcements + front-desk are opt-in). It matches on the sign-in email
+    from `auth.users` and copies it onto `profiles.email`, because users can
+    write their own profile row
+    ([role_allowlist_email_fix.sql](supabase/role_allowlist_email_fix.sql)).
+    Self-elevation via a crafted API call is impossible.
   - Capabilities are the levers: `can_edit_sessions` (session CRUD, scoped to
     `managed_disciplines`), `can_post_announcements` (post to a managed
     discipline), `can_check_in_front_desk` (summit-wide check-in). Being

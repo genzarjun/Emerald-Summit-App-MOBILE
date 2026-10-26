@@ -85,6 +85,9 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
+        if (appState.profileLoadFailed && appState.profile == null) {
+          return const _ProfileLoadFailed();
+        }
         if (!appState.isOnboarded) {
           return const OnboardingScreen();
         }
@@ -168,5 +171,59 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
     } catch (_) {
       // Shown again on the next launch; nothing else depends on it.
     }
+  }
+}
+
+/// Shown when the profile couldn't be read, so an existing account isn't sent
+/// through onboarding (and its saved answers overwritten) by a bad connection.
+class _ProfileLoadFailed extends StatelessWidget {
+  const _ProfileLoadFailed();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.cloud_off_outlined,
+                  size: 40,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Couldn't load your profile",
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Check your connection and try again.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: appState.loadProfile,
+                  child: const Text('Try again'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: appState.signOut,
+                  child: const Text('Sign out'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -79,7 +79,10 @@ class SupabaseContentRepository implements ContentRepository {
 
   @override
   Future<void> deleteSession(String id) async {
-    await _client.from('sessions').delete().eq('id', id);
+    // Like updateSession: a delete RLS refuses matches no rows and no error.
+    final rows =
+        await _client.from('sessions').delete().eq('id', id).select('id');
+    if (rows.isEmpty) throw const SessionWriteDeniedException();
   }
 
   @override
@@ -133,6 +136,7 @@ class SupabaseScheduleRepository implements ScheduleRepository {
     Map<String, String> answers = const {},
     ProjectChoice? project,
     String? newOwnerId,
+    bool? add,
   }) async {
     final Object? res;
     try {
@@ -148,6 +152,12 @@ class SupabaseScheduleRepository implements ScheduleRepository {
           // Only sent when set, so the call also matches the pre-ownership
           // signature of the RPC (teams_setup.sql).
           'p_new_owner_id': ?newOwnerId,
+          // Only sent when set, like the owner id above.
+          'p_intent': ?switch (add) {
+            true => 'add',
+            false => 'remove',
+            null => null,
+          },
         },
       );
     } on PostgrestException catch (e) {
@@ -603,6 +613,10 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
         .delete()
         .eq('id', id)
         .select();
+    // A delete RLS refuses matches no rows instead of erroring.
+    if (deleted.isEmpty) {
+      throw StateError('Announcement $id was not deleted');
+    }
     // Clean up its photos/files too (admins may delete any attachment).
     for (final row in deleted) {
       await deleteAttachments(Announcement.fromMap(row).attachments);

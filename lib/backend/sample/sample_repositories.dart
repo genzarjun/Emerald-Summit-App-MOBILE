@@ -64,12 +64,10 @@ class SampleScheduleRepository implements ScheduleRepository {
     Map<String, String> answers = const {},
     ProjectChoice? project,
     String? newOwnerId,
+    bool? add,
   }) async {
-    final session = _store.sessionById(sessionId);
-    if (session == null) {
-      return const RegistrationResult.added();
-    }
     if (_store.myRegistrations.containsKey(sessionId)) {
+      if (add == true) return const RegistrationResult.added();
       try {
         _leaveTeam(_myEntry(sessionId)?.teamId, newOwnerId);
       } on TeamCodeException catch (e) {
@@ -79,6 +77,24 @@ class SampleScheduleRepository implements ScheduleRepository {
       _store.rosters[sessionId]
           ?.removeWhere((e) => e.userId == _demoUserId);
       return const RegistrationResult(RegistrationOutcome.removed);
+    }
+    if (add == false) {
+      return const RegistrationResult(RegistrationOutcome.removed);
+    }
+    final session = _store.sessionById(sessionId);
+    if (session == null) {
+      // register_for_session raises 'Session not found' here.
+      throw StateError('Session not found');
+    }
+    // Same rule as register_for_session: only an approved expert can serve
+    // as one.
+    if (type == ParticipationType.expert) {
+      final p = _store.profile;
+      if (p?.role != SummitRole.expert ||
+          p?.expertStatus != ExpertStatus.approved) {
+        return RegistrationResult.invalidProject(
+            projectProblemMessage('expert_not_approved')!);
+      }
     }
     if (type == ParticipationType.participant && session.participationClosed) {
       return const RegistrationResult(RegistrationOutcome.participationClosed);
@@ -409,7 +425,28 @@ class SampleProfileRepository implements ProfileRepository {
 
   @override
   Future<void> save(UserProfile profile) async {
-    _store.profile = profile;
+    // Like the live upsert of toMap(): only the columns the app writes change.
+    // Server-owned fields and per-user state stay as stored.
+    final old = _store.profile;
+    _store.profile = old == null || old.id != profile.id
+        ? profile
+        : UserProfile(
+            id: profile.id,
+            email: profile.email,
+            fullName: profile.fullName,
+            role: profile.role,
+            onboarded: profile.onboarded,
+            details: profile.details,
+            notificationsEnabled: old.notificationsEnabled,
+            volunteerHours: old.volunteerHours,
+            volunteerSubtype: old.volunteerSubtype,
+            canEditSessions: old.canEditSessions,
+            canPostAnnouncements: old.canPostAnnouncements,
+            canCheckInFrontDesk: old.canCheckInFrontDesk,
+            expertStatus: old.expertStatus,
+            expertQueueSeenAt: old.expertQueueSeenAt,
+            managedDisciplines: old.managedDisciplines,
+          );
   }
 
   @override

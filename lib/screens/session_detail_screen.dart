@@ -195,6 +195,37 @@ class _SessionAboutTab extends StatefulWidget {
 }
 
 class _SessionAboutTabState extends State<_SessionAboutTab> {
+  /// True while a registration call is running, so a second tap can't toggle
+  /// the session straight back off.
+  bool _busy = false;
+
+  /// Runs one registration [call] at a time. Returns null when a call is
+  /// already running, or when it throws (offline, or the session was just
+  /// deleted); the second case shows a snackbar.
+  Future<AddResult?> _guarded(Future<AddResult> Function() call) async {
+    if (_busy) return null;
+    _busy = true;
+    try {
+      return await call();
+    } catch (e) {
+      debugPrint('Registration failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Couldn't update your day. Check your connection and try again.",
+              ),
+            ),
+          );
+      }
+      return null;
+    } finally {
+      _busy = false;
+    }
+  }
+
   List<GalleryPhoto> _photos = const [];
 
   /// The viewer's project for this session (solo, or their team + code), shown
@@ -658,13 +689,15 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     ProjectChoice? project,
   }) async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await appState.toggle(
-      s,
-      type: type,
-      answers: answers,
-      project: project,
+    final result = await _guarded(
+      () => appState.toggle(
+        s,
+        type: type,
+        answers: answers,
+        project: project,
+      ),
     );
-    if (!mounted) return;
+    if (result == null || !mounted) return;
     messenger.hideCurrentSnackBar();
     if (s.id == widget.session.id) {
       _loadProject();
@@ -725,8 +758,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
       if (!handOff.proceed || !mounted) return;
       newOwnerId = handOff.newOwnerId;
     }
-    final result = await appState.toggle(s, newOwnerId: newOwnerId);
-    if (!mounted) return;
+    final result =
+        await _guarded(() => appState.toggle(s, newOwnerId: newOwnerId));
+    if (result == null || !mounted) return;
     if (result.outcome == AddOutcome.invalidProject) {
       _showBlockedDialog(
         "Couldn't remove this session",
@@ -752,8 +786,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
   /// Admin self-manage toggle for [s].
   Future<void> _setManage(Session s, bool manage) async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await appState.setManage(s, manage);
-    if (!mounted) return;
+    final result = await _guarded(() => appState.setManage(s, manage));
+    if (result == null || !mounted) return;
     messenger.hideCurrentSnackBar();
     switch (result.outcome) {
       case AddOutcome.added:
@@ -1002,6 +1036,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                     itemBuilder: (context, i) {
                       final s = suggested[i];
                       return _SuggestedSessionCard(
+                        // Keyed so a card never keeps another session's photo
+                        // when the list shifts after an add.
+                        key: ValueKey(s.id),
                         session: s,
                         onOpen: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -1027,6 +1064,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
 /// sessions that fit an open slot (see [AppState.suggestedSessions]).
 class _SuggestedSessionCard extends StatefulWidget {
   const _SuggestedSessionCard({
+    super.key,
     required this.session,
     required this.onOpen,
     required this.onAdd,

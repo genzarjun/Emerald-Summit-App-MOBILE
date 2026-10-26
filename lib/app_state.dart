@@ -252,6 +252,9 @@ class AppState extends ChangeNotifier {
       answers: answers,
       project: project,
       newOwnerId: newOwnerId,
+      // Send what the screen showed (Add or Remove), so a cache that's out of
+      // date can't flip the registration the other way on the server.
+      add: !_myRegistrations.containsKey(session.id),
     );
     switch (res.outcome) {
       case RegistrationOutcome.added:
@@ -683,8 +686,12 @@ class AppState extends ChangeNotifier {
       await announcementsRepository.deleteForEveryone(id);
     } catch (e) {
       // Restore on failure (e.g. a rejected delete) so the feed stays truthful.
-      final restored = List.of(announcements)..insert(index, removed);
-      announcements = restored;
+      // The feed may have reloaded meanwhile: don't duplicate it, and keep the
+      // index in range.
+      if (!announcements.any((a) => a.id == id)) {
+        announcements = List.of(announcements)
+          ..insert(index.clamp(0, announcements.length), removed);
+      }
       notifyListeners();
       rethrow;
     }
@@ -772,6 +779,10 @@ class AppState extends ChangeNotifier {
   // stays null and the demo values below show.
   UserProfile? profile;
   bool profileLoading = false;
+
+  /// The last [loadProfile] couldn't read the profile (offline, server error).
+  /// The gate offers a retry instead of onboarding, which would overwrite it.
+  bool profileLoadFailed = false;
 
   static const String _demoName = 'Alex Rivera';
   static const String _demoRole = 'Participant';
@@ -995,6 +1006,7 @@ class AppState extends ChangeNotifier {
   /// Called by the auth gate once a session exists.
   Future<void> loadProfile() async {
     profileLoading = true;
+    profileLoadFailed = false;
     notifyListeners();
     try {
       profile = await profileRepository.fetchMine();
@@ -1009,10 +1021,14 @@ class AppState extends ChangeNotifier {
       if (profile != null) {
         notificationsEnabled = profile!.notificationsEnabled;
       }
+    } catch (e) {
+      debugPrint('Profile load failed: $e');
+      profileLoadFailed = true;
     } finally {
       profileLoading = false;
       notifyListeners();
     }
+    if (profileLoadFailed) return;
     await loadCatalog();
     await loadSchedule();
     await loadAnnouncements();
@@ -1121,6 +1137,7 @@ class AppState extends ChangeNotifier {
     await _unsubscribeAnnouncements();
     await authService.signOut();
     profile = null;
+    profileLoadFailed = false;
     summitStatus = SummitStatus.unknown;
     myFeedback = const [];
     myEafInterest = null;

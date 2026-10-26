@@ -6,6 +6,7 @@ import 'package:emerald_summit/backend/repositories.dart';
 import 'package:emerald_summit/backend/sample/sample_repositories.dart';
 import 'package:emerald_summit/backend/sample/sample_store.dart';
 import 'package:emerald_summit/backend/service_locator.dart';
+import 'package:emerald_summit/models/models.dart';
 import 'package:emerald_summit/models/user_profile.dart';
 import 'package:emerald_summit/screens/expert_approvals_screen.dart';
 import 'package:emerald_summit/screens/session_detail_screen.dart';
@@ -55,6 +56,26 @@ void main() {
     test('the server refusal reads as a plain message', () {
       expect(projectProblemMessage('expert_not_approved'),
           'Only approved expert accounts can serve as an expert.');
+    });
+
+    test('the sample backend refuses experts the server would refuse', () async {
+      final store = SampleStore();
+      final repo = SampleScheduleRepository(store);
+      for (final profile in [
+        _profile(SummitRole.expert, 'pending'),
+        _profile(SummitRole.expert, null),
+        _profile(SummitRole.participant, 'declined'),
+      ]) {
+        store.profile = profile;
+        final result = await repo.toggle('s1', type: ParticipationType.expert);
+        expect(result.outcome, RegistrationOutcome.invalidProject);
+        expect(result.message, projectProblemMessage('expert_not_approved'));
+        expect(await repo.fetchMyRegistrations(), isEmpty);
+      }
+
+      store.profile = _profile(SummitRole.expert, 'approved');
+      final ok = await repo.toggle('s1', type: ParticipationType.expert);
+      expect(ok.outcome, RegistrationOutcome.added);
     });
   });
 

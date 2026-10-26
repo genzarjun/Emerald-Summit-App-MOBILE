@@ -50,6 +50,42 @@ void main() {
 
   Finder field(String label) => find.widgetWithText(TextField, label);
 
+  test('saving keeps the fields the server owns', () async {
+    // The sample backend has to keep these the way the live upsert does,
+    // since toMap() never sends them.
+    final volunteer = UserProfile(
+      id: 'u2',
+      email: 'sam@example.com',
+      fullName: 'Sam Lee',
+      role: SummitRole.volunteer,
+      onboarded: true,
+      notificationsEnabled: false,
+      volunteerHours: 3,
+      volunteerSubtype: VolunteerSubtype.eafAmbassador,
+      canEditSessions: true,
+      canPostAnnouncements: true,
+      managedDisciplines: ['techverse'],
+      details: {'grade': '10'},
+    );
+    await profileRepository.save(volunteer);
+    appState.profile = await profileRepository.fetchMine();
+
+    await appState.updateProfileInfo(
+      fullName: 'Sam Lee-Park',
+      details: {'grade': '11'},
+    );
+
+    final p = appState.profile!;
+    expect(p.fullName, 'Sam Lee-Park');
+    expect(p.details, {'grade': '11'});
+    expect(p.volunteerSubtype, VolunteerSubtype.eafAmbassador);
+    expect(p.needsGrade, isTrue);
+    expect(p.canManageDiscipline('techverse'), isTrue);
+    expect(p.canPostToDiscipline('techverse'), isTrue);
+    expect(p.volunteerHours, 3);
+    expect(appState.notificationsEnabled, isFalse);
+  });
+
   testWidgets('prefills the name and sign-up answers', (tester) async {
     await pumpEditor(tester);
     expect(find.text('Alex Rivera'), findsOneWidget);

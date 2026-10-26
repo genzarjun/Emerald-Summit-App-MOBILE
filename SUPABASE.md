@@ -374,6 +374,18 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     Metrics tab needs nothing new (it reads `fetch_session_roster`). Safe to
     re-run. *(Run on the dev project 2026-10-20.)*
 
+50. `supabase/role_allowlist_email_fix.sql`: **the allowlist matches the
+    sign-in email.** `enforce_role_allowlist` reads the email from
+    `auth.users` and copies it onto `profiles.email`. Before this, a user could
+    write an admin's address into their own profile row and keep the admin
+    role. Safe to re-run. *(Run on the dev project 2026-10-25.)*
+
+51. `supabase/registrations_lockdown.sql`: **registrations only through the
+    RPC.** Drops the direct INSERT policy and grant on `registrations`.
+    `register_for_session` locks the session row while it counts seats and
+    takes `p_intent` (`add` / `remove`; null toggles, for older builds).
+    Safe to re-run. *(Run on the dev project 2026-10-25.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

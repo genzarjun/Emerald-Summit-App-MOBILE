@@ -419,6 +419,11 @@ class _PhotoSlideshowState extends State<_PhotoSlideshow> {
   void _advance() {
     if (!mounted || appState.galleryPhotos.length < 2) return;
     if (!_controller.hasClients) return;
+    // With reduced motion on, cut to the next photo instead of sliding.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.jumpToPage(_page + 1);
+      return;
+    }
     _controller.nextPage(
       duration: const Duration(milliseconds: 550),
       curve: Curves.easeInOut,
@@ -1376,7 +1381,18 @@ class _ShimmerTextState extends State<_ShimmerText>
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Holds still when the system asks for reduced motion.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat();
+    }
+  }
 
   @override
   void dispose() {

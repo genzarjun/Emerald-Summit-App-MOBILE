@@ -99,6 +99,8 @@ class _ExchangeCardState extends State<_ExchangeCard> {
       data: e.answer,
       styleSheet: MarkdownStyleSheet.fromTheme(theme)
           .copyWith(p: theme.textTheme.bodyMedium, blockSpacing: 8),
+      // Answers never load images: a URL in one could carry data out.
+      imageBuilder: (_, _, _) => const SizedBox.shrink(),
       onTapLink: (_, href, _) => _openLink(context, href),
     );
     return Card(
@@ -183,7 +185,11 @@ class _Collapsed extends StatelessWidget {
 
 Future<void> _openLink(BuildContext context, String? href) async {
   final uri = href == null ? null : Uri.tryParse(href);
-  if (uri == null) return;
+  // Answers can be shaped by web pages Archie reads, so only web and email
+  // links open; tel:, sms: and app schemes are ignored.
+  if (uri == null || !const {'http', 'https', 'mailto'}.contains(uri.scheme)) {
+    return;
+  }
   final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(

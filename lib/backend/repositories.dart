@@ -177,12 +177,15 @@ abstract interface class ScheduleRepository {
   /// questions plus their [project] (solo / create team / join team); all are
   /// ignored when the call toggles a registration OFF. When a team owner with
   /// teammates unregisters, [newOwnerId] names the teammate taking over.
+  /// [add] pins the direction: true only adds (already in → `added`, nothing
+  /// changes), false only removes (already out → `removed`). Null toggles.
   Future<RegistrationResult> toggle(
     String sessionId, {
     ParticipationType type = ParticipationType.participant,
     Map<String, String> answers = const {},
     ProjectChoice? project,
     String? newOwnerId,
+    bool? add,
   });
 
   /// The current user's saved answers to [sessionId]'s questions (question id →
