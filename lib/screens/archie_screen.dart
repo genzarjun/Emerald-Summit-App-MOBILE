@@ -1132,8 +1132,8 @@ class _HistorySheetState extends State<_HistorySheet> {
             Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
-                'Archie keeps your $kArchieMaxSavedChats most recent chats — '
-                'starting another removes the oldest. Organizers review '
+                'Archie keeps your $kArchieMaxSavedChats most recent chats. '
+                'Starting another removes the oldest. Organizers review '
                 'questions and answers anonymously (never your name) to '
                 'improve Archie.',
                 style: TextStyle(color: c.textDim, fontSize: 12.5, height: 1.4),

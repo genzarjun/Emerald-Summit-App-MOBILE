@@ -150,8 +150,8 @@ abstract final class DefaultQuestions {
   static const projectName = 'What is your project name?';
   static const teamCode = "What's your team code?";
   static const unsureNote =
-      "Not sure yet whether you'll have a team? Register as solo for now — you "
-      'can always change your answer later from the session page.';
+      "Not sure yet whether you'll have a team? Register as solo for now. You "
+      'can change your answer later on the session page.';
 }
 
 /// The two-letter prefix that starts every team code in a discipline (e.g.
@@ -371,7 +371,7 @@ class TeamLookup {
           "The owner of \"${projectName ?? 'that team'}\" removed you from "
               "it, so you can't rejoin with this code.",
         TeamLookupOutcome.teamsNotAllowed =>
-          "This session is solo only — teams aren't allowed.",
+          "This session is solo only. Teams aren't allowed.",
         TeamLookupOutcome.notFound =>
           "We couldn't find a team with that code. Check it with your teammate.",
         TeamLookupOutcome.wrongSession => sessionTitle == null

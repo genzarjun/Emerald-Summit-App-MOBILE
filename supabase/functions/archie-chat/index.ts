@@ -686,7 +686,7 @@ function sse(
 }
 
 function friendlyError(e: unknown): string {
-  if (e instanceof Anthropic.RateLimitError) return "I'm getting a lot of questions right now — try again in a moment.";
+  if (e instanceof Anthropic.RateLimitError) return "I'm getting a lot of questions right now. Try again in a moment.";
   if (e instanceof Anthropic.APIConnectionError) return "I couldn't reach my brain just now. Check your connection and try again.";
   if (e instanceof Anthropic.APIError) return "Something went wrong on my end. Please try again.";
   return "Something went wrong. Please try again.";

@@ -713,7 +713,7 @@ class _QuoteCardState extends State<_QuoteCard>
               ),
               const SizedBox(height: 10),
               Text(
-                '— ${q.author}',
+                q.author,
                 style: TextStyle(
                   fontSize: 13,
                   color: scheme.onSurface.withValues(alpha: .6),
@@ -1346,7 +1346,7 @@ class _Footer extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'STEAM, together. Lead, together. Build, together.',
+          "The Tri-Valley's student-run STEAM summit at Emerald High",
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,

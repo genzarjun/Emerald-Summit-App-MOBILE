@@ -655,7 +655,7 @@ void main() {
 
       await tester.tap(dropdown);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('No teams allowed — solo only').last);
+      await tester.tap(find.text('Solo only (no teams)').last);
       await tester.pumpAndSettle();
       expect(find.text("Teams aren't allowed for this session."), findsOneWidget);
       expect(

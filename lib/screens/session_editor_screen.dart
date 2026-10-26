@@ -148,8 +148,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     if (n == 0) return null;
     final teams = n == 1 ? '1 team' : '$n teams';
     return _maxTeamSize < 2
-        ? '$teams already registered for this session will keep their team — '
-            'nobody is removed, and members can still leave to go solo. No new '
+        ? '$teams already registered for this session will keep their team. '
+            'Nobody is removed, and members can still leave to go solo. No new '
             'teams can be created or joined.'
         : '$teams already ${n == 1 ? 'has' : 'have'} more than $_maxTeamSize '
             "members. Nobody is removed, but ${n == 1 ? 'it' : 'they'} can't "
@@ -695,7 +695,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             const SizedBox(height: 8),
             Text(
               deadline == null
-                  ? 'No deadline — people can register to participate any time '
+                  ? 'No deadline. People can register to participate any time '
                       'while seats are left.'
                   : passed
                       ? 'This deadline has passed: participant registration is '
@@ -930,7 +930,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         Text('Your additional questions', style: theme.textTheme.labelMedium),
         const SizedBox(height: 4),
         Text(
-          'Optional — asked after the default questions above.',
+          'Optional. These are asked after the default questions above.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -1059,7 +1059,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               const DropdownMenuItem(
                 value: kSoloOnlyTeamSize,
                 child: Text(
-                  'No teams allowed — solo only',
+                  'Solo only (no teams)',
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1140,8 +1140,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     labelText: 'Project question (you can reword this)',
-                    helperText: '$detail Still a default question — you can '
-                        'change its wording, not remove it.',
+                    helperText: '$detail This is still a default question: you can '
+                        'change its wording but not remove it.',
                     helperMaxLines: 3,
                     border: const OutlineInputBorder(),
                   ),

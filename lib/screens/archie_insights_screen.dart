@@ -64,7 +64,7 @@ class _ArchieInsightsScreenState extends State<ArchieInsightsScreen> {
               itemBuilder: (context, i) => i == 0
                   ? Text(
                       'The ${exchanges.length} most recent questions across '
-                      'all users. Anonymous — no names or accounts are shown.',
+                      'all users. Anonymous: no names or accounts are shown.',
                       style: Theme.of(context).textTheme.bodySmall,
                     )
                   : _ExchangeCard(exchange: exchanges[i - 1]),

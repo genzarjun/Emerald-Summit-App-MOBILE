@@ -338,8 +338,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'To manage this session, an admin will assign you — '
-                        "you'll be notified if they do.",
+                        'To manage this session, an admin has to assign you. '
+                        "You'll be notified if they do.",
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -527,7 +527,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
       setState(() => _project = project);
       messenger.showSnackBar(
         const SnackBar(
-          content: Text("You left the team — you're now registered solo."),
+          content: Text("You left the team. You're now registered solo."),
         ),
       );
     } on TeamCodeException catch (e) {
@@ -675,7 +675,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              'Added "${s.title}" — ${type.chipLabel.toLowerCase()}',
+              'Added "${s.title}" (${type.chipLabel.toLowerCase()})',
             ),
           ),
         );
@@ -1250,7 +1250,7 @@ class _ParticipantDeadlineCard extends StatelessWidget {
         ? 'The session is also full, so there are no spots left to spectate.'
         : registered && !canEdit
             ? 'People who registered before then keep their spot.'
-            : 'You can still register to spectate — $seats '
+            : 'You can still register to spectate. $seats '
                 'spot${seats == 1 ? '' : 's'} left.';
 
     final (IconData icon, String title, String body, Color bg, Color fg) =

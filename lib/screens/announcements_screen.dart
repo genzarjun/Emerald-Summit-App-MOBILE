@@ -211,7 +211,7 @@ class _SwipeableAnnouncement extends StatelessWidget {
           );
         } catch (_) {
           messenger.showSnackBar(
-            const SnackBar(content: Text("Couldn't delete — please try again")),
+            const SnackBar(content: Text("Couldn't delete it. Try again.")),
           );
         }
         return false;

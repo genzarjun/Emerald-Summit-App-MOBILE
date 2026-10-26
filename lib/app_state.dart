@@ -41,7 +41,7 @@ extension AddModeX on AddMode {
           "Join in and take part. You'll tell us about your project first.",
         AddMode.spectate => 'Watch and follow along, without taking part.',
         AddMode.expert => 'Lead or advise as the session expert.',
-        AddMode.manage => "Run this session — it's added to your schedule.",
+        AddMode.manage => "Run this session. It's added to your schedule.",
       };
 
   IconData get icon => switch (this) {
@@ -1059,8 +1059,8 @@ class AppState extends ChangeNotifier {
         ? profile!.role.label
         : '${profile!.role.label} · $subtype';
     _testAccountNotice =
-        'Testing account — you were automatically assigned the $roleText '
-        'role. No role picker needed.';
+        'Testing account: you were given the $roleText role '
+        'automatically, so there is no role picker.';
   }
 
   /// Infers an OPEN role for a test account from its code-email local part.

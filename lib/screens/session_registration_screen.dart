@@ -284,7 +284,7 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
             if (!_askSoloOrTeam) ...[
               const _Note(
                 text:
-                    'This session is solo only — every participant works on '
+                    'This session is solo only. Every participant works on '
                     'their own project.',
               ),
               const SizedBox(height: 20),
