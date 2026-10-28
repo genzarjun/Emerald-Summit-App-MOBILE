@@ -29,7 +29,7 @@ class _SignedInAuth implements AuthService {
     required String code,
   }) async {}
   @override
-  bool get supportsTestAccounts => false;
+  Future<bool> isTestAccount(String email) async => false;
   @override
   Future<void> signInWithTestAccount({
     required String email,

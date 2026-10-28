@@ -554,10 +554,12 @@ want to test. Make **one code email per scenario** to cover unique permissions.
 > ⚠️ This is a login backdoor. Deploy it to your **dev project only** and never
 > enable it in production. Since the website shares this backend and anyone can
 > read the publishable key out of a web page, the function needs a **shared
-> test-account password** (`DEV_LOGIN_PASSWORD`). A wrong password and an email
-> that isn't a code email get the same `401` after the same 1.5 s delay, so the
-> function never confirms which emails are test accounts. Every attempt is
-> logged (Edge Functions → dev-login → Logs).
+> test-account password** (`DEV_LOGIN_PASSWORD`). A wrong password gets a `401`
+> after a 1.5 s delay, which keeps guessing slow. The sign-in screen first asks
+> the function whether an email is a test account (so it knows to show the
+> password box), which means anyone can find out that, say, `admin@ehs.org` is
+> one; the password is what keeps them out. Every refused sign-in is logged
+> (Edge Functions → dev-login → Logs).
 
 1. **Create the table.** Run [`supabase/test_accounts_setup.sql`](supabase/test_accounts_setup.sql)
    and add your code emails (in the SQL, or in Table Editor → `test_accounts`).
@@ -582,16 +584,19 @@ want to test. Make **one code email per scenario** to cover unique permissions.
    your dev `env.json`, then run as usual
    (`flutter run --dart-define-from-file=env.json`). Without this flag the app
    never calls the function, so production builds are unaffected.
-4. **Test:** on the sign-in screen, tap *Sign in to a test account*, enter a
-   code email and the password. You're signed straight in as that account.
-   *Email me a code* never calls the function, so real users' sign-in is
-   unaffected. The website does the same behind `VITE_DEV_LOGIN=true` (see the
-   README, "Website sync").
+4. **Test:** on the sign-in screen, type a code email in the normal email box
+   and tap *Email me a code*. Instead of sending a code, the screen asks for the
+   test-account password; enter it and you're signed straight in as that
+   account. Real emails get the normal emailed code. The website does the same
+   behind `VITE_DEV_LOGIN=true` (see the README, "Website sync").
 
-   **Request/response** (what both clients send):
-   `POST /functions/v1/dev-login` with `{ "email", "password" }` →
-   `200 { test: true, otp, type }` (then `verifyOtp({ email, token: otp, type })`),
-   `401` wrong email or password, `403` disabled or no password set, `500` error.
+   **Request/response** (what both clients send, `POST /functions/v1/dev-login`):
+   - `{ "email", "check": true }` → `200 { test: true | false }`. Sent when the
+     person taps *Email me a code*; `true` means show the password box, `false`
+     (or any error) means send the normal code.
+   - `{ "email", "password" }` → `200 { test: true, otp, type }` (then
+     `verifyOtp({ email, token: otp, type })`), `401` wrong email or password.
+   - Either call: `403` disabled or no password set, `500` error.
 
 ## 3c. Archie — the AI assistant (`archie-chat`)
 The **Archie** tab streams answers from the

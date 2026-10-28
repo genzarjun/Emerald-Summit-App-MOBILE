@@ -46,9 +46,11 @@ abstract interface class AuthService {
   /// Throws [AuthFailure] with a user-safe message on failure.
   Future<void> verifyEmailOtp({required String email, required String code});
 
-  /// TEST/DEV ONLY. Whether this build offers the test-account sign-in (the
-  /// sign-in screen shows its link only when this is true).
-  bool get supportsTestAccounts;
+  /// TEST/DEV ONLY. Whether [email] is a registered "code email" (a test
+  /// account), so the sign-in screen asks for the test-account password instead
+  /// of emailing a code. Always false in a build without `DEV_LOGIN=true`, and
+  /// false when the check can't be made, so the caller falls back to normal OTP.
+  Future<bool> isTestAccount(String email);
 
   /// TEST/DEV ONLY. Signs in as a registered "code email" (a test account)
   /// WITHOUT an emailed OTP, using the shared test-account [password]. Returns

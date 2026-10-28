@@ -957,7 +957,7 @@ class SampleAuthService implements AuthService {
   }
 
   @override
-  bool get supportsTestAccounts => false;
+  Future<bool> isTestAccount(String email) async => false;
 
   @override
   Future<void> signInWithTestAccount({

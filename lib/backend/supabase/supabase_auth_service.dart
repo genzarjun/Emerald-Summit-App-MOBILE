@@ -67,7 +67,21 @@ class SupabaseAuthService implements AuthService {
   }
 
   @override
-  bool get supportsTestAccounts => SupabaseConfig.devLoginEnabled;
+  Future<bool> isTestAccount(String email) async {
+    // First guard: only ever ask in a build explicitly flagged for it.
+    if (!SupabaseConfig.devLoginEnabled) return false;
+    try {
+      final res = await _client.functions.invoke(
+        'dev-login',
+        body: {'email': email.trim().toLowerCase(), 'check': true},
+      );
+      final data = res.data;
+      return data is Map && data['test'] == true;
+    } catch (_) {
+      // Function absent or turned off, or a network hiccup: normal OTP.
+      return false;
+    }
+  }
 
   @override
   Future<void> signInWithTestAccount({

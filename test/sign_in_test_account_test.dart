@@ -5,14 +5,9 @@ import 'package:emerald_summit/backend/auth_service.dart';
 import 'package:emerald_summit/backend/service_locator.dart';
 import 'package:emerald_summit/screens/auth/sign_in_screen.dart';
 
-/// Signed out; test accounts on or off, and a password that is either right or
-/// wrong. Records what the screen sent.
+/// Signed out. `test@example.com` is the only code email, and its password is
+/// either right or wrong. Records what the screen sent.
 class _TestAccountAuth implements AuthService {
-  _TestAccountAuth({required this.supportsTestAccounts});
-
-  @override
-  final bool supportsTestAccounts;
-
   String? sentEmail;
   String? sentPassword;
   int otpRequests = 0;
@@ -30,6 +25,9 @@ class _TestAccountAuth implements AuthService {
     required String email,
     required String code,
   }) async {}
+  @override
+  Future<bool> isTestAccount(String email) async =>
+      email.trim().toLowerCase() == 'test@example.com';
   @override
   Future<void> signInWithTestAccount({
     required String email,
@@ -50,43 +48,41 @@ class _TestAccountAuth implements AuthService {
   Future<void> signOut() async {}
 }
 
-Future<_TestAccountAuth> _pump(WidgetTester tester, {required bool on}) async {
+Future<_TestAccountAuth> _pump(WidgetTester tester, String email) async {
   await getIt.reset();
   await configureBackend();
-  final auth = _TestAccountAuth(supportsTestAccounts: on);
+  final auth = _TestAccountAuth();
   getIt
     ..unregister<AuthService>()
     ..registerSingleton<AuthService>(auth);
   await tester.pumpWidget(const MaterialApp(home: SignInScreen()));
+  await tester.enterText(find.byType(TextField), email);
+  await tester.tap(find.text('Email me a code'));
+  await tester.pumpAndSettle();
   return auth;
 }
 
 void main() {
-  testWidgets('no test-account link unless the build allows it', (tester) async {
-    await _pump(tester, on: false);
-    expect(find.text('Sign in to a test account'), findsNothing);
-  });
-
-  testWidgets('a normal email never goes to the test sign-in', (tester) async {
-    final auth = await _pump(tester, on: true);
-    await tester.enterText(find.byType(TextField), 'admin@example.com');
-    await tester.tap(find.text('Email me a code'));
-    await tester.pumpAndSettle();
+  testWidgets('a real email gets a code, not a password box', (tester) async {
+    final auth = await _pump(tester, 'person@example.com');
     expect(auth.otpRequests, 1);
-    expect(auth.sentEmail, isNull);
+    expect(find.widgetWithText(TextField, 'Password'), findsNothing);
+    expect(find.text('Enter the code we emailed to person@example.com.'),
+        findsOneWidget);
   });
 
-  testWidgets('wrong password shows the error and keeps the form', (
+  testWidgets('a test email asks for the password instead of a code', (
     tester,
   ) async {
-    final auth = await _pump(tester, on: true);
-    await tester.tap(find.text('Sign in to a test account'));
-    await tester.pumpAndSettle();
+    final auth = await _pump(tester, 'Test@Example.com');
+    expect(auth.otpRequests, 0);
+    expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
+  });
 
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Test account email'),
-      'Admin@Example.com ',
-    );
+  testWidgets('wrong password shows the error and keeps the box', (
+    tester,
+  ) async {
+    final auth = await _pump(tester, 'test@example.com');
     await tester.enterText(
       find.widgetWithText(TextField, 'Password'),
       'guess',
@@ -94,23 +90,21 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
 
-    expect(auth.sentEmail, 'Admin@Example.com');
+    expect(auth.sentEmail, 'test@example.com');
     expect(auth.sentPassword, 'guess');
     expect(find.text('Wrong email or password.'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
   });
 
-  testWidgets('back returns to email sign-in and clears the password', (
+  testWidgets('a different email goes back and clears the password', (
     tester,
   ) async {
-    await _pump(tester, on: true);
-    await tester.tap(find.text('Sign in to a test account'));
-    await tester.pumpAndSettle();
+    await _pump(tester, 'test@example.com');
     await tester.enterText(
       find.widgetWithText(TextField, 'Password'),
       'secret',
     );
-    await tester.tap(find.text('Back to email sign-in'));
+    await tester.tap(find.text('Use a different email'));
     await tester.pumpAndSettle();
     expect(find.text('Email me a code'), findsOneWidget);
     expect(find.text('secret'), findsNothing);

@@ -1431,10 +1431,14 @@ PR so they aren't missed):**
 **Test accounts on the website.** The password check lives in the shared
 `dev-login` function ([SUPABASE.md](SUPABASE.md) §3b, and "Dev-testing build vs.
 production build" below), so the website only needs the form and the call.
-- Show "Sign in to a test account" only when
-  `import.meta.env.VITE_DEV_LOGIN === 'true'`. The form takes a code email and
-  the password.
-- Call `supabase.functions.invoke('dev-login', { body: { email, password } })`.
+- Same flow as the app, no separate form. Only when
+  `import.meta.env.VITE_DEV_LOGIN === 'true'`: when someone submits the normal
+  email box, first call
+  `supabase.functions.invoke('dev-login', { body: { email, check: true } })`.
+  `{ test: true }` → show a password box instead of sending a code;
+  `{ test: false }` or any error → send the normal code.
+- With the password, call
+  `supabase.functions.invoke('dev-login', { body: { email, password } })`.
   On `200 { otp, type }`, finish with
   `verifyOtp({ email, token: otp, type: type === 'magiclink' ? 'magiclink' : 'email' })`.
   `401` → "Wrong email or password." `403` → "Test accounts are turned off on
@@ -1621,15 +1625,15 @@ flag, injected from `env.json` like the Supabase keys. Because it's a login
 backdoor, it is **off by default** and must be enabled in **two** places at once
 — either alone does nothing.
 
-**It's password-gated.** The sign-in screen shows *Sign in to a test account*
-only in a `DEV_LOGIN` build; that form takes a code email plus the shared
-test-account password, which the `dev-login` function checks against its
-`DEV_LOGIN_PASSWORD` secret. The website shares this backend and this function,
-so the password (not the build flag, and not the publishable key, which anyone
-can read from a web page) is what keeps strangers out. *Email me a code* never
-touches the function. The form lives in
-[sign_in_screen.dart](lib/screens/auth/sign_in_screen.dart); the call is
-`signInWithTestAccount` in
+**It's password-gated.** In a `DEV_LOGIN` build, *Email me a code* first asks
+the `dev-login` function whether the email is a test account. If it is, the
+screen shows a password box instead of sending a code, and the function checks
+that password against its `DEV_LOGIN_PASSWORD` secret. Real emails get the
+normal code. The website shares this backend and this function, so the
+password (not the build flag, and not the publishable key, which anyone can
+read from a web page) is what keeps strangers out. The screen is
+[sign_in_screen.dart](lib/screens/auth/sign_in_screen.dart); the calls are
+`isTestAccount` and `signInWithTestAccount` in
 [supabase_auth_service.dart](lib/backend/supabase/supabase_auth_service.dart).
 
 **To build for DEV testing** (your dev Supabase project only):
@@ -1639,9 +1643,9 @@ touches the function. The form lives in
 2. On that **dev** project, set the `DEV_LOGIN_ENABLED=true` and
    `DEV_LOGIN_PASSWORD` secrets, deploy the `dev-login` Edge Function, and run
    `test_accounts_setup.sql` (full steps in [SUPABASE.md](SUPABASE.md) §3b).
-3. Run/build as usual with `--dart-define-from-file=env.json`. Testers tap
-   *Sign in to a test account* and use a code email plus the password; everyone
-   else uses normal OTP.
+3. Run/build as usual with `--dart-define-from-file=env.json`. Testers type a
+   code email in the normal email box, then the password when it's asked for;
+   everyone else uses normal OTP.
 
 **To build for PRODUCTION** (never ship the bypass):
 1. Use your **production** `env.json` — the prod URL + publishable key — with
