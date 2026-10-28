@@ -386,6 +386,11 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     takes `p_intent` (`add` / `remove`; null toggles, for older builds).
     Safe to re-run. *(Run on the dev project 2026-10-25.)*
 
+52. `supabase/session_times_two_digit.sql`: **two-digit hours.** Pads
+    `start_time` / `end_time` values like `9:30` to `09:30`, since these are
+    text and the database sorts them as text. The editor already saves two
+    digits. Safe to re-run. *(Not yet run on dev.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

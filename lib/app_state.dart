@@ -114,11 +114,14 @@ class AppState extends ChangeNotifier {
   /// Loads the catalog. Safe to call repeatedly; used on startup and by
   /// pull-to-refresh.
   Future<void> loadCatalog() async {
+    final epoch = _epoch;
     catalogLoading = true;
     catalogError = null;
     notifyListeners();
     try {
-      _disciplines = await catalogRepository.fetchAll();
+      final disciplines = await catalogRepository.fetchAll();
+      if (epoch != _epoch) return;
+      _disciplines = disciplines;
     } catch (e) {
       catalogError = e;
     } finally {
@@ -130,8 +133,11 @@ class AppState extends ChangeNotifier {
   /// Re-fetches the catalog WITHOUT flipping the loading flag, so enrolled
   /// counts refresh after a registration change without flashing a spinner.
   Future<void> _refreshCatalogSilently() async {
+    final epoch = _epoch;
     try {
-      _disciplines = await catalogRepository.fetchAll();
+      final disciplines = await catalogRepository.fetchAll();
+      if (epoch != _epoch) return;
+      _disciplines = disciplines;
     } catch (_) {
       // Keep the last-known catalog; the counts just stay briefly stale.
     }
@@ -149,8 +155,10 @@ class AppState extends ChangeNotifier {
   /// refresh). Best-effort — the repository never throws, so a failure just
   /// leaves the slideshow hidden.
   Future<void> loadGallery() async {
+    final epoch = _epoch;
     final photos = [...await galleryRepository.fetchPhotos(dashboardGalleryBucket)]
       ..shuffle();
+    if (epoch != _epoch) return;
     galleryPhotos = photos;
     notifyListeners();
   }
@@ -199,6 +207,24 @@ class AppState extends ChangeNotifier {
     return list;
   }
 
+  /// The session for Home's "Up next": the first on the user's day, managed
+  /// ones included. On summit day it skips sessions that have ended; once the
+  /// summit is over there is none.
+  Session? upNext(DateTime now) {
+    final date = summitStatus.date;
+    if (date != null &&
+        !now.isBefore(DateTime(date.year, date.month, date.day + 1))) {
+      return null;
+    }
+    final today = date != null &&
+        !now.isBefore(DateTime(date.year, date.month, date.day));
+    for (final e in scheduleEntries) {
+      if (today && summitSessionCounted(e.session, date, now)) continue;
+      return e.session;
+    }
+    return null;
+  }
+
   /// Sessions "similar to" [session] to suggest on its page: others in the SAME
   /// discipline that the user could still add — not [session] itself, not already
   /// on their schedule (registered or managing), still has seats, and **fits an
@@ -221,8 +247,10 @@ class AppState extends ChangeNotifier {
 
   /// Loads the user's registrations into the local cache the UI reads.
   Future<void> loadSchedule() async {
+    final epoch = _epoch;
     try {
       final regs = await scheduleRepository.fetchMyRegistrations();
+      if (epoch != _epoch) return;
       _myRegistrations
         ..clear()
         ..addAll(regs);
@@ -414,12 +442,15 @@ class AppState extends ChangeNotifier {
       myAssignedSessionIds = const {};
       return;
     }
+    final epoch = _epoch;
+    Set<String> ids;
     try {
-      myAssignedSessionIds =
-          await assignmentRepository.fetchMyAssignedSessionIds();
+      ids = await assignmentRepository.fetchMyAssignedSessionIds();
     } catch (_) {
-      myAssignedSessionIds = const {};
+      ids = const {};
     }
+    if (epoch != _epoch) return;
+    myAssignedSessionIds = ids;
     notifyListeners();
   }
 
@@ -453,12 +484,21 @@ class AppState extends ChangeNotifier {
   /// Loads the summit status, and the user's own follow-up answers once
   /// feedback is open. Failures keep the last known values.
   Future<void> loadSummitStatus() async {
+    final epoch = _epoch;
     try {
-      summitStatus = await summitRepository.fetchStatus();
+      final status = await summitRepository.fetchStatus();
+      if (epoch != _epoch) return;
+      summitStatus = status;
       if (summitStatus.feedbackOpen) {
-        if (isExpert) myFeedback = await summitRepository.fetchMyFeedback();
+        if (isExpert) {
+          final feedback = await summitRepository.fetchMyFeedback();
+          if (epoch != _epoch) return;
+          myFeedback = feedback;
+        }
         if (isVolunteer || isAdmin) {
-          myEafInterest = await summitRepository.fetchMyEafInterest();
+          final interest = await summitRepository.fetchMyEafInterest();
+          if (epoch != _epoch) return;
+          myEafInterest = interest;
         }
       }
     } catch (_) {
@@ -588,15 +628,17 @@ class AppState extends ChangeNotifier {
 
   /// Loads the signed-in user's per-announcement read state (seen + opened).
   Future<void> loadReadAnnouncements() async {
+    final epoch = _epoch;
     try {
       final state = await announcementsRepository.fetchReadState();
+      final dismissed = await announcementsRepository.fetchDismissed();
+      if (epoch != _epoch) return;
       _seenAnnouncementIds
         ..clear()
         ..addAll(state.seen);
       _openedAnnouncementIds
         ..clear()
         ..addAll(state.opened);
-      final dismissed = await announcementsRepository.fetchDismissed();
       _dismissedAnnouncementIds
         ..clear()
         ..addAll(dismissed);
@@ -698,18 +740,28 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadAnnouncements() async {
+    // A burst of realtime inserts starts several loads; only the newest one's
+    // result is kept, so an older, slower response can't overwrite it.
+    final request = ++_announcementsRequest;
+    final epoch = _epoch;
+    bool current() => request == _announcementsRequest && epoch == _epoch;
     announcementsLoading = true;
     announcementsError = null;
     notifyListeners();
     try {
-      announcements = await announcementsRepository.fetch();
+      final items = await announcementsRepository.fetch();
+      if (current()) announcements = items;
     } catch (e) {
-      announcementsError = e;
+      if (current()) announcementsError = e;
     } finally {
-      announcementsLoading = false;
-      notifyListeners();
+      if (current()) {
+        announcementsLoading = false;
+        notifyListeners();
+      }
     }
   }
+
+  int _announcementsRequest = 0;
 
   /// Subscribes to the live announcements feed so every open app updates and
   /// shows an in-app banner. Idempotent. A backend without realtime yields a
@@ -779,6 +831,10 @@ class AppState extends ChangeNotifier {
   // stays null and the demo values below show.
   UserProfile? profile;
   bool profileLoading = false;
+
+  /// Bumped by [signOut]. A load that started before it drops its result, so
+  /// nothing from the old account lands after sign-out.
+  int _epoch = 0;
 
   /// The last [loadProfile] couldn't read the profile (offline, server error).
   /// The gate offers a retry instead of onboarding, which would overwrite it.
@@ -859,8 +915,11 @@ class AppState extends ChangeNotifier {
       }
       return;
     }
+    final epoch = _epoch;
     try {
-      expertRequests = await expertsRepository.fetchRequests();
+      final requests = await expertsRepository.fetchRequests();
+      if (epoch != _epoch) return;
+      expertRequests = requests;
       notifyListeners();
     } catch (_) {
       // Keep what we had; it refreshes on the next resume or notice.
@@ -1005,11 +1064,14 @@ class AppState extends ChangeNotifier {
   /// Loads the signed-in user's profile, then their catalog + schedule + feed.
   /// Called by the auth gate once a session exists.
   Future<void> loadProfile() async {
+    final epoch = _epoch;
     profileLoading = true;
     profileLoadFailed = false;
     notifyListeners();
     try {
-      profile = await profileRepository.fetchMine();
+      final mine = await profileRepository.fetchMine();
+      if (epoch != _epoch) return;
+      profile = mine;
       // Test accounts skip the manual role picker: assign the role straight from
       // the allowlist (participant if unlisted) so the tester lands in the app
       // already "being" that persona.
@@ -1028,15 +1090,21 @@ class AppState extends ChangeNotifier {
       profileLoading = false;
       notifyListeners();
     }
-    if (profileLoadFailed) return;
-    await loadCatalog();
-    await loadSchedule();
-    await loadAnnouncements();
-    await loadReadAnnouncements();
-    await loadMyAssignments();
-    await loadSummitStatus();
-    await loadGallery();
-    await loadExpertRequests();
+    if (profileLoadFailed || epoch != _epoch) return;
+    // Independent reads, so they run at once instead of one after another.
+    // None of them throws.
+    await Future.wait([
+      loadCatalog(),
+      loadSchedule(),
+      loadAnnouncements(),
+      loadReadAnnouncements(),
+      loadMyAssignments(),
+      loadSummitStatus(),
+      loadGallery(),
+      loadExpertRequests(),
+    ]);
+    // Signed out while those ran: don't reopen the realtime feed.
+    if (epoch != _epoch) return;
     subscribeAnnouncements();
   }
 
@@ -1134,6 +1202,7 @@ class AppState extends ChangeNotifier {
 
   /// Signs the user out and clears their in-memory state.
   Future<void> signOut() async {
+    _epoch++;
     await _unsubscribeAnnouncements();
     await authService.signOut();
     profile = null;

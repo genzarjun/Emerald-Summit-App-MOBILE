@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:emerald_summit/app_state.dart';
@@ -5,6 +7,7 @@ import 'package:emerald_summit/backend/repositories.dart';
 import 'package:emerald_summit/backend/sample/sample_repositories.dart';
 import 'package:emerald_summit/backend/sample/sample_store.dart';
 import 'package:emerald_summit/backend/service_locator.dart';
+import 'package:emerald_summit/models/models.dart';
 import 'package:emerald_summit/models/user_profile.dart';
 
 /// Fails the first [failures] profile reads, like a phone with no signal.
@@ -19,6 +22,18 @@ class _FlakyProfiles extends SampleProfileRepository {
       throw Exception('network down');
     }
     return super.fetchMine();
+  }
+}
+
+/// Holds the registrations read until [gate] completes.
+class _SlowSchedule extends SampleScheduleRepository {
+  _SlowSchedule(super.store);
+  final gate = Completer<void>();
+
+  @override
+  Future<Map<String, ParticipationType>> fetchMyRegistrations() async {
+    await gate.future;
+    return super.fetchMyRegistrations();
   }
 }
 
@@ -54,5 +69,27 @@ void main() {
     expect(appState.profileLoadFailed, isFalse);
     expect(appState.isOnboarded, isTrue);
     expect(appState.profile!.details['school'], 'Emerald High School');
+  });
+
+  test('signing out mid-load keeps the old account out of the app', () async {
+    store.myRegistrations['s1'] = ParticipationType.spectator;
+    final schedule = _SlowSchedule(store);
+    getIt
+      ..unregister<ProfileRepository>()
+      ..registerSingleton<ProfileRepository>(_FlakyProfiles(store, 0))
+      ..unregister<ScheduleRepository>()
+      ..registerSingleton<ScheduleRepository>(schedule);
+
+    final loading = appState.loadProfile();
+    await pumpEventQueue();
+    expect(appState.profile, isNotNull);
+
+    await appState.signOut();
+    schedule.gate.complete();
+    await loading;
+
+    expect(appState.profile, isNull);
+    expect(appState.isRegistered('s1'), isFalse);
+    expect(appState.scheduleEntries, isEmpty);
   });
 }

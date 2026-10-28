@@ -228,8 +228,8 @@ class _SummitCountdownState extends State<_SummitCountdown> {
   }
 
   /// When summit day's first session starts. Uses the earliest start time
-  /// in the catalog from 6 AM on (a few rows store afternoon times without
-  /// the 12-hour offset), or 8 AM when there are none.
+  /// in the catalog from 6 AM on (ignoring a time typed without the 12-hour
+  /// offset), or 8 AM when there are none.
   DateTime? _start() {
     final date = appState.summitStatus.date;
     if (date == null) return null;
@@ -736,20 +736,45 @@ class _QuoteCardState extends State<_QuoteCard>
 // ---------------------------------------------------------------------------
 // Up next — the participant's next session, or a plan-your-day nudge.
 // ---------------------------------------------------------------------------
-class _UpNext extends StatelessWidget {
+class _UpNext extends StatefulWidget {
   const _UpNext();
+
+  @override
+  State<_UpNext> createState() => _UpNextState();
+}
+
+class _UpNextState extends State<_UpNext> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    // On summit day the card moves on as sessions end.
+    _tick = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
-        final sessions = appState.mySessions;
+        if (appState.scheduleEntries.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _PlanNudge(),
+          );
+        }
+        final next = appState.upNext(DateTime.now());
+        if (next == null) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: sessions.isEmpty
-              ? const _PlanNudge()
-              : _NextSessionCard(session: sessions.first),
+          child: _NextSessionCard(session: next),
         );
       },
     );
