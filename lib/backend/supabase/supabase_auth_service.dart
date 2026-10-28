@@ -67,31 +67,48 @@ class SupabaseAuthService implements AuthService {
   }
 
   @override
-  Future<bool> tryDevLogin(String email) async {
+  bool get supportsTestAccounts => SupabaseConfig.devLoginEnabled;
+
+  @override
+  Future<void> signInWithTestAccount({
+    required String email,
+    required String password,
+  }) async {
     // First guard: only ever attempt this in a build explicitly flagged for it.
-    if (!SupabaseConfig.devLoginEnabled) return false;
+    if (!SupabaseConfig.devLoginEnabled) {
+      throw const AuthFailure('Test accounts are off in this build.');
+    }
     final e = email.trim().toLowerCase();
+    final Object? data;
     try {
-      // The dev-login function checks the test_accounts table (second guard is
-      // its own DEV_LOGIN_ENABLED secret) and, for a code email, returns the OTP
-      // to complete the normal verify flow — a real Supabase session.
-      final res = await _client.functions.invoke('dev-login', body: {'email': e});
-      final data = res.data;
-      if (data is! Map || data['test'] != true) return false;
-      final otp = data['otp'] as String?;
-      if (otp == null || otp.isEmpty) return false;
-      final type = (data['type'] as String?) == 'magiclink'
-          ? OtpType.magiclink
-          : OtpType.email;
-      await _client.auth.verifyOTP(type: type, email: e, token: otp);
-      return true;
-    } on AuthException catch (ex) {
-      // A known code email whose sign-in genuinely failed — surface it.
-      throw AuthFailure(ex.message);
+      // The dev-login function checks the shared password and the
+      // test_accounts table and, for a code email, returns the OTP to complete
+      // the normal verify flow, so this is a real Supabase session.
+      final res = await _client.functions.invoke(
+        'dev-login',
+        body: {'email': e, 'password': password},
+      );
+      data = res.data;
+    } on FunctionException catch (ex) {
+      throw AuthFailure(switch (ex.status) {
+        401 => 'Wrong email or password.',
+        403 || 404 => 'Test accounts are turned off on this server.',
+        _ => 'Could not reach the test sign-in. Try again.',
+      });
     } catch (_) {
-      // Function absent/disabled, not a code email, network hiccup → let the
-      // caller fall back to the normal emailed-OTP flow.
-      return false;
+      throw const AuthFailure('Could not reach the test sign-in. Try again.');
+    }
+    final otp = data is Map ? data['otp'] as String? : null;
+    if (otp == null || otp.isEmpty) {
+      throw const AuthFailure('Could not reach the test sign-in. Try again.');
+    }
+    final type = data is Map && data['type'] == 'magiclink'
+        ? OtpType.magiclink
+        : OtpType.email;
+    try {
+      await _client.auth.verifyOTP(type: type, email: e, token: otp);
+    } on AuthException catch (ex) {
+      throw AuthFailure(ex.message);
     }
   }
 

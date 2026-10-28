@@ -957,7 +957,15 @@ class SampleAuthService implements AuthService {
   }
 
   @override
-  Future<bool> tryDevLogin(String email) async => false;
+  bool get supportsTestAccounts => false;
+
+  @override
+  Future<void> signInWithTestAccount({
+    required String email,
+    required String password,
+  }) async {
+    throw const AuthFailure('Sign-in is unavailable in demo mode.');
+  }
 
   @override
   bool get supportsGoogleSignIn => false;

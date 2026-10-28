@@ -4,12 +4,13 @@ The companion app for **Emerald Summit '27** — the Tri-Valley's student-run
 STEAM summit at Emerald High, Dublin CA (January 2027). This repo is the
 production app: Flutter, for iOS and Android.
 
-**Website (separate project).** The Emerald Summit website is a different
-project: React + TypeScript (Vite), in
+**Website (separate project, moving onto this backend).** The Emerald Summit
+website is a different project: React + TypeScript (Vite), in
 [dogethecoderr/Emerald-Summit-Website](https://github.com/dogethecoderr/Emerald-Summit-Website),
-live at [emerald-summit.vercel.app](https://emerald-summit.vercel.app/). It has
-its **own Supabase project**, so accounts, sessions, and data are not shared
-with this app, and nothing in this repo deploys or migrates it.
+live at [emerald-summit.vercel.app](https://emerald-summit.vercel.app/). It
+still has its own Supabase project today, but it's being moved onto this app's
+backend so both share accounts and data, and its signed-in screens will match
+the app. Anyone working on that: start with **Website sync** below.
 
 > **Status: role-driven backend live.** All screens and interactions work, and
 > the backend is wired up and verified end-to-end on the dev project (two-device
@@ -1274,6 +1275,310 @@ enforcement, which the sample backend shows how to do in-process) is the whole
 porting surface. Everything in the "Data model" section above is Supabase's
 *implementation* of the contract, not part of the app.
 
+## Website sync: one backend for the app and the website
+
+**Status: planned** (Oct 27, 2026). The website
+([dogethecoderr/Emerald-Summit-Website](https://github.com/dogethecoderr/Emerald-Summit-Website),
+React + TypeScript + Vite, deployed on Vercel) is moving off its own Supabase
+project (`spsxfbvamwxsmtjkwxko`) and onto **this app's backend**, the dev
+project `dgrskmykbkvphnaasfzl`. After the move, an account, a registration, an
+announcement or a check-in made on one shows up on the other. The website's
+signed-in screens should also look and behave like the app.
+
+This section is written for the person (or coding agent) doing that work in
+the website repo. Read all of it before changing code. The website repo's own
+README links here; this file is the source of truth for the backend.
+
+### Read first, in this order
+1. This section.
+2. **Backend** above: the data model, roles and permissions, and the
+   gotchas. Every table, RPC, trigger and policy the website will use is
+   described there.
+3. [SUPABASE.md](SUPABASE.md): the SQL run order, the Edge Functions, and
+   §3b (test accounts).
+4. **App writing rule**, **Session rooms: locked** and **Summit date** above.
+   All three apply to the website too.
+5. The app's Supabase code, which is the reference implementation to port:
+   [supabase_repositories.dart](lib/backend/supabase/supabase_repositories.dart)
+   (every query and RPC call, with the parameters it sends and how it reads
+   the result), [supabase_auth_service.dart](lib/backend/supabase/supabase_auth_service.dart),
+   and [supabase_archie_repository.dart](lib/backend/supabase/supabase_archie_repository.dart).
+   The contracts they implement are in
+   [repositories.dart](lib/backend/repositories.dart) (including the
+   `RegistrationResult` codes).
+6. The models: [models.dart](lib/models/models.dart) and
+   [user_profile.dart](lib/models/user_profile.dart). Their `fromMap` /
+   `toMap` give the exact column names and value formats. Port these to
+   TypeScript types first and build everything else on them.
+
+When this README and the code disagree, the code wins; say so in your PR so
+the README gets fixed.
+
+### Rules (don't break these)
+- **The app repo owns the schema.** Don't create, alter or drop tables,
+  views, policies, functions, triggers or buckets from the website repo.
+  - Delete the website's `supabase/migrations/`, `supabase/seed.sql` and
+    `supabase/config.toml` in the first PR (keep them in git history). Never
+    run `supabase db push`, `db reset` or `link` from the website repo against
+    `dgrskmykbkvphnaasfzl`: `db push` would create the website's old `users`
+    and `announcements` tables next to the app's, and `seed.sql` would write
+    sample rows into the live catalog.
+  - If the website needs a schema change, add a new `.sql` file to this repo's
+    [`supabase/`](supabase/), add it to SUPABASE.md's run order and to the data
+    model above, and ask Arjun to run it on dev. The SQL here is run by hand in
+    the SQL editor; there is no migrations history.
+  - **Additive only.** The app on people's phones (TestFlight) reads these
+    columns. Never rename or drop a column, change a type, or change what an
+    RPC returns. Add a new column or a new RPC instead, and only remove the old
+    one after every app build that reads it is gone.
+- **Only the publishable key in the browser** (`sb_publishable_…`). Never the
+  secret or `service_role` key, in code, in `.env*`, or in Vercel's env vars.
+  Everything in a Vite `VITE_*` variable ships to every visitor.
+- **RLS and the RPCs are the security.** Hiding a button is not. If a call
+  fails with a permission error, the website is doing something the app doesn't
+  allow either: match what the app does, don't ask for a looser policy.
+- **Write through the same RPCs the app uses.** Several tables have no direct
+  write grant on purpose: `registrations` (use `register_for_session` /
+  `update_my_registration`), `teams` (only reached through RPCs),
+  `session_volunteers` (`assign_volunteer_to_session` /
+  `unassign_volunteer_from_session` / `set_session_manage`),
+  attendance and check-in (`mark_session_attendance`, `mark_summit_checkin`,
+  `scan_summit_checkin`). Send the same parameters the app sends, including
+  `p_intent` (`add` / `remove`) on `register_for_session`.
+- **Server-owned columns.** The website never decides a user's power. `role`
+  is forced back to `participant` by a trigger unless the email is on the
+  Google Sheet allowlist; `volunteer_subtype`, `managed_disciplines` and the
+  three `can_*` flags come only from the sheet; `expert_status` changes only
+  through `review_expert`. Write `role` the way the app does (onboarding), then
+  **re-read the profile** to see what the server kept.
+- **Same words as the app.** The App writing rule covers every string a user
+  reads on the website. Reuse the app's labels and error messages rather than
+  writing new ones (see "Copy" below).
+- **No new backend features from the website alone.** If the website needs
+  something the app doesn't have (a public directory, judging), talk to Arjun
+  first; it gets designed once for both.
+
+### The website today vs. the shared backend
+The website was built against its own schema. Most of its data layer gets
+replaced, not adapted.
+
+| Website now | Shared backend |
+|---|---|
+| `public.users` table | `public.profiles` (`id` = `auth.users.id`). A trigger creates the row at sign-up; the client reads it and updates its own row, it never inserts one. RLS: your own row only. |
+| `name` | `full_name` |
+| `profile_setup_complete` | `onboarded` |
+| `phone`, `bio`, school, grade… | `details` jsonb. The keys per role are the `RoleQuestion` lists in [user_profile.dart](lib/models/user_profile.dart) (`school`, `grade`, `phone`, `student_id`, `expertise`, `bio`). |
+| `org`, `directory_visible`, `*_visible` | Don't exist. Drop them. |
+| Roles `participant`, `attendee`, `volunteer`, `expert`, `ambassador`, `admin` | Stored ids `participant`, `expert`, `parentSpectator`, `volunteer`, `admin`. Labels: Participant, Expert / Speaker, Parent / Spectator, Volunteer, Admin. |
+| `attendee` | `parentSpectator` (adding a session always spectates). |
+| `ambassador` | Not a role. A `volunteer` whose `volunteer_subtype` is `eaf_ambassador` (others: `parent_volunteer`, `student_volunteer`), set from the sheet. Nobody picks it. |
+| Expert signs in and is an expert | Picking Expert makes `expert_status = pending` until an admin approves (`review_expert`). Handle pending and declined the way the app does. |
+| `checked_in_at` on `users` | `summit_checkins` via `my_summit_checkin`, `scan_summit_checkin`, `mark_summit_checkin`, `fetch_attendee_directory`, `fetch_checkin_stats`. |
+| QR pass encodes the user id | Same in the app: the QR is the bare `auth.users.id`. Keep it, so a pass on a laptop scans at the app's front desk and the reverse. |
+| Its own `announcements` (category enum, `author_id`, `author_name`) | The app's `announcements` (see `Announcement.fromMap` in [models.dart](lib/models/models.dart)): `audience`, `pinned`, `discipline_id`, `created_by`, `target_user_id` (personal notices), `session_id`, `attachments`. Read state in `announcement_reads`, hides in `announcement_dismissals`. |
+| `announcement-media` bucket (100 MB) | `announcement_attachments` bucket, uploads under `<user_id>/`, admins and volunteers with `can_post_announcements` only. Size limits in [storage_upload_limits.sql](supabase/storage_upload_limits.sql). |
+| Tracks | Sessions under disciplines (`disciplines`, `sessions_with_counts` view for reads, `sessions` for writes). |
+| Directory page (everyone, with visibility settings) | No equivalent; `profiles` is own-row-only. `fetch_volunteer_hub` lists volunteers for the people allowed to see it. Drop the directory or turn it into the volunteer hub. |
+| Judging page | No backend. Leave it hidden (the route already redirects). |
+| Resources page | The app's Resources is sample content too. Keep it static. |
+| "Bypass Login (Local Demo Mode)" | Remove it. A fake local session against a real backend shows screens whose data never loads. Use password-gated test accounts (below). |
+| `src/test/databaseSecurity.adversarial.test.ts` | Tests the old schema. Rewrite it against the RPC behaviour described in **Backend**, or delete it. |
+
+### Hooking the website up
+**Env vars** (local `.env.local` and Vercel, Production + Preview):
+```
+VITE_SUPABASE_URL=https://dgrskmykbkvphnaasfzl.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_…   # same key as the app's env.json
+VITE_DEV_LOGIN=true                               # shows the test-account form; omit for prod
+```
+Rename `VITE_SUPABASE_ANON_KEY` to `VITE_SUPABASE_PUBLISHABLE_KEY` in
+`src/lib/supabase.ts` and `.env.example`. Ask Arjun for the key.
+
+**Supabase dashboard (Arjun does these on the dev project; list them in your
+PR so they aren't missed):**
+- Auth → URL Configuration: add `https://emerald-summit.vercel.app/**`,
+  `http://localhost:5173/**` and the Vercel preview pattern to **Redirect
+  URLs**. Without them the Google redirect and the email link fail.
+- Google sign-in on the web uses the redirect flow
+  (`signInWithOAuth({ provider: 'google', options: { redirectTo } })`), unlike
+  the app's native ID-token flow. The Google provider needs its **client
+  secret** filled in, and the Web OAuth client in Google Cloud needs
+  `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/callback` as an authorized
+  redirect URI. Same project, same accounts: someone who signed in with Google
+  on the phone lands on the same profile on the web.
+- Consider turning on Auth CAPTCHA (Turnstile or hCaptcha). A public page that
+  sends sign-in codes will get bots, and the emails go out through the org's
+  Google Workspace SMTP. If it's turned on, the app needs an update too, so
+  agree on it first.
+
+**Auth flow** (port of [auth_gate.dart](lib/screens/auth/auth_gate.dart) and
+[sign_in_screen.dart](lib/screens/auth/sign_in_screen.dart)):
+1. Email: `signInWithOtp({ email, options: { shouldCreateUser: true } })`,
+   then `verifyOtp({ email, token, type: 'email' })`. Accept up to 10 digits.
+   Or Google.
+2. Load `profiles` for `auth.uid()`. **If the read fails, show "Try again",
+   never onboarding**: onboarding saves the profile and would wipe the
+   person's answers.
+3. Not `onboarded` → onboarding (role picker, then that role's questions from
+   `RoleQuestion`), saved the way `SupabaseProfileRepository.save` does it,
+   then re-read. Roles that need a phone get the phone step
+   ([phone_required_screen.dart](lib/screens/auth/phone_required_screen.dart)).
+4. Expert pending or declined: same screens and one-time note as the app
+   (`acknowledge_expert_decline`).
+5. Changing role later goes through `preview_role_change` first, as in the app
+   (sessions move down to spectating).
+
+**Test accounts on the website.** The password check lives in the shared
+`dev-login` function ([SUPABASE.md](SUPABASE.md) §3b, and "Dev-testing build vs.
+production build" below), so the website only needs the form and the call.
+- Show "Sign in to a test account" only when
+  `import.meta.env.VITE_DEV_LOGIN === 'true'`. The form takes a code email and
+  the password.
+- Call `supabase.functions.invoke('dev-login', { body: { email, password } })`.
+  On `200 { otp, type }`, finish with
+  `verifyOtp({ email, token: otp, type: type === 'magiclink' ? 'magiclink' : 'email' })`.
+  `401` → "Wrong email or password." `403` → "Test accounts are turned off on
+  this server."
+- Never store the password (no `localStorage`, no URL), and never put it in
+  the repo or a Vercel variable. People type it.
+- After sign-in, skip the role picker like the app does
+  (`_autoOnboardTestAccount` in [app_state.dart](lib/app_state.dart)): admin if
+  allowlisted, else volunteer if allowlisted, else infer from the email
+  (`expert`, `spectator`/`parent`, otherwise participant).
+
+**Reads and realtime**
+- Catalog: `disciplines` and `sessions_with_counts` (it adds `enrolled` and the
+  discipline name; `enrolled` is never stored). Always pass `ascending`
+  explicitly to `.order()`: disciplines and rooms by `sort_order`, sessions by
+  start time. (The JS client defaults to ascending, the Dart one doesn't; being
+  explicit keeps the two lists in the same order.)
+- `start_time` / `end_time` are 24-hour text (`09:45`, `14:00`). Compare them as
+  text and show them in 12-hour form like the app (`to12HourTime` in
+  [models.dart](lib/models/models.dart)). When the website writes a time, keep
+  two-digit hours.
+- `fetch_summit_status()` gives the summit date (still null) and whether
+  feedback is open. Use it for the countdown and the date line; don't hard-code
+  a date.
+- Realtime: subscribe to `announcements` (the app's channel is
+  `public:announcements`) once signed in, and to `summit_checkins` only on the
+  front-desk screen. Unsubscribe on sign-out and unmount. The free plan allows
+  200 concurrent connections across the app and every open website tab.
+
+**Storage egress (read this before showing any photo).** Storage downloads
+count against the free plan's 5 GB/month cached egress. The app went over it
+once (see the `CachedNetworkImage` note in **Backend**); the grace period ended
+Oct 26, 2026, so new overage can now fail with `402`, and that breaks the
+**app's** photos too.
+- Lazy-load every Storage image (`loading="lazy"`, explicit width and height)
+  and never load a whole bucket on the public landing page.
+- Don't use Supabase image transformations (paid plan) or autoplay video from
+  Storage. Landing-page media (`public/sky`, `public/gallery`) stays on Vercel.
+- Uploads from the website should set a long `cacheControl` so browsers keep
+  them.
+
+**Archie** (optional, later). `archie-chat` calls the Claude API, billed per
+question, with a per-user daily cap. It checks the caller's session itself, so
+send the user's JWT. If the website gets Archie, port the streaming client
+from [supabase_archie_repository.dart](lib/backend/supabase/supabase_archie_repository.dart)
+and the app's chat screen; don't add a second function.
+
+### What to build, in order
+Do one phase per PR. After each, test with the same account on the website and
+on the app (two devices), using test accounts for each role.
+
+1. **Cut over.** New env vars, delete the website's `supabase/` folder, remove
+   bypass login, add the TypeScript models. Signed-in pages may be empty.
+2. **Auth and onboarding**, including test accounts, Google, the phone step,
+   expert pending/declined.
+3. **Read-only screens:** Home, Discover → discipline → session page
+   (Session tab), News (with read state and pinned), Profile with the check-in
+   pass.
+4. **Schedule writes:** add / remove / spectate / manage via
+   `register_for_session` and `set_session_manage`, Edit my registration
+   (`update_my_registration`), participant questions, teams (`find_team`,
+   `fetch_my_project`, `transfer_team_ownership`, `remove_team_member`),
+   time clash checks (`session_time_conflicts`). Show every result code the
+   app handles.
+5. **Volunteer tools:** My assignments, the session Participants tab (roster +
+   attendance), front desk + QR scanner, the volunteer hub, volunteer hours
+   (`volunteer_hour_logs`).
+6. **Admin tools:** announcement composer with attachments, session and
+   discipline editors, rooms, assigning volunteers, the expert queue
+   (`fetch_expert_requests`, `review_expert`), summit metrics, Archie insights.
+7. **Summit follow-up:** expert feedback and "volunteer again?"
+   (`submit_expert_feedback`, `set_eaf_future_interest`), opened by
+   `fetch_summit_status().feedback_open`.
+8. **Archie**, if wanted.
+
+Every RPC the app calls is listed in **Backend**; the call sites are in
+`supabase_repositories.dart`. A phase is done when the website and the app
+agree on the same data for the same account, and every state the app shows
+(empty, loading, error, full, closed, pending) exists on the website.
+
+### UI and UX: match the app
+The app is the reference for every **signed-in** screen. The public landing
+page (WelcomePage, the sky video, the showcase) keeps its own look, with the
+same brand colors.
+
+- **Navigation.** The app's tabs are Home · Schedule · Discover · News ·
+  Archie, with Profile behind the avatar
+  ([root_nav.dart](lib/screens/root_nav.dart)). Use the same names, the same
+  order and the same grouping in the website's sidebar and in its mobile
+  bottom bar. "Announcements" becomes **News**; the Schedule page header reads
+  **My Day**; Settings lives under Profile. Volunteer and admin tools appear in
+  the same places the app puts them (Home action grid, Profile, the session
+  page tabs).
+- **Screens.** Each app screen in [lib/screens/](lib/screens/) gets a website
+  page with the same sections in the same order, the same empty states and the
+  same confirmations (deletes ask you to type the name:
+  [type_to_confirm_dialog.dart](lib/widgets/type_to_confirm_dialog.dart)). The
+  session page keeps the app's tabs: Session / Participants / Experts /
+  Volunteers, each shown only to the people the app shows it to. A wider
+  screen can show more at once (two columns, a side rail), but not different
+  content.
+- **Color.** [theme.dart](lib/theme.dart) is the palette. Light: Emerald
+  `#0C7A55`, Deep Emerald `#0A5F43`, Ink `#16211C`, Mist `#EEF5F1`; the website's
+  Navy `#101C36` stays for the sidebar. The app also has a dark theme (Light /
+  Dark / System, chosen in Profile); give the website the same three choices
+  using the app's dark tokens (`night`, `nightSurface`, `nightMist`,
+  `nightBorder`, `nightText`, `mint` for primary). Put them in the CSS
+  variables in `src/index.css`, not in components.
+- **Disciplines.** Each discipline has its own palette and animated motif in
+  [discipline_vibe.dart](lib/widgets/discipline_vibe.dart) (TechVerse circuit,
+  VentureVerse ticker, BioSphere cells, NovaSphere stars, CivicVerse ripples,
+  ImagineX paint). Copy the hex values exactly into a shared map and use them
+  on discipline pages, session cards and pills. The motifs can be simpler on
+  the web (CSS or canvas), but must stop under `prefers-reduced-motion`.
+- **Icons.** The app uses Phosphor duotone
+  ([duotone_icon.dart](lib/widgets/duotone_icon.dart)). Switch the website
+  from lucide to `@phosphor-icons/react` with `weight="duotone"` and use the
+  same icon for the same thing (each discipline's icon is `disciplineIcon()` in
+  [models.dart](lib/models/models.dart)).
+- **Type.** The app uses the platform font, so there is nothing to copy; the
+  website keeps Satoshi for headings and Instrument Sans for text.
+- **Copy.** Same labels, button text and messages as the app, word for word.
+  Search the app for a string before writing a new one. Error text for RPC
+  result codes is in `supabase_repositories.dart` and the screens; reuse it.
+  Write any new strings by the App writing rule (no em dashes, no filler,
+  sentence case), and add the same string to the app if it's a shared state.
+- **Rooms.** While rooms are locked, the website's session page hides the
+  room and its session editor can't change it. Discover, Schedule and Home
+  still show rooms, as in the app.
+- **When the app changes.** A UI change to the app that affects a shared
+  screen should get a matching website issue. Note it in the PR.
+
+### Checklist before each website PR
+- `npm run build` and `npm test` pass.
+- Nothing from `supabase/` in the website repo, and no `service_role` key or
+  test-account password anywhere.
+- Tried as a participant, a parent/spectator, an expert (pending and
+  approved), a volunteer and an admin, using test accounts.
+- The same action on the app and the website gives the same result, and the
+  other side sees it (refresh or realtime).
+- New strings checked against the App writing rule.
+- Any schema change is a new file in this repo's `supabase/`, not in the
+  website.
+
 ## Configuration (backend keys)
 Secrets are **not** stored in source. Real values live in a gitignored
 `env.json`, injected at build time. To set up:
@@ -1316,15 +1621,27 @@ flag, injected from `env.json` like the Supabase keys. Because it's a login
 backdoor, it is **off by default** and must be enabled in **two** places at once
 — either alone does nothing.
 
+**It's password-gated.** The sign-in screen shows *Sign in to a test account*
+only in a `DEV_LOGIN` build; that form takes a code email plus the shared
+test-account password, which the `dev-login` function checks against its
+`DEV_LOGIN_PASSWORD` secret. The website shares this backend and this function,
+so the password (not the build flag, and not the publishable key, which anyone
+can read from a web page) is what keeps strangers out. *Email me a code* never
+touches the function. The form lives in
+[sign_in_screen.dart](lib/screens/auth/sign_in_screen.dart); the call is
+`signInWithTestAccount` in
+[supabase_auth_service.dart](lib/backend/supabase/supabase_auth_service.dart).
+
 **To build for DEV testing** (your dev Supabase project only):
 1. In your **dev** `env.json`, add `"DEV_LOGIN": true` alongside the dev
    project's URL + publishable key. (`env.json` is gitignored, so this flag never
    reaches source control or another machine.)
-2. On that **dev** project, deploy the `dev-login` Edge Function and set its
-   `DEV_LOGIN_ENABLED=true` secret, and run `test_accounts_setup.sql` (full steps
-   in [SUPABASE.md](SUPABASE.md) §3b).
-3. Run/build as usual with `--dart-define-from-file=env.json`. Code emails now
-   bypass OTP; everyone else uses normal OTP.
+2. On that **dev** project, set the `DEV_LOGIN_ENABLED=true` and
+   `DEV_LOGIN_PASSWORD` secrets, deploy the `dev-login` Edge Function, and run
+   `test_accounts_setup.sql` (full steps in [SUPABASE.md](SUPABASE.md) §3b).
+3. Run/build as usual with `--dart-define-from-file=env.json`. Testers tap
+   *Sign in to a test account* and use a code email plus the password; everyone
+   else uses normal OTP.
 
 **To build for PRODUCTION** (never ship the bypass):
 1. Use your **production** `env.json` — the prod URL + publishable key — with
@@ -1332,7 +1649,8 @@ backdoor, it is **off by default** and must be enabled in **two** places at once
    ships `false`; keep it that way for any prod/TestFlight build. With the flag
    off the app never even calls the bypass function.
 2. On the **production** project, **do not** deploy `dev-login`, **do not** set
-   `DEV_LOGIN_ENABLED`, and **do not** run `test_accounts_setup.sql`. That is the
+   `DEV_LOGIN_ENABLED` or `DEV_LOGIN_PASSWORD`, and **do not** run
+   `test_accounts_setup.sql`. That is the
    second guard: even a mis-flagged app can't bypass a project that has no
    enabled function.
 3. Sanity check before a release: `grep DEV_LOGIN env.json` should show `false`
@@ -1347,8 +1665,8 @@ clean: the bypass lives entirely on dev.
 > accounts) — it's the same table + function + flag. **Do not just turn it on**:
 > in production it's a real login backdoor, so before enabling it we'd want to
 > harden it — at minimum: keep `test_accounts` to a tiny, known set (never real
-> attendees); require a shared secret/header on the function call (not just the
-> publishable key) and consider re-enabling Verify-JWT with a caller check;
+> attendees); use a different, stronger password than dev's
+> (`DEV_LOGIN_PASSWORD`, already required) and consider re-enabling Verify-JWT with a caller check;
 > rate-limit and log every use; and gate the app path behind its own prod flag
 > so it can be shipped dark and flipped on only when needed. Treating it as
 > "flip `DEV_LOGIN_ENABLED` on prod" would be unsafe. Revisit when we actually

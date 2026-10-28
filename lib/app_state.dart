@@ -1060,6 +1060,9 @@ class AppState extends ChangeNotifier {
   /// Marks that the just-created session came from the dev-login bypass.
   void markTestAccountSignIn() => _isTestAccountSession = true;
 
+  /// Undoes [markTestAccountSignIn] when the test sign-in fails.
+  void clearTestAccountSignIn() => _isTestAccountSession = false;
+
   /// Returns the pending test-account notice and clears it (shown once).
   String? consumeTestAccountNotice() {
     final n = _testAccountNotice;

@@ -41,9 +41,8 @@ class SupabaseConfig {
   /// Whether native Google sign-in is wired up (the Web client ID is present).
   static bool get googleSignInEnabled => googleWebClientId.isNotEmpty;
 
-  /// TEST/DEV ONLY. When true, the sign-in screen attempts the `dev-login`
-  /// bypass for "code emails" before the normal OTP flow (see
-  /// [SUPABASE.md]). Off unless the build passes `--dart-define DEV_LOGIN=true`
+  /// TEST/DEV ONLY. When true, the sign-in screen offers the password-gated
+  /// test-account sign-in (the `dev-login` function; see [SUPABASE.md]). Off unless the build passes `--dart-define DEV_LOGIN=true`
   /// (e.g. a `"DEV_LOGIN": true` entry in a dev `env.json`). NEVER enable it in
   /// a production build; the Edge Function has its own second guard.
   static const bool devLoginEnabled =

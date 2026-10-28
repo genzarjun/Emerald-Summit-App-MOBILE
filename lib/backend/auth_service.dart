@@ -46,16 +46,23 @@ abstract interface class AuthService {
   /// Throws [AuthFailure] with a user-safe message on failure.
   Future<void> verifyEmailOtp({required String email, required String code});
 
-  /// TEST/DEV ONLY. If [email] is a registered "code email" (a test account),
-  /// establishes a real session for it WITHOUT an emailed OTP and returns true.
-  /// Returns false when dev login is disabled, the email isn't a code email, or
-  /// the bypass isn't available — so the caller falls back to normal OTP. Throws
-  /// [AuthFailure] only when a known code email's sign-in genuinely fails.
+  /// TEST/DEV ONLY. Whether this build offers the test-account sign-in (the
+  /// sign-in screen shows its link only when this is true).
+  bool get supportsTestAccounts;
+
+  /// TEST/DEV ONLY. Signs in as a registered "code email" (a test account)
+  /// WITHOUT an emailed OTP, using the shared test-account [password]. Returns
+  /// once a real session exists. Throws [AuthFailure] with a user-safe message
+  /// for a wrong email or password, or when test accounts are turned off.
   ///
-  /// Guarded two ways (see the dev-login Edge Function + [SUPABASE.md]): the app
-  /// must be built with `--dart-define DEV_LOGIN=true` AND the function must have
-  /// `DEV_LOGIN_ENABLED=true`. It must never be enabled in production.
-  Future<bool> tryDevLogin(String email);
+  /// Guarded three ways (see the dev-login Edge Function + [SUPABASE.md]): the
+  /// app must be built with `--dart-define DEV_LOGIN=true`, the function must
+  /// have `DEV_LOGIN_ENABLED=true`, and it checks `DEV_LOGIN_PASSWORD`. It must
+  /// never be enabled in production.
+  Future<void> signInWithTestAccount({
+    required String email,
+    required String password,
+  });
 
   /// Whether native Google sign-in is available in this build (provider
   /// configured, client IDs present). The sign-in screen shows the Google

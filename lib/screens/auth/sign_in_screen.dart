@@ -14,6 +14,9 @@ import '../../backend/service_locator.dart';
 ///
 /// No password is ever created or stored. On success the auth gate reacts to
 /// the new session and routes onward.
+///
+/// TEST/DEV builds add a third form behind a link: a code email plus the
+/// shared test-account password signs straight in (see the dev-login function).
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -24,8 +27,10 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   final _emailController = TextEditingController();
   final _codeController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   bool _codeSent = false;
+  bool _testAccountMode = false;
   bool _busy = false;
   String? _error;
 
@@ -33,6 +38,7 @@ class _SignInScreenState extends State<SignInScreen> {
   void dispose() {
     _emailController.dispose();
     _codeController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -51,17 +57,6 @@ class _SignInScreenState extends State<SignInScreen> {
       _error = null;
     });
     try {
-      // TEST/DEV: a registered "code email" signs in instantly (no OTP). A no-op
-      // that returns false in normal builds and for real emails, so this is
-      // transparent in production.
-      if (await authService.tryDevLogin(_email)) {
-        // Test account: tell the gate to auto-assign the role (from the
-        // allowlist) instead of showing the role picker. The auth gate reacts to
-        // the new session and navigates; this widget is about to be disposed, so
-        // leave the spinner up.
-        appState.markTestAccountSignIn();
-        return;
-      }
       await authService.sendEmailOtp(_email);
       if (!mounted) return;
       setState(() {
@@ -110,6 +105,47 @@ class _SignInScreenState extends State<SignInScreen> {
         _busy = false;
       });
     }
+  }
+
+  Future<void> _signInWithTestAccount() async {
+    if (!_emailLooksValid) {
+      setState(() => _error = 'Enter the test account email.');
+      return;
+    }
+    if (_passwordController.text.isEmpty) {
+      setState(() => _error = 'Enter the test account password.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    // Set before the session lands: the gate reads it as soon as it loads the
+    // profile, to assign the role from the allowlist instead of the picker.
+    appState.markTestAccountSignIn();
+    try {
+      await authService.signInWithTestAccount(
+        email: _email,
+        password: _passwordController.text,
+      );
+      // The auth gate reacts to the new session and navigates; this widget is
+      // about to be disposed, so leave the spinner up.
+    } on AuthFailure catch (e) {
+      appState.clearTestAccountSignIn();
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _busy = false;
+      });
+    }
+  }
+
+  void _setTestAccountMode(bool on) {
+    setState(() {
+      _testAccountMode = on;
+      _passwordController.clear();
+      _error = null;
+    });
   }
 
   Future<void> _signInWithGoogle() async {
@@ -170,16 +206,24 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _codeSent
-                        ? 'Enter the code we emailed to $_email.'
-                        : 'Sign in or create your account with your email — '
-                            'no password needed.',
+                    _testAccountMode
+                        ? 'Test accounts are for the team. Use the email and '
+                            'password you were given.'
+                        : _codeSent
+                            ? 'Enter the code we emailed to $_email.'
+                            : 'Sign in or create your account with your email. '
+                                'No password needed.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 28),
-                  if (!_codeSent) _emailPhase(theme) else _codePhase(theme),
+                  if (_testAccountMode)
+                    _testAccountPhase()
+                  else if (!_codeSent)
+                    _emailPhase(theme)
+                  else
+                    _codePhase(theme),
                   if (_error != null) ...[
                     const SizedBox(height: 16),
                     Text(
@@ -246,7 +290,62 @@ class _SignInScreenState extends State<SignInScreen> {
             label: const Text('Continue with Google'),
           ),
         ],
+        if (authService.supportsTestAccounts) ...[
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: _busy ? null : () => _setTestAccountMode(true),
+            child: const Text('Sign in to a test account'),
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _testAccountPhase() {
+    return AutofillGroup(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _emailController,
+            enabled: !_busy,
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.username],
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Test account email',
+              prefixIcon: Icon(Icons.alternate_email),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _passwordController,
+            enabled: !_busy,
+            obscureText: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            autofillHints: const [AutofillHints.password],
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _busy ? null : _signInWithTestAccount(),
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              prefixIcon: Icon(Icons.lock_outline),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _busy ? null : _signInWithTestAccount,
+            child: _busy ? const _ButtonSpinner() : const Text('Sign in'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _busy ? null : () => _setTestAccountMode(false),
+            child: const Text('Back to email sign-in'),
+          ),
+        ],
+      ),
     );
   }
 

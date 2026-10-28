@@ -552,26 +552,46 @@ same mock emails in the Volunteers/Admins sheet with the roles/capabilities you
 want to test. Make **one code email per scenario** to cover unique permissions.
 
 > ⚠️ This is a login backdoor. Deploy it to your **dev project only** and never
-> enable it in production. It is guarded twice — see below.
+> enable it in production. Since the website shares this backend and anyone can
+> read the publishable key out of a web page, the function needs a **shared
+> test-account password** (`DEV_LOGIN_PASSWORD`). A wrong password and an email
+> that isn't a code email get the same `401` after the same 1.5 s delay, so the
+> function never confirms which emails are test accounts. Every attempt is
+> logged (Edge Functions → dev-login → Logs).
 
 1. **Create the table.** Run [`supabase/test_accounts_setup.sql`](supabase/test_accounts_setup.sql)
    and add your code emails (in the SQL, or in Table Editor → `test_accounts`).
    Add the **same emails** to the Volunteers/Admins sheets (and re-sync).
 2. **Deploy the function** (dashboard editor, like sync-allowlist, or CLI):
    paste [`supabase/functions/dev-login/index.ts`](supabase/functions/dev-login/index.ts),
-   deploy with **Verify JWT OFF**, and set the secret **`DEV_LOGIN_ENABLED=true`**
-   (guard #1 — omit it in prod and the function refuses).
+   deploy with **Verify JWT OFF**, and set two secrets:
+   **`DEV_LOGIN_ENABLED=true`** (omit it in prod and the function refuses) and
+   **`DEV_LOGIN_PASSWORD`**, the shared password (12+ characters; shorter or
+   missing and the function refuses with `403`, the same as disabled). Set the
+   secrets **before** deploying, so there's never a moment the function answers
+   without a password. Share the password with testers directly, never in the
+   repo, a sheet, or an announcement. To revoke it, set a new one; to turn test
+   accounts off, `supabase secrets unset DEV_LOGIN_ENABLED`.
    ```bash
+   supabase secrets set DEV_LOGIN_ENABLED=true DEV_LOGIN_PASSWORD="$(openssl rand -base64 18)"
    supabase functions deploy dev-login --no-verify-jwt
-   supabase secrets set DEV_LOGIN_ENABLED=true
    ```
+   (`openssl rand` makes a random one; read it back in the dashboard under Edge
+   Functions → Secrets, or set a passphrase you choose instead.)
 3. **Build the app with the dev flag** (guard #2): add `"DEV_LOGIN": true` to
    your dev `env.json`, then run as usual
    (`flutter run --dart-define-from-file=env.json`). Without this flag the app
    never calls the function, so production builds are unaffected.
-4. **Test:** on the sign-in screen, type a code email and tap *Email me a code* —
-   you're signed straight in as that account. Non-code emails fall through to the
-   normal OTP flow untouched.
+4. **Test:** on the sign-in screen, tap *Sign in to a test account*, enter a
+   code email and the password. You're signed straight in as that account.
+   *Email me a code* never calls the function, so real users' sign-in is
+   unaffected. The website does the same behind `VITE_DEV_LOGIN=true` (see the
+   README, "Website sync").
+
+   **Request/response** (what both clients send):
+   `POST /functions/v1/dev-login` with `{ "email", "password" }` →
+   `200 { test: true, otp, type }` (then `verifyOtp({ email, token: otp, type })`),
+   `401` wrong email or password, `403` disabled or no password set, `500` error.
 
 ## 3c. Archie — the AI assistant (`archie-chat`)
 The **Archie** tab streams answers from the
