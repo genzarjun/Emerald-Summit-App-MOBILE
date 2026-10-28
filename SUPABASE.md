@@ -503,6 +503,28 @@ editor, or `curl` its URL with the `x-sync-secret` header); it returns
 `pull-from-sheets` pg_cron job runs it every 5 minutes (set up by
 `allowlist_sync_secret.sql`, step 53).
 
+**Prune guard.** Anyone missing from a sheet is removed from `role_allowlist`
+on the next sync, which drops their role. So the function won't remove anyone
+from a role when that role's sheet reads back with no email rows (an emptied
+or unshared sheet, a wrong id or range), or when the sheet has less than half
+as many emails as the table and at least 5 fewer. It still adds and updates
+everyone it did read, then answers `422` with
+`{ ok: false, error: "The Admins sheet came back with no email rows, ..." }`,
+which you'll see in the function logs every 5 minutes until the sheet is
+fixed. The other role is checked on its own and still syncs normally. Every
+admin also gets one Personal notice, "Problem with the Google Sheet", saying
+which sheet, how many people would have lost access, and to tell Arjun to
+check the sheet. It's posted once (not every 5 minutes), its text is kept
+current while the problem lasts, and it's deleted after the next clean sync.
+The same notice goes out, saying "The app couldn't read the Google Sheets",
+when Google sign-in or a sheet read fails (bad key, sheet unshared or
+deleted, Sheets API off). Nothing in `role_allowlist` changes then, and the
+function answers `500` with Google's error. If a big
+drop is real (say, last year's volunteers cleared out), run
+`supabase secrets set ALLOWLIST_ALLOW_BIG_DROP=true`, let one sync run, then
+`supabase secrets unset ALLOWLIST_ALLOW_BIG_DROP`. An empty sheet is never
+pruned; clear a role by hand in SQL if you truly mean it.
+
 > **A repeating `404` in the function logs means the function isn't deployed at
 > that URL** (the cron is firing, but there's nothing to hit). Deploy it, then
 > the 404s stop.
