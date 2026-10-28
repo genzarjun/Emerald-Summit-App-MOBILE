@@ -578,8 +578,10 @@ want to test. Make **one code email per scenario** to cover unique permissions.
    supabase secrets set DEV_LOGIN_ENABLED=true DEV_LOGIN_PASSWORD="$(openssl rand -base64 18)"
    supabase functions deploy dev-login --no-verify-jwt
    ```
-   (`openssl rand` makes a random one; read it back in the dashboard under Edge
-   Functions → Secrets, or set a passphrase you choose instead.)
+   (`openssl rand` makes a random one, or set a passphrase you choose instead.
+   Supabase can't show it back to you: the dashboard and `secrets list` only
+   show a hash. Keep your own copy somewhere private, such as the macOS
+   keychain.)
 3. **Build the app with the dev flag** (guard #2): add `"DEV_LOGIN": true` to
    your dev `env.json`, then run as usual
    (`flutter run --dart-define-from-file=env.json`). Without this flag the app
