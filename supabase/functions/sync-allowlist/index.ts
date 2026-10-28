@@ -209,14 +209,10 @@ Deno.serve(async (req) => {
     } catch (e) {
       // Google sign-in or a sheet read failed, so nothing in role_allowlist was
       // touched. Tell the admins, then report the real error as before.
-      try {
-        await refreshSheetNotice(supabase, [
-          "The app couldn't read the Google Sheets, so it can't add or remove " +
-          "volunteers or admins right now. Nobody's access has changed.",
-        ]);
-      } catch (noticeError) {
-        console.error(noticeError);
-      }
+      await notifyAdmins(supabase, [
+        "The app couldn't read the Google Sheets, so it can't add or remove " +
+        "volunteers or admins right now. Nobody's access has changed.",
+      ]);
       throw e;
     }
     const all = [...volunteers, ...admins];
@@ -244,17 +240,17 @@ Deno.serve(async (req) => {
       await guardedPrune(supabase, "admin", "Admins", admins, adminsBefore),
     ].filter((r): r is Refusal => r !== null);
 
-    await refreshSheetNotice(supabase, refused.map((r) => r.notice));
+    const noticeError = await notifyAdmins(supabase, refused.map((r) => r.notice));
+    const counts = {
+      volunteers: volunteers.length,
+      admins: admins.length,
+      ...(noticeError ? { notice_error: noticeError } : {}),
+    };
 
     if (refused.length > 0) {
-      return json({
-        ok: false,
-        error: refused.map((r) => r.error).join(" "),
-        volunteers: volunteers.length,
-        admins: admins.length,
-      }, 422);
+      return json({ ok: false, error: refused.map((r) => r.error).join(" "), ...counts }, 422);
     }
-    return json({ ok: true, volunteers: volunteers.length, admins: admins.length });
+    return json({ ok: true, ...counts });
   } catch (e) {
     // Serialize properly so the real message shows instead of "[object Object]".
     const msg = e instanceof Error
@@ -350,6 +346,21 @@ async function prune(
 // (without marking it unread again every 5 minutes), removed once a sync goes
 // through cleanly.
 const SHEET_NOTICE_TITLE = "Problem with the Google Sheet";
+
+// The notice is a side effect: if it can't be posted, log it and return the
+// message so the sync's own result still stands.
+async function notifyAdmins(
+  supabase: SupabaseClient,
+  lines: string[],
+): Promise<string | null> {
+  try {
+    await refreshSheetNotice(supabase, lines);
+    return null;
+  } catch (e) {
+    console.error(e);
+    return e instanceof Error ? e.message : String(e);
+  }
+}
 
 async function refreshSheetNotice(supabase: SupabaseClient, lines: string[]) {
   const fail = (what: string, error: { message?: string }) =>

@@ -433,6 +433,14 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     step. All return `conflict` with a `conflict_kind`. Safe to re-run.
     *(Run on the dev project 2026-10-27.)*
 
+58. `supabase/allowlist_sheet_notice_grants.sql`: **lets `sync-allowlist`
+    post its admin notice.** Grants `service_role` select, insert, update and
+    delete on `announcements` (and select on `profiles`) for the "Problem with
+    the Google Sheet" notice (§3). Without it every sync logs a
+    `permission denied for table announcements` warning and no notice goes
+    out, though the allowlist itself still syncs. Safe to re-run.
+    *(Run on the dev project 2026-10-27.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 
@@ -519,7 +527,9 @@ current while the problem lasts, and it's deleted after the next clean sync.
 The same notice goes out, saying "The app couldn't read the Google Sheets",
 when Google sign-in or a sheet read fails (bad key, sheet unshared or
 deleted, Sheets API off). Nothing in `role_allowlist` changes then, and the
-function answers `500` with Google's error. If a big
+function answers `500` with Google's error. Posting the notice needs step 58;
+if it fails, the sync's own result still stands and the response adds a
+`notice_error` field (also in the function logs). If a big
 drop is real (say, last year's volunteers cleared out), run
 `supabase secrets set ALLOWLIST_ALLOW_BIG_DROP=true`, let one sync run, then
 `supabase secrets unset ALLOWLIST_ALLOW_BIG_DROP`. An empty sheet is never
