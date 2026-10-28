@@ -1216,7 +1216,24 @@ test/widget_test.dart       Widget tests
     so no volunteer/admin emails are ever exposed on a public link — and
     upserts/prunes rows on a cron. A reconcile trigger re-applies changes to
     existing profiles (including demoting anyone removed from a sheet). Setup in
-    [SUPABASE.md](SUPABASE.md).
+    [SUPABASE.md](SUPABASE.md). Only the `pull-from-sheets` cron can call it:
+    it checks an `x-sync-secret` header.
+  - **Prune guard:** since removal demotes people, the sync refuses to remove
+    anyone from a role when that role's sheet reads back empty, or shrinks to
+    under half the table and by at least 5 rows. New and changed rows still
+    sync, the other role is handled on its own, and the function returns
+    `ok: false` (422). A real big drop goes through with
+    `ALLOWLIST_ALLOW_BIG_DROP=true` set for one sync; an empty sheet never
+    prunes.
+  - **Admin notice:** when the guard refuses, or Google sign-in / a sheet read
+    fails (nothing changes then; 500), every admin gets one rolling Personal
+    notice, *"Problem with the Google Sheet"*, in News (plus the in-app banner
+    if the app is open). It says which sheet, how many would have lost access
+    (or that the app couldn't read the Google Sheets), and to tell Arjun to
+    check the sheet. It's posted once, not every 5 minutes; its text is kept
+    current (edits don't stream live, so open apps see them on the next feed
+    load); it's deleted after the next clean sync. Built in the function
+    itself, not SQL. *(When OS push is built, push it too; see Roadmap.)*
 - Note the dev project has "auto-expose new tables" **off**, so every table's
   SQL must `grant` privileges to the right role explicitly (`anon` for public
   reads, `authenticated` for per-user tables).
@@ -1438,6 +1455,11 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
     [role_change_downgrades.sql](supabase/role_change_downgrades.sql)). The
     webhook on `announcements` INSERT covers it, since a new waiting expert
     re-inserts the notice; it only needs to send to `target_user_id`.
+  - **Google Sheet problems:** also push the admins' *"Problem with the Google
+    Sheet"* notice from `sync-allowlist`, so they hear about it with the app
+    closed. The INSERT webhook covers it too: the function inserts it once
+    when the problem starts and only updates it after that, so admins get one
+    push per problem, not one every 5 minutes.
   - Also planned: per-user "next session" reminders; email fan-out; and a
     push / announcement to experts, volunteers and admins **when post-summit
     feedback opens** (on summit day once the last session ends, i.e. when
