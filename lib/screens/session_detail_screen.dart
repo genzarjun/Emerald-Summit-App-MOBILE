@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app_state.dart';
+import '../backend/repositories.dart';
 import '../backend/service_locator.dart';
 import '../models/models.dart';
 import '../widgets/session_metrics_view.dart';
@@ -731,10 +732,25 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               'You can still join the waitlist on the day.',
         );
       case AddOutcome.conflict:
+        // Only admins can stop managing; volunteers are assigned by one.
+        final unmanageHint = appState.isAdmin
+            ? ' Stop managing that one first to add this.'
+            : appState.isVolunteer
+                ? ' Ask an admin to take you off that one first.'
+                : '';
         _showBlockedDialog(
           'Time conflict',
-          'This overlaps with "${result.conflictingTitle}", which is '
-              'already on your schedule. Remove that one first to add this.',
+          switch (result.conflictKind) {
+            ConflictKind.managingThis =>
+              "You're managing this session, so you can't also sign up "
+                  'for it.',
+            ConflictKind.managing =>
+              'This overlaps with "${result.conflictingTitle}", which '
+                  "you're managing.$unmanageHint",
+            _ => 'This overlaps with "${result.conflictingTitle}", which is '
+                'already on your schedule. Remove that one first to add '
+                'this.',
+          },
         );
       case AddOutcome.participationClosed:
         final deadline = s.participantDeadline;
@@ -801,8 +817,11 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
       case AddOutcome.conflict:
         _showBlockedDialog(
           'Time conflict',
-          'Managing this overlaps with "${result.conflictingTitle}", which is '
-              'already on your schedule.',
+          result.conflictKind == ConflictKind.registeredThis
+              ? "You're signed up for this session. Remove it from your day "
+                  'first to manage it.'
+              : 'Managing this overlaps with "${result.conflictingTitle}", '
+                  'which is already on your schedule.',
         );
       case AddOutcome.full:
       case AddOutcome.invalidProject:

@@ -40,21 +40,27 @@ class RegistrationResult {
   const RegistrationResult(
     this.outcome, [
     this.conflictingTitle,
+    this.conflictKind = ConflictKind.registered,
   ])  : teamCode = null,
         message = null;
 
   const RegistrationResult.added({this.teamCode})
       : outcome = RegistrationOutcome.added,
         conflictingTitle = null,
+        conflictKind = ConflictKind.registered,
         message = null;
 
   const RegistrationResult.invalidProject(String this.message)
       : outcome = RegistrationOutcome.invalidProject,
         conflictingTitle = null,
+        conflictKind = ConflictKind.registered,
         teamCode = null;
 
   final RegistrationOutcome outcome;
   final String? conflictingTitle;
+
+  /// For a conflict: what the session clashes with.
+  final ConflictKind conflictKind;
   final String? teamCode;
   final String? message;
 }
@@ -86,11 +92,40 @@ enum AssignmentOutcome { assigned, conflict, registeredConfirm }
 /// Result of a volunteer→session assignment. [conflictingTitle] is set only for
 /// [AssignmentOutcome.conflict].
 class AssignmentResult {
-  const AssignmentResult(this.outcome, [this.conflictingTitle]);
+  const AssignmentResult(
+    this.outcome, [
+    this.conflictingTitle,
+    this.conflictKind = ConflictKind.registered,
+  ]);
 
   final AssignmentOutcome outcome;
   final String? conflictingTitle;
+
+  /// For a conflict: what the session clashes with.
+  final ConflictKind conflictKind;
 }
+
+/// What a time conflict is with (the backend's `conflict_kind`).
+enum ConflictKind {
+  /// Another session the person is signed up for.
+  registered,
+
+  /// Another session the person manages.
+  managing,
+
+  /// This same session: they manage it, so they can't also sign up for it.
+  managingThis,
+
+  /// This same session: they're signed up for it, so they can't manage it.
+  registeredThis,
+}
+
+ConflictKind conflictKindFrom(Object? raw) => switch (raw) {
+      'managing' => ConflictKind.managing,
+      'managing_this' => ConflictKind.managingThis,
+      'registered_this' => ConflictKind.registeredThis,
+      _ => ConflictKind.registered,
+    };
 
 /// A newly-posted announcement delivered over a live feed. Backends without
 /// realtime simply never emit these.

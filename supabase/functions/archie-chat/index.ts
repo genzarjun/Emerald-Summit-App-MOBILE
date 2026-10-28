@@ -13,7 +13,8 @@
 //      sheet, uploaded to the private Storage bucket "archie" and read here
 //      (cached ~5 min). Lets Archie answer common questions without the web.
 //   3. OFFICIAL SITES — the summit / EHS Academic Foundation site and Emerald
-//      High's site, read on demand with Claude's server-side web_fetch.
+//      High's site, read on demand with Claude's server-side web_fetch, which
+//      is limited to those hosts (allowed_domains).
 //   4. THE OPEN WEB — Claude's server-side web_search, with citations.
 //
 // Request  (POST, JSON):  { messages: [{ role: "user"|"assistant", content }] }
@@ -27,7 +28,8 @@
 //
 // Secrets: ANTHROPIC_API_KEY (required). Optional: ARCHIE_MODEL (default
 // claude-sonnet-5-5), ARCHIE_EFFORT (default "medium"), ARCHIE_DAILY_LIMIT
-// (default 50 questions per user per day; needs archie_setup.sql).
+// (default 50 questions per user per day; needs archie_setup.sql. Without it
+// Archie runs uncapped; with it, a failed check refuses the question).
 // SUPABASE_URL / SUPABASE_ANON_KEY are injected automatically.
 // Auth: the function verifies the caller's session itself (auth.getUser → 401)
 // before doing anything costly, so it can be deployed with --no-verify-jwt
@@ -136,9 +138,19 @@ Deno.serve(async (req) => {
     return json({ error: "This conversation is too long. Please start a new chat." }, 400);
   }
 
-  // Per-user daily cap (cost guard). Fails open if the table/RPC isn't installed.
-  const allowed = await checkDailyLimit(db);
-  if (!allowed) {
+  // Per-user daily cap (cost guard). Off only while archie_setup.sql isn't
+  // installed; any other failure refuses the question instead of skipping it.
+  const limit = await checkDailyLimit(db);
+  if (limit === "error") {
+    return sse(async (send) => {
+      send({
+        type: "delta",
+        text: "I can't answer right now. Try again in a minute.",
+      });
+      send({ type: "done" });
+    });
+  }
+  if (limit === "over") {
     return sse(async (send) => {
       send({
         type: "delta",
@@ -222,6 +234,10 @@ async function streamAnswer(
           type: "web_fetch_20260209",
           name: "web_fetch",
           max_uses: 3,
+          // The official sites in the prompt. Plain hostnames, subdomains
+          // included (dublinusd.org covers ehs.dublinusd.org); web_fetch takes
+          // no paths, so this can't narrow Google Sites to the foundation's.
+          allowed_domains: ["sites.google.com", "dublinusd.org"],
           citations: { enabled: true },
         },
       ],
@@ -614,10 +630,14 @@ function describeHours(logs: HourLogRow[], sessions: SessionTimes[], summitDate:
   return out;
 }
 
-async function checkDailyLimit(db: SupabaseClient): Promise<boolean> {
+async function checkDailyLimit(db: SupabaseClient): Promise<"ok" | "over" | "error"> {
   const { data, error } = await db.rpc("archie_bump_usage", { p_limit: DAILY_LIMIT });
-  if (error) return true; // archie_setup.sql not installed → no cap
-  return data === true;
+  if (error) {
+    // PGRST202: PostgREST has no such function, i.e. archie_setup.sql was
+    // never run. That's the one case that runs uncapped.
+    return error.code === "PGRST202" ? "ok" : "error";
+  }
+  return data === true ? "ok" : "over";
 }
 
 // ---------------------------------------------------------------------------

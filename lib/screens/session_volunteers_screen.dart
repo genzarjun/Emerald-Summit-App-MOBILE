@@ -108,8 +108,13 @@ class _SessionVolunteersViewState extends State<SessionVolunteersView> {
             builder: (ctx) => AlertDialog(
               title: const Text('Schedule conflict'),
               content: Text(
-                '${v.name} has a schedule conflict and can\'t be added to this '
-                'session — it overlaps with "${result.conflictingTitle}".',
+                result.conflictKind == ConflictKind.registeredThis
+                    ? "${v.name} is signed up for this session, so they can't "
+                        'manage it. They need to remove it from their day '
+                        'first.'
+                    : "${v.name} has a schedule conflict and can't be added "
+                        'to this session. It overlaps with '
+                        '"${result.conflictingTitle}".',
               ),
               actions: [
                 TextButton(

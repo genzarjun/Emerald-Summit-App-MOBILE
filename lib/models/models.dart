@@ -155,7 +155,7 @@ abstract final class DefaultQuestions {
 }
 
 /// The two-letter prefix that starts every team code in a discipline (e.g.
-/// TV4821 for TechVerse). Mirrors `team_code_prefix` in teams_setup.sql, which
+/// TV7KQ4MX for TechVerse). Mirrors `team_code_prefix` in teams_setup.sql, which
 /// is what actually issues codes — this is only for display.
 String teamCodePrefix(String disciplineId, String disciplineName) {
   const pinned = {
@@ -340,6 +340,9 @@ enum TeamLookupOutcome {
 
   /// The team's owner removed the caller, so they can't rejoin it.
   removed,
+
+  /// Too many codes that matched no team in a short time (find_team's cap).
+  tooManyTries,
 }
 
 class TeamLookup {
@@ -374,6 +377,9 @@ class TeamLookup {
           "This session is solo only. Teams aren't allowed.",
         TeamLookupOutcome.notFound =>
           "We couldn't find a team with that code. Check it with your teammate.",
+        TeamLookupOutcome.tooManyTries =>
+          "That's a lot of codes that didn't match. Wait 15 minutes and try "
+              'again.',
         TeamLookupOutcome.wrongSession => sessionTitle == null
             ? 'That code is for a different session.'
             : 'That code is for "$sessionTitle", not this session.',

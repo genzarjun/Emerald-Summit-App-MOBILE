@@ -145,7 +145,8 @@ permissions, rooms, session assignments, and attendance). Run these in order,
 25. `supabase/archie_setup.sql` — *(optional)* the **Archie daily question
     cap**: `archie_usage` (per user per Pacific-time day, owner-read RLS) + the
     `archie_bump_usage(limit)` SECURITY DEFINER RPC the `archie-chat` function
-    calls before answering. Without it Archie is uncapped. See §3c.
+    calls before answering. Without it Archie is uncapped; with it, a failed
+    check refuses the question instead of letting it through. See §3c.
 26. `supabase/archie_history_setup.sql` — **Archie saved chats**:
     `archie_chats` + `archie_messages` (owner-only RLS; users read, add to, and
     delete only their own chats). Limits live in triggers: **10 chats per user**
@@ -391,6 +392,47 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     text and the database sorts them as text. The editor already saves two
     digits. Safe to re-run. *(Run on the dev project 2026-10-27.)*
 
+53. `supabase/allowlist_sync_secret.sql`: **sync-allowlist needs a shared
+    secret.** Adds `private.allowlist_sync` (function URL + a secret
+    generated in the database) and `private.flush_allowlist_sync()`, and
+    points the `pull-from-sheets` cron job at it, so every call sends
+    `x-sync-secret`. After running it, once: copy
+    `select secret from private.allowlist_sync;` into
+    `supabase secrets set ALLOWLIST_SYNC_SECRET=...`, then redeploy
+    `supabase functions deploy sync-allowlist --no-verify-jwt`. In that
+    order: the new function refuses calls until the secret is set. Safe to
+    re-run (keeps the secret). *(Run on the dev project 2026-10-27.)*
+
+54. `supabase/announcements_insert_lockdown.sql`: **announcements are
+    posted as yourself.** The insert policy requires
+    `created_by = auth.uid()`, and only admins may set `target_user_id`
+    (personal notices) or `session_id`. A trigger fills `author` from the
+    poster's profile name on inserts from the app, so it can't be typed in.
+    Notices posted by SECURITY DEFINER RPCs and triggers are unaffected.
+    Safe to re-run. *(Run on the dev project 2026-10-27.)*
+
+55. `supabase/team_codes_v2.sql`: **harder team codes.** New codes are the
+    prefix plus 6 characters from `gen_random_bytes` (no 0, O, 1, I or L),
+    e.g. `TV7KQ4MX`; existing codes keep working. `find_team` answers
+    `too_many_tries` after 10 codes that match no team in 15 minutes, and
+    becomes VOLATILE (it records misses in `private.team_code_misses`).
+    Safe to re-run. *(Run on the dev project 2026-10-27.)*
+
+56. `supabase/storage_upload_limits.sql`: **upload limits on the public
+    buckets.** `session_photos` and `gallery_photos` take photos only (10
+    MB); `announcement_attachments` keeps 10 MB and takes only the types the
+    compose screen labels, plus `application/octet-stream`. HTML, SVG and
+    script uploads are refused. Safe to re-run. *(Run on the dev project 2026-10-27.)*
+
+57. `supabase/registrations_manage_overlap.sql`: **managing and signing
+    up never overlap.** `register_for_session` (same signature as step 51)
+    refuses any sign-up, expert included, for a session the caller manages
+    or one that overlaps it. `assign_volunteer_to_session` and
+    `set_session_manage` refuse a session the person is signed up for (they
+    remove it from their day first), replacing the admin's "Assign anyway?"
+    step. All return `conflict` with a `conflict_kind`. Safe to re-run.
+    *(Run on the dev project 2026-10-27.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 
@@ -431,12 +473,13 @@ ref is the subdomain of `SUPABASE_URL` in your `env.json` (currently
 `dgrskmykbkvphnaasfzl`). You can also deploy via the dashboard editor
 (Edge Functions → Deploy a new function → Via editor → paste
 `supabase/functions/sync-allowlist/index.ts`), set the secrets under
-Edge Functions → Secrets, and **turn OFF "Verify JWT"** for the function so the
-header-less cron can call it.
+Edge Functions → Secrets, and **turn OFF "Verify JWT"** for the function. The
+function checks a shared secret instead (`ALLOWLIST_SYNC_SECRET`, sent by the
+cron as `x-sync-secret`; see step 53), and answers anything else with a 401.
 
 ```bash
 supabase link --project-ref dgrskmykbkvphnaasfzl
-supabase functions deploy sync-allowlist --no-verify-jwt   # matches the header-less cron
+supabase functions deploy sync-allowlist --no-verify-jwt   # it checks x-sync-secret itself
 supabase secrets set \
   GOOGLE_SERVICE_ACCOUNT_EMAIL="<client_email from the JSON>" \
   GOOGLE_PRIVATE_KEY="<private_key from the JSON, keep the \n escapes>" \
@@ -454,10 +497,11 @@ function automatically (the service-role key is never in `env.json`; the app
 only carries the publishable key). Optional overrides: `VOLUNTEERS_RANGE`
 (default `A:F`), `ADMINS_RANGE` (default `A:A`).
 
-Trigger it once to verify (Dashboard → Edge Functions → sync-allowlist → Invoke,
-or `curl` its URL); it returns `{ ok: true, volunteers: N, admins: M }` and fills
-`role_allowlist`. Then **schedule it** every ~5 min (Dashboard → Integrations →
-Cron, or a `pg_cron` job POSTing the function URL — see below).
+Trigger it once to verify (`select private.flush_allowlist_sync();` in the SQL
+editor, or `curl` its URL with the `x-sync-secret` header); it returns
+`{ ok: true, volunteers: N, admins: M }` and fills `role_allowlist`. The
+`pull-from-sheets` pg_cron job runs it every 5 minutes (set up by
+`allowlist_sync_secret.sql`, step 53).
 
 > **A repeating `404` in the function logs means the function isn't deployed at
 > that URL** (the cron is firing, but there's nothing to hit). Deploy it, then
@@ -509,7 +553,8 @@ set up on this server yet."*
    only in the function's secrets — never in `env.json` or the app.
 2. *(Recommended)* run [`supabase/archie_setup.sql`](supabase/archie_setup.sql)
    — a per-user **daily question cap** (`archie_usage` + `archie_bump_usage`
-   RPC). Without it Archie works but is uncapped.
+   RPC). Without it Archie works but is uncapped. Once it's installed, a
+   failed check (database error, timeout) refuses the question.
    Also run [`supabase/archie_history_setup.sql`](supabase/archie_history_setup.sql)
    for **saved chats** (step 26).
 3. **Deploy + set secrets:**

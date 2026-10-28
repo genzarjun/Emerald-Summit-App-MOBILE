@@ -178,7 +178,10 @@ class SupabaseScheduleRepository implements ScheduleRepository {
       'participation_closed' =>
         const RegistrationResult(RegistrationOutcome.participationClosed),
       'conflict' => RegistrationResult(
-          RegistrationOutcome.conflict, map['conflicting_title'] as String?),
+          RegistrationOutcome.conflict,
+          map['conflicting_title'] as String?,
+          conflictKindFrom(map['conflict_kind']),
+        ),
       _ => RegistrationResult.added(teamCode: map['team_code'] as String?),
     };
   }
@@ -229,6 +232,7 @@ class SupabaseScheduleRepository implements ScheduleRepository {
           TeamLookupOutcome.wrongSession,
           sessionTitle: map['session_title'] as String?,
         ),
+      'too_many_tries' => const TeamLookup(TeamLookupOutcome.tooManyTries),
       _ => const TeamLookup(TeamLookupOutcome.notFound),
     };
   }
@@ -900,7 +904,11 @@ class SupabaseAssignmentRepository implements AssignmentRepository {
       'registered_confirm' => AssignmentOutcome.registeredConfirm,
       _ => AssignmentOutcome.assigned,
     };
-    return AssignmentResult(outcome, map['conflicting_title'] as String?);
+    return AssignmentResult(
+      outcome,
+      map['conflicting_title'] as String?,
+      conflictKindFrom(map['conflict_kind']),
+    );
   }
 
   @override
@@ -925,7 +933,11 @@ class SupabaseAssignmentRepository implements AssignmentRepository {
       'conflict' => AssignmentOutcome.conflict,
       _ => AssignmentOutcome.assigned,
     };
-    return AssignmentResult(outcome, map['conflicting_title'] as String?);
+    return AssignmentResult(
+      outcome,
+      map['conflicting_title'] as String?,
+      conflictKindFrom(map['conflict_kind']),
+    );
   }
 }
 

@@ -173,7 +173,7 @@ void main() {
       expect(after.any((v) => v.id == 'vol-1'), isFalse);
     });
 
-    test('assigning a volunteer registered for the session asks to confirm',
+    test('a volunteer signed up for the session cannot be assigned to it',
         () async {
       final repo = SampleAssignmentRepository(store);
       final s = store.allSessions.first;
@@ -181,12 +181,20 @@ void main() {
       store.myRegistrations[s.id] = ParticipationType.participant;
 
       final first = await repo.assign(s.id, 'vol-9');
-      expect(first.outcome, AssignmentOutcome.registeredConfirm);
+      expect(first.outcome, AssignmentOutcome.conflict);
+      expect(first.conflictKind, ConflictKind.registeredThis);
 
-      // Confirming proceeds with the assignment.
+      // The old "assign anyway" confirmation no longer gets around it.
       final confirmed =
           await repo.assign(s.id, 'vol-9', confirmRegistered: true);
-      expect(confirmed.outcome, AssignmentOutcome.assigned);
+      expect(confirmed.outcome, AssignmentOutcome.conflict);
+    });
+
+    test('the backend conflict_kind values map to ConflictKind', () {
+      expect(conflictKindFrom('managing'), ConflictKind.managing);
+      expect(conflictKindFrom('managing_this'), ConflictKind.managingThis);
+      expect(conflictKindFrom('registered_this'), ConflictKind.registeredThis);
+      expect(conflictKindFrom(null), ConflictKind.registered);
     });
 
     test('session attendance can be marked on a seeded roster', () async {

@@ -563,7 +563,7 @@ class _SessionRegistrationScreenState extends State<SessionRegistrationScreen> {
             },
             decoration: InputDecoration(
               labelText: DefaultQuestions.teamCode,
-              hintText: 'e.g. ${_prefix}1234',
+              hintText: 'e.g. ${_prefix}7KQ4MX',
               errorText: _codeError,
               errorMaxLines: 3,
               border: const OutlineInputBorder(),

@@ -72,6 +72,12 @@ void main() {
 
     test('typed codes are normalized', () {
       expect(normalizeTeamCode(' tv 4821 '), 'TV4821');
+      expect(normalizeTeamCode('tv7k q4mx'), 'TV7KQ4MX');
+    });
+
+    test('the wrong-guess cap has its own message', () {
+      const lookup = TeamLookup(TeamLookupOutcome.tooManyTries);
+      expect(lookup.problem, contains('Wait 15 minutes'));
     });
   });
 

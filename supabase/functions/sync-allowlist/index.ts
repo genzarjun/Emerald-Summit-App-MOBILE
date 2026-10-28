@@ -16,14 +16,17 @@
 //        columns: email | subtype | disciplines | can_edit_sessions |
 //                 can_post_announcements | can_check_in_front_desk
 //   ADMINS_RANGE  (optional, default "A:A")  — email
+//   ALLOWLIST_SYNC_SECRET — must match private.allowlist_sync.secret; every
+//        request without it in an `x-sync-secret` header gets a 401
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 //
 // Setup: share each sheet (Viewer) with GOOGLE_SERVICE_ACCOUNT_EMAIL, and
 // enable the Google Sheets API in the service account's GCP project. See
 // SUPABASE.md.
 //
-// Deploy:   supabase functions deploy sync-allowlist
-// Schedule: a cron (pg_cron) POSTing this function's URL every ~5 min.
+// Deploy:   supabase functions deploy sync-allowlist --no-verify-jwt
+// Schedule: the `pull-from-sheets` pg_cron job, every 5 min, sends the secret
+//           (see allowlist_sync_secret.sql).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -175,7 +178,11 @@ async function readSheet(
 
 // ---- Sync ------------------------------------------------------------------
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  const secret = Deno.env.get("ALLOWLIST_SYNC_SECRET");
+  if (!secret || req.headers.get("x-sync-secret") !== secret) {
+    return json({ ok: false, error: "unauthorized" }, 401);
+  }
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

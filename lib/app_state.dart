@@ -67,9 +67,13 @@ class AddResult {
     this.conflictingTitle,
     this.teamCode,
     this.message,
+    this.conflictKind = ConflictKind.registered,
   ]);
   final AddOutcome outcome;
   final String? conflictingTitle;
+
+  /// For a conflict: what the session clashes with.
+  final ConflictKind conflictKind;
 
   /// Set when the add created a team: the code to share with teammates.
   final String? teamCode;
@@ -304,6 +308,7 @@ class AppState extends ChangeNotifier {
       res.conflictingTitle,
       res.teamCode,
       res.message,
+      res.conflictKind,
     );
   }
 
@@ -350,7 +355,8 @@ class AppState extends ChangeNotifier {
   Future<AddResult> setManage(Session session, bool manage) async {
     final res = await assignmentRepository.setManage(session.id, manage);
     if (res.outcome == AssignmentOutcome.conflict) {
-      return AddResult(AddOutcome.conflict, res.conflictingTitle);
+      return AddResult(AddOutcome.conflict, res.conflictingTitle, null, null,
+          res.conflictKind);
     }
     final next = {...myAssignedSessionIds};
     if (manage) {

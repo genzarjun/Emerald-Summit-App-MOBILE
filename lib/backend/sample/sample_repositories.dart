@@ -795,9 +795,11 @@ class SampleAssignmentRepository implements AssignmentRepository {
         return AssignmentResult(AssignmentOutcome.conflict, other.title);
       }
     }
-    // Registered for this very session → confirm first.
-    if (!confirmRegistered && _store.mySessionIds.contains(sessionId)) {
-      return const AssignmentResult(AssignmentOutcome.registeredConfirm);
+    // Signed up for this very session: they remove it first (mirrors
+    // registrations_manage_overlap.sql; confirmRegistered no longer applies).
+    if (_store.mySessionIds.contains(sessionId)) {
+      return AssignmentResult(AssignmentOutcome.conflict, target.title,
+          ConflictKind.registeredThis);
     }
     (_store.assignmentsByUser[userId] ??= <String>{}).add(sessionId);
     final vols = _store.sessionVolunteers[sessionId] ??= <VolunteerRef>[];
