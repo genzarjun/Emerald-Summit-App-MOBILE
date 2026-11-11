@@ -1277,7 +1277,7 @@ porting surface. Everything in the "Data model" section above is Supabase's
 
 ## Website sync: one backend for the app and the website
 
-**Status: in progress** (updated Nov 11, 2026; planned Oct 27). The website
+**Status: nearly at par** (updated Nov 11, 2026; planned Oct 27). The website
 ([dogethecoderr/Emerald-Summit-Website](https://github.com/dogethecoderr/Emerald-Summit-Website),
 React + TypeScript + Vite, deployed on Vercel at
 `https://emerald-summit.vercel.app`) has moved off its own Supabase
@@ -1300,22 +1300,33 @@ Done on the website, against this backend:
   countdown, Discover, News with pinned posts, shared read state
   (`announcement_reads.opened_at`) and "Remove from my feed"
   (`announcement_dismissals`), and the check-in QR pass.
-- **Phase 4, in part:** add, remove and spectate through
-  `register_for_session` with `p_intent`, with the app's refusal messages.
-- **Phase 5, in part:** front-desk check-in and QR scanner
-  (`scan_summit_checkin`, `mark_summit_checkin`), the volunteer hub roster.
-- **Phase 6, in part:** the announcement composer with attachments, the
-  session editor.
+- **Phase 4:** a session page (`/sessions/:id`) with each role's Add to my
+  day choices, the participant form (solo or team, project name, team codes
+  through `find_team`, the session's own questions), Edit my registration
+  (`update_my_registration`), leave team, transfer ownership and remove a
+  member with the owner hand-off, the participant deadline, approved experts
+  (`session_experts`), and admin self-manage (`set_session_manage`).
+- **Phase 5:** front-desk check-in for admins and front-desk volunteers
+  (every role, as in the app), the QR scanner, session rosters grouped by
+  project with attendance (`mark_session_attendance`), the volunteer hub,
+  volunteer hours (`volunteer_hour_logs` plus summit-day sessions).
+- **Phase 6:** the announcement composer with attachments; the session
+  editor with the app's fields and the `session_time_conflicts` warning and
+  notice; assigning volunteers (`assign_volunteer_to_session`,
+  `unassign_volunteer_from_session`); expert approvals; rooms; summit and
+  per-session metrics.
+- **Phase 7:** expert feedback and "Volunteer for EAF again?".
+- **Sign-up:** each role's `onboardingFields` (school list, grade, phone,
+  expertise and bio), the phone and grade prompts after sign-in, and Change
+  role checking the allowlist before saving.
 - **Look:** nav named and ordered like the app (Home · Schedule · Discover ·
   News), role labels Parent / Spectator and Expert / Speaker, Phosphor duotone
   icons, discipline palettes copied exactly.
 
-Not done yet: the phone step for existing volunteer/admin accounts,
-participant questions and teams (`update_my_registration`, `find_team`,
-`fetch_my_project`), `session_time_conflicts`, session attendance
-(`mark_session_attendance`), volunteer hours, assigning volunteers, rooms, the
-expert queue, summit metrics, the summit follow-up (phase 7) and Archie
-(phase 8).
+Not on the website yet: Archie and Archie insights (phase 8), session photos
+(hero and gallery uploads), the discipline editor, live check-in counts at
+the front desk (`fetch_checkin_stats`), and the volunteer announcement
+composer. Discover still uses the website's fixed list of six disciplines.
 
 **Shipping the website.** Every push to the website repo's `main` deploys to
 production on Vercel (a free plan run by a teammate, Production environment
