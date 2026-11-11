@@ -1420,8 +1420,10 @@ replaced, not adapted.
 ```
 VITE_SUPABASE_URL=https://dgrskmykbkvphnaasfzl.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_…   # same key as the app's env.json
-VITE_DEV_LOGIN=true                               # test-account password box; on in Production too (decided Nov 10, 2026)
 ```
+(Test accounts aren't an env var any more: the website switches them on in
+code, `isDevLoginEnabled` in `src/lib/devLogin.ts`, so Vercel needs only the
+two values above.)
 Rename `VITE_SUPABASE_ANON_KEY` to `VITE_SUPABASE_PUBLISHABLE_KEY` in
 `src/lib/supabase.ts` and `.env.example`. Ask Arjun for the key.
 
@@ -1481,11 +1483,12 @@ PR so they aren't missed):**
 production build" below), so the website only needs the form and the call.
 - **On in Production** (decided Nov 10, 2026): the Vercel project has only a
   Production environment, the site isn't marketed widely yet, and every test
-  account still needs the shared password. Turn it off on Vercel once that
-  changes. This needs the `dev-login` function's `DEV_LOGIN_ENABLED=true`
+  account still needs the shared password. The switch is in the website's
+  code (`isDevLoginEnabled` in `src/lib/devLogin.ts`), not a Vercel setting:
+  set it to `false` and push once that changes. This needs the `dev-login` function's `DEV_LOGIN_ENABLED=true`
   secret on the shared project, which the app's dev builds use anyway.
-- Same flow as the app, no separate form. Only when
-  `import.meta.env.VITE_DEV_LOGIN === 'true'`: when someone submits the normal
+- Same flow as the app, no separate form. Only when `isDevLoginEnabled` is
+  on: when someone submits the normal
   email box, first call
   `supabase.functions.invoke('dev-login', { body: { email, check: true } })`.
   `{ test: true }` → show a password box instead of sending a code;
