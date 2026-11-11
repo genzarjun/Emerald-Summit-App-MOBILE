@@ -1277,9 +1277,10 @@ porting surface. Everything in the "Data model" section above is Supabase's
 
 ## Website sync: one backend for the app and the website
 
-**Status: in progress** (updated Nov 10, 2026; planned Oct 27). The website
+**Status: in progress** (updated Nov 11, 2026; planned Oct 27). The website
 ([dogethecoderr/Emerald-Summit-Website](https://github.com/dogethecoderr/Emerald-Summit-Website),
-React + TypeScript + Vite, deployed on Vercel) has moved off its own Supabase
+React + TypeScript + Vite, deployed on Vercel at
+`https://emerald-summit.vercel.app`) has moved off its own Supabase
 project (`spsxfbvamwxsmtjkwxko`) and onto **this app's backend**, the dev
 project `dgrskmykbkvphnaasfzl`. An account, a registration, an announcement or
 a check-in made on one shows up on the other. The website's signed-in screens
@@ -1315,6 +1316,18 @@ participant questions and teams (`update_my_registration`, `find_team`,
 (`mark_session_attendance`), volunteer hours, assigning volunteers, rooms, the
 expert queue, summit metrics, the summit follow-up (phase 7) and Archie
 (phase 8).
+
+**Shipping the website.** Every push to the website repo's `main` deploys to
+production on Vercel (a free plan run by a teammate, Production environment
+only), so website settings live in code rather than Vercel variables where
+they can; only the two `VITE_SUPABASE_*` values are set there. Open website
+PR #14 (an admin user-management page, volunteers limited to checking in
+their own discipline, track-deletion notices) was written against the
+website's old database (`users`, `summit_tracks`, `session_registrations`)
+and its own migrations, so it can't be merged. Its ideas belong in the
+admin-tools work above: add the RPCs here first, then build the website page
+on them. PRs #8 (already in `main`) and #12 (fake volunteer counts; volunteers
+are assigned by an admin) aren't needed either.
 
 This section is written for the person (or coding agent) doing that work in
 the website repo. Read all of it before changing code. The website repo's own
