@@ -4,13 +4,13 @@ The companion app for **Emerald Summit '27** — the Tri-Valley's student-run
 STEAM summit at Emerald High, Dublin CA (January 2027). This repo is the
 production app: Flutter, for iOS and Android.
 
-**Website (separate project, moving onto this backend).** The Emerald Summit
-website is a different project: React + TypeScript (Vite), in
+**Website (separate project, on this backend).** The Emerald Summit website
+is a different project: React + TypeScript (Vite), in
 [dogethecoderr/Emerald-Summit-Website](https://github.com/dogethecoderr/Emerald-Summit-Website),
 live at [emerald-summit.vercel.app](https://emerald-summit.vercel.app/). It
-still has its own Supabase project today, but it's being moved onto this app's
-backend so both share accounts and data, and its signed-in screens will match
-the app. Anyone working on that: start with **Website sync** below.
+now uses this app's Supabase project, so both share accounts and data, and
+its signed-in screens are being matched to the app. Anyone working on that:
+start with **Website sync** below.
 
 > **Status: role-driven backend live.** All screens and interactions work, and
 > the backend is wired up and verified end-to-end on the dev project (two-device
@@ -1277,13 +1277,44 @@ porting surface. Everything in the "Data model" section above is Supabase's
 
 ## Website sync: one backend for the app and the website
 
-**Status: planned** (Oct 27, 2026). The website
+**Status: in progress** (updated Nov 10, 2026; planned Oct 27). The website
 ([dogethecoderr/Emerald-Summit-Website](https://github.com/dogethecoderr/Emerald-Summit-Website),
-React + TypeScript + Vite, deployed on Vercel) is moving off its own Supabase
+React + TypeScript + Vite, deployed on Vercel) has moved off its own Supabase
 project (`spsxfbvamwxsmtjkwxko`) and onto **this app's backend**, the dev
-project `dgrskmykbkvphnaasfzl`. After the move, an account, a registration, an
-announcement or a check-in made on one shows up on the other. The website's
-signed-in screens should also look and behave like the app.
+project `dgrskmykbkvphnaasfzl`. An account, a registration, an announcement or
+a check-in made on one shows up on the other. The website's signed-in screens
+are being matched to the app; **Where it stands** below lists what's done.
+
+### Where it stands (Nov 10, 2026)
+Done on the website, against this backend:
+- **Phase 1, cut over:** shared URL and publishable key, the website's
+  `supabase/` folder deleted, demo/bypass login removed (leftover `bypass_*`
+  keys are cleared on load), the old-schema security test deleted.
+- **Phase 2, auth:** emailed code, Google (code done; dashboard fix pending,
+  see **Google sign-in on the web** below), password-gated test accounts with
+  the app's auto-onboarding, the expert waiting screen and one-time declined
+  note (`acknowledge_expert_decline`), and Change role with
+  `preview_role_change` and the app's wording.
+- **Phase 3, read-only:** Home with the `fetch_summit_status()` date line and
+  countdown, Discover, News with pinned posts, shared read state
+  (`announcement_reads.opened_at`) and "Remove from my feed"
+  (`announcement_dismissals`), and the check-in QR pass.
+- **Phase 4, in part:** add, remove and spectate through
+  `register_for_session` with `p_intent`, with the app's refusal messages.
+- **Phase 5, in part:** front-desk check-in and QR scanner
+  (`scan_summit_checkin`, `mark_summit_checkin`), the volunteer hub roster.
+- **Phase 6, in part:** the announcement composer with attachments, the
+  session editor.
+- **Look:** nav named and ordered like the app (Home · Schedule · Discover ·
+  News), role labels Parent / Spectator and Expert / Speaker, Phosphor duotone
+  icons, discipline palettes copied exactly.
+
+Not done yet: the phone step for existing volunteer/admin accounts,
+participant questions and teams (`update_my_registration`, `find_team`,
+`fetch_my_project`), `session_time_conflicts`, session attendance
+(`mark_session_attendance`), volunteer hours, assigning volunteers, rooms, the
+expert queue, summit metrics, the summit follow-up (phase 7) and Archie
+(phase 8).
 
 This section is written for the person (or coding agent) doing that work in
 the website repo. Read all of it before changing code. The website repo's own
@@ -1389,23 +1420,37 @@ replaced, not adapted.
 ```
 VITE_SUPABASE_URL=https://dgrskmykbkvphnaasfzl.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_…   # same key as the app's env.json
-VITE_DEV_LOGIN=true                               # shows the test-account form; omit for prod
+VITE_DEV_LOGIN=true                               # test-account password box; on in Production too (decided Nov 10, 2026)
 ```
 Rename `VITE_SUPABASE_ANON_KEY` to `VITE_SUPABASE_PUBLISHABLE_KEY` in
 `src/lib/supabase.ts` and `.env.example`. Ask Arjun for the key.
 
 **Supabase dashboard (Arjun does these on the dev project; list them in your
 PR so they aren't missed):**
-- Auth → URL Configuration: add `https://emerald-summit.vercel.app/**`,
-  `http://localhost:5173/**` and the Vercel preview pattern to **Redirect
-  URLs**. Without them the Google redirect and the email link fail.
-- Google sign-in on the web uses the redirect flow
+- Auth → URL Configuration: set **Site URL** to
+  `https://emerald-summit.vercel.app` and add
+  `https://emerald-summit.vercel.app/**` and `http://localhost:5173/**` to
+  **Redirect URLs**. Without them the Google redirect and the email link fail.
+  **Not done yet (checked Nov 10, 2026):** the Site URL is still
+  `http://localhost:3000`, and the Vercel address isn't allowed, so a Google
+  sign-in started on the live site comes back to `localhost:3000`.
+  (`http://localhost:5173/**` is allowed.)
+- **Google sign-in on the web** uses the redirect flow
   (`signInWithOAuth({ provider: 'google', options: { redirectTo } })`), unlike
-  the app's native ID-token flow. The Google provider needs its **client
-  secret** filled in, and the Web OAuth client in Google Cloud needs
-  `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/callback` as an authorized
-  redirect URI. Same project, same accounts: someone who signed in with Google
-  on the phone lands on the same profile on the web.
+  the app's native ID-token flow. Same project, same accounts: Supabase links
+  identities by verified email, so someone who signed in with Google on the
+  phone, or with an emailed code, lands on the same profile on the web.
+  **Broken today (checked Nov 10, 2026):** Supabase's Google provider sends
+  Google the client `665674617320-igtl…`, which isn't this app's web client
+  (`GOOGLE_WEB_CLIENT_ID`, `665674617320-97u…`) and doesn't list Supabase's
+  callback, so Google answers `redirect_uri_mismatch`. To fix, in Google Cloud
+  (project `665674617320`) add
+  `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/callback` to the app's
+  **Web** client's *Authorized redirect URIs*; then in Supabase → Sign In /
+  Providers → Google put that web client ID **first** in *Client IDs* (keep
+  the others after it, so the app's native sign-in keeps accepting its
+  tokens) and paste the web client's secret into *Client Secret*. If the OAuth
+  consent screen is in Testing, publish it or add the testers.
 - Consider turning on Auth CAPTCHA (Turnstile or hCaptcha). A public page that
   sends sign-in codes will get bots, and the emails go out through the org's
   Google Workspace SMTP. If it's turned on, the app needs an update too, so
@@ -1431,6 +1476,11 @@ PR so they aren't missed):**
 **Test accounts on the website.** The password check lives in the shared
 `dev-login` function ([SUPABASE.md](SUPABASE.md) §3b, and "Dev-testing build vs.
 production build" below), so the website only needs the form and the call.
+- **On in Production** (decided Nov 10, 2026): the Vercel project has only a
+  Production environment, the site isn't marketed widely yet, and every test
+  account still needs the shared password. Turn it off on Vercel once that
+  changes. This needs the `dev-login` function's `DEV_LOGIN_ENABLED=true`
+  secret on the shared project, which the app's dev builds use anyway.
 - Same flow as the app, no separate form. Only when
   `import.meta.env.VITE_DEV_LOGIN === 'true'`: when someone submits the normal
   email box, first call
