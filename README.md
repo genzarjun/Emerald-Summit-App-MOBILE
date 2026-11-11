@@ -1440,16 +1440,19 @@ PR so they aren't missed):**
   the app's native ID-token flow. Same project, same accounts: Supabase links
   identities by verified email, so someone who signed in with Google on the
   phone, or with an emailed code, lands on the same profile on the web.
-  **Broken today (checked Nov 10, 2026):** Supabase's Google provider sends
-  Google the client `665674617320-igtl…`, which isn't this app's web client
-  (`GOOGLE_WEB_CLIENT_ID`, `665674617320-97u…`) and doesn't list Supabase's
-  callback, so Google answers `redirect_uri_mismatch`. To fix, in Google Cloud
-  (project `665674617320`) add
-  `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/callback` to the app's
-  **Web** client's *Authorized redirect URIs*; then in Supabase → Sign In /
-  Providers → Google put that web client ID **first** in *Client IDs* (keep
-  the others after it, so the app's native sign-in keeps accepting its
-  tokens) and paste the web client's secret into *Client Secret*. If the OAuth
+  **Broken today (checked Nov 10, 2026):** the first ID in Supabase's Google
+  *Client IDs* is this app's **Android** client (`665674617320-igtl…`), and
+  the web redirect always sends the first ID to Google. Android clients can't
+  hold redirect URIs, so Google answers `redirect_uri_mismatch`. The phone is
+  unaffected because native sign-in only needs its ID to be somewhere in the
+  list. All three clients (Android `igtl…`, iOS `khls…`, Web `97u…`, the
+  `GOOGLE_WEB_CLIENT_ID`) live in Google Cloud project
+  `inspiring-chess-491023-g8` (number `665674617320`). To fix, add
+  `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/callback` to the **Web**
+  client's *Authorized redirect URIs*; then in Supabase → Sign In / Providers
+  → Google make *Client IDs* read Web, Android, iOS (web first, keep the phone
+  IDs so the app keeps working) and paste the web client's secret into
+  *Client Secret*. If the OAuth
   consent screen is in Testing, publish it or add the testers.
 - Consider turning on Auth CAPTCHA (Turnstile or hCaptcha). A public page that
   sends sign-in codes will get bots, and the emails go out through the org's
