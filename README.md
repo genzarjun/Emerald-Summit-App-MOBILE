@@ -1306,11 +1306,14 @@ Done on the website, against this backend:
   (`update_my_registration`), leave team, transfer ownership and remove a
   member with the owner hand-off, the participant deadline, approved experts
   (`session_experts`), and admin self-manage (`set_session_manage`).
-- **Phase 5:** front-desk check-in for admins and front-desk volunteers
-  (every role, as in the app), the QR scanner, session rosters grouped by
+- **Phase 5:** Sessions I'm managing, session rosters grouped by
   project with attendance (`mark_session_attendance`), the volunteer hub,
   volunteer hours (`volunteer_hour_logs` plus summit-day sessions).
-- **Phase 6:** the announcement composer with attachments; the session
+  Front-desk check-in is **app-only** (it scans passes with the camera); the
+  website's Profile lists it as "Mobile app only".
+- **Phase 6:** the announcement composer with the app's audience rule
+  (Everyone or a discipline; scoped volunteers with `can_post_announcements`
+  post to their disciplines) and photos and files; the session
   editor with the app's fields and the `session_time_conflicts` warning and
   notice; assigning volunteers (`assign_volunteer_to_session`,
   `unassign_volunteer_from_session`); expert approvals; rooms; summit and
@@ -1320,13 +1323,23 @@ Done on the website, against this backend:
   expertise and bio), the phone and grade prompts after sign-in, and Change
   role checking the allowlist before saving.
 - **Look:** nav named and ordered like the app (Home · Schedule · Discover ·
-  News), role labels Parent / Spectator and Expert / Speaker, Phosphor duotone
+  News · Archie), role labels Parent / Spectator and Expert / Speaker, Phosphor duotone
   icons, discipline palettes copied exactly.
 
-Not on the website yet: Archie and Archie insights (phase 8), session photos
-(hero and gallery uploads), the discipline editor, live check-in counts at
-the front desk (`fetch_checkin_stats`), and the volunteer announcement
-composer. Discover still uses the website's fixed list of six disciplines.
+Not on the website yet: Archie and Archie insights (phase 8; the website's
+Archie tab says "Coming soon", since each chat is a paid Claude call), front-desk
+check-in (app-only on purpose), session photos (hero and gallery uploads) and
+the discipline editor. Discover still uses the website's fixed list of six
+disciplines.
+
+**Nothing website-only (checked Nov 11, 2026).** The website had grown a few
+things the app doesn't do; they were removed so the two behave the same:
+editing or re-pinning a post after it's posted, link attachments, News search
+and categories, a per-post "Mark as read" button, the web QR scanner and
+front-desk roster, and an About row. Two website-only things stay: test-account
+sign-in stops asking for 15 minutes after five wrong passwords in that browser
+(the `dev-login` function still has no lockout of its own; each refusal waits
+1.5 s), and the header search also jumps to pages.
 
 **Shipping the website.** Every push to the website repo's `main` deploys to
 production on Vercel (a free plan run by a teammate, Production environment
@@ -1837,6 +1850,25 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   when the app is closed (see Roadmap for the planned pipeline).
 
 ## Roadmap (later, from the spec)
+- **Notifications feed, separate from News (recommended Nov 11, not decided;
+  needs SQL here first).** Today personal notices are announcements with `target_user_id`, so
+  "You've been assigned to manage …" sits in News next to the organizers'
+  posts. Plan: a bell (top right on the website, on Home in the app) opens a
+  **Notifications** list with **Mark all as read**; News keeps only posts.
+  - New `notifications` table (owner-only RLS; rows written only by SECURITY
+    DEFINER functions): `user_id`, `kind`, `title`, `body`, `session_id` /
+    `announcement_id` to link to, `created_at`, `read_at`. The RPCs and
+    triggers that insert personal notices today (assignment, unassign, team
+    leave/remove, session cancelled, organizer notices, expert approval, role
+    change, the Google Sheet problem notice) write here instead.
+  - A new announcement adds one row per person in its audience ("An admin
+    posted to everyone in TechVerse") linking to the post; opening it opens the
+    post and marks it opened. News then drops its tab count and keeps the
+    per-post dots, so a post isn't counted twice.
+  - "Your AI Playground session starts in 1 hour": a scheduled job adds a row
+    per person per session.
+  - Push (below) sends one push per row, skipped when `notifications_enabled`
+    is off. The website shows the bell only; no browser push.
 - **OS push notifications (deferred — designed, not built).** Announcements are
   already "instant" while the app is open (Realtime + in-app banner); this adds
   delivery when the app is **closed/backgrounded**. Planned pipeline:
