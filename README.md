@@ -939,7 +939,7 @@ the `summit_settings` row, both `false` by default
   every new sign-up (participant, spectator or expert, joining a team too)
   with the error `registration_closed`
   ([registration_closed_lock.sql](supabase/registration_closed_lock.sql), run
-  after registrations_manage_overlap.sql). This holds for every caller, the
+  after registrations_manage_overlap.sql; already run on Nov 12, 2026). This holds for every caller, the
   app included. Removing a session and editing an existing registration still
   work. The website also greys out "Add to my day" with "Registration will
   open on November 21st". The app has no message for it yet: it shows its
