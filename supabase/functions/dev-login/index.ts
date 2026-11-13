@@ -17,7 +17,10 @@
 //   1. Refuses unless the secret DEV_LOGIN_ENABLED === "true".
 //   2. Refuses unless DEV_LOGIN_PASSWORD is set (12+ characters) and the caller
 //      sends it. A wrong password gets a 401 after a delay, which keeps
-//      guessing slow. (The check call does say which emails are code emails;
+//      guessing slow, and is recorded in dev_login_failures: 5 from one IP in
+//      15 minutes, or 50 from anywhere in an hour, and every sign-in attempt
+//      gets a 429 until they age out (dev_login_lockout.sql). If that table
+//      is missing, the function still works, without the lockout. (The check call does say which emails are code emails;
 //      they're named by role anyway, so the password is what protects them.)
 //   3. The app only calls this when built with --dart-define DEV_LOGIN=true
 //      (the website: VITE_DEV_LOGIN=true).
@@ -37,6 +40,12 @@ const CORS = {
 };
 
 const MIN_PASSWORD_LENGTH = 12;
+
+// Lockout limits; see dev_login_lockout.sql.
+const IP_LIMIT = 5;
+const IP_WINDOW_MS = 15 * 60 * 1000;
+const GLOBAL_LIMIT = 50;
+const GLOBAL_WINDOW_MS = 60 * 60 * 1000;
 
 // Every refused sign-in waits this long, which keeps password guessing slow.
 const REFUSAL_DELAY_MS = 1500;
@@ -79,12 +88,21 @@ Deno.serve(async (req) => {
       return json({ test: await isCodeEmail() }, 200);
     }
 
-    // Guard #2: the shared password, compared in constant time. Only code
+    // Guard #2: too many wrong passwords lately, from this address or overall.
+    const ip = callerIp(req);
+    if (await isLockedOut(supabase, ip)) {
+      console.warn(`dev-login: locked out ${ip} (${email})`);
+      return json({ error: "too many attempts" }, 429);
+    }
+
+    // Guard #3: the shared password, compared in constant time. Only code
     // emails may bypass, even with the right password.
     if (!(await sameSecret(password, expected))) {
+      await recordFailure(supabase, ip, email);
       return await refuse(email, "wrong password");
     }
     if (!(await isCodeEmail())) return await refuse(email, "not a code email");
+    await clearFailures(supabase, ip);
 
     // Ensure a confirmed auth user exists (idempotent — ignore "already
     // registered"). Their profile + role/caps get applied by the DB trigger from
@@ -108,10 +126,46 @@ Deno.serve(async (req) => {
       type: props.verification_type ?? "magiclink",
     }, 200);
   } catch (e) {
-    const msg = e instanceof Error ? (e.message || "Error") : String(e);
-    return json({ error: msg }, 500);
+    // The details go to the function logs, not to whoever called.
+    console.error("dev-login:", e instanceof Error ? e.message : String(e));
+    return json({ error: "test sign-in failed" }, 500);
   }
 });
+
+// deno-lint-ignore no-explicit-any
+type Client = any;
+
+/** The caller's address as the Supabase gateway reports it. */
+function callerIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for") ?? "";
+  return forwarded.split(",")[0].trim() ||
+    req.headers.get("cf-connecting-ip") ||
+    "unknown";
+}
+
+/** True while this address, or everyone together, has used up its tries. */
+async function isLockedOut(supabase: Client, ip: string): Promise<boolean> {
+  const now = Date.now();
+  const since = (ms: number) => new Date(now - ms).toISOString();
+  const [mine, all] = await Promise.all([
+    supabase.from("dev_login_failures").select("id", { count: "exact", head: true })
+      .eq("ip", ip).gte("at", since(IP_WINDOW_MS)),
+    supabase.from("dev_login_failures").select("id", { count: "exact", head: true })
+      .gte("at", since(GLOBAL_WINDOW_MS)),
+  ]);
+  // Table not set up yet: no lockout, as before.
+  if (mine.error || all.error) return false;
+  return (mine.count ?? 0) >= IP_LIMIT || (all.count ?? 0) >= GLOBAL_LIMIT;
+}
+
+async function recordFailure(supabase: Client, ip: string, email: string) {
+  const { error } = await supabase.from("dev_login_failures").insert({ ip, email });
+  if (error) console.warn(`dev-login: could not record a failure: ${error.message}`);
+}
+
+async function clearFailures(supabase: Client, ip: string) {
+  await supabase.from("dev_login_failures").delete().eq("ip", ip);
+}
 
 /** Logs the attempt (function logs only) and answers 401 after the delay. */
 async function refuse(email: string, reason: string): Promise<Response> {

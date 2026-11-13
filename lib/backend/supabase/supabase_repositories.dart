@@ -790,6 +790,92 @@ class SupabaseSessionMediaRepository implements SessionMediaRepository {
 
 /// Advisory gated-role eligibility check. RLS only ever returns the caller's own
 /// allowlist row; the real guarantee is the server-side enforcement trigger.
+/// The bell's Notifications list. Rows are written only by the backend
+/// (`notifications_setup.sql`); this reads them and marks them read.
+class SupabaseNotificationsRepository implements NotificationsRepository {
+  SupabaseNotificationsRepository(this._client);
+
+  final SupabaseClient _client;
+  RealtimeChannel? _channel;
+  StreamController<void>? _controller;
+
+  @override
+  Future<List<AppNotification>> fetch({int limit = 100}) async {
+    if (_client.auth.currentUser == null) return const [];
+    final rows = await _client
+        .from('notifications')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return [for (final r in rows) AppNotification.fromMap(r)];
+  }
+
+  @override
+  Future<void> markRead([Iterable<String>? ids]) async {
+    if (_client.auth.currentUser == null) return;
+    if (ids != null && ids.isEmpty) return;
+    try {
+      await _client.rpc('mark_notifications_read',
+          params: {'p_ids': ids?.toList()});
+    } catch (e) {
+      if (kDebugMode) debugPrint('mark_notifications_read failed: $e');
+    }
+  }
+
+  @override
+  Future<void> queueMyReminders() async {
+    if (_client.auth.currentUser == null) return;
+    try {
+      await _client.rpc('queue_my_session_reminders');
+    } catch (e) {
+      if (kDebugMode) debugPrint('queue_my_session_reminders failed: $e');
+    }
+  }
+
+  @override
+  Stream<void> get changes {
+    final existing = _controller;
+    if (existing != null) return existing.stream;
+    final controller = StreamController<void>.broadcast();
+    _controller = controller;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return controller.stream;
+    try {
+      _channel = _client
+          .channel('public:notifications:$userId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'notifications',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) => controller.add(null),
+          )
+          .subscribe((status, error) {
+        if (error != null && kDebugMode) {
+          debugPrint('Realtime notifications: $status ($error)');
+        }
+      });
+    } catch (e) {
+      if (kDebugMode) debugPrint('Realtime notifications skipped: $e');
+    }
+    return controller.stream;
+  }
+
+  @override
+  Future<void> stopChanges() async {
+    if (_channel != null) {
+      await _client.removeChannel(_channel!);
+      _channel = null;
+    }
+    await _controller?.close();
+    _controller = null;
+  }
+}
+
 class SupabaseAllowlistRepository implements AllowlistRepository {
   SupabaseAllowlistRepository(this._client);
 

@@ -39,6 +39,8 @@ ProfileRepository get profileRepository => getIt<ProfileRepository>();
 AnnouncementsRepository get announcementsRepository =>
     getIt<AnnouncementsRepository>();
 AllowlistRepository get allowlistRepository => getIt<AllowlistRepository>();
+NotificationsRepository get notificationsRepository =>
+    getIt<NotificationsRepository>();
 GalleryRepository get galleryRepository => getIt<GalleryRepository>();
 SessionMediaRepository get sessionMediaRepository =>
     getIt<SessionMediaRepository>();

@@ -590,13 +590,17 @@ class AppState extends ChangeNotifier {
     return '$who sent an announcement to the $discipline discipline';
   }
 
-  /// The announcements this user should actually see: audience-filtered,
-  /// personal announcements only for their recipient, and anything they've
-  /// hidden from their own feed ("delete from my view") removed.
+  /// The posts this user should see in News: audience-filtered, without
+  /// personal notices (those go to the bell's Notifications list, see
+  /// notifications_setup.sql), and without anything they've hidden from their
+  /// own feed ("delete from my view"). Until the bell's list has loaded once
+  /// ([notificationsAvailable]), News still shows the recipient their own
+  /// notices, so they're never out of sight.
   List<Announcement> get visibleAnnouncements => announcements
       .where((a) =>
-          reachesMe(
-              disciplineId: a.disciplineId, targetUserId: a.targetUserId) &&
+          (a.targetUserId == null
+              ? announcementReaches(a.disciplineId)
+              : !notificationsAvailable && a.targetUserId == _myUserId) &&
           !_dismissedAnnouncementIds.contains(a.id))
       .toList();
 
@@ -819,10 +823,14 @@ class AppState extends ChangeNotifier {
             audience: event.audience,
           )
         : null;
+    final personal = event.targetUserId != null;
     inAppBanner.show(BannerMessage(
       title: oversight ?? event.title,
       body: oversight == null ? event.body : event.title,
-      onTap: () => rootTab.value = kNewsTabIndex,
+      // A personal notice lives in the bell's list; a post in News.
+      onTap: personal
+          ? () => openNotifications?.call()
+          : () => rootTab.value = kNewsTabIndex,
     ));
   }
 
@@ -830,6 +838,94 @@ class AppState extends ChangeNotifier {
     await _annSub?.cancel();
     _annSub = null;
     await announcementsRepository.stopEvents();
+  }
+
+  // ---- Notifications (the bell) --------------------------------------------
+  // Short notes about this person, separate from News: new posts that reach
+  // them, personal notices, and "starts within the hour" reminders. Written by
+  // the backend (notifications_setup.sql); the app reads and marks them read.
+  List<AppNotification> notifications = const [];
+  bool notificationsLoading = false;
+  Object? notificationsError;
+
+  /// True once the list has loaded from the backend (the table exists and the
+  /// read worked). Until then personal notices stay in News.
+  bool notificationsAvailable = false;
+  StreamSubscription<void>? _notificationsSub;
+  Timer? _reminderTimer;
+  int _notificationsRequest = 0;
+
+  /// Unread notes: the count on the bell.
+  int get unreadNotificationCount =>
+      notifications.where((n) => !n.isRead).length;
+
+  Future<void> loadNotifications() async {
+    final request = ++_notificationsRequest;
+    final epoch = _epoch;
+    bool current() => request == _notificationsRequest && epoch == _epoch;
+    notificationsLoading = true;
+    notificationsError = null;
+    notifyListeners();
+    try {
+      final items = await notificationsRepository.fetch();
+      if (current()) {
+        notifications = items;
+        notificationsAvailable = true;
+      }
+    } catch (e) {
+      if (current()) notificationsError = e;
+    } finally {
+      if (current()) {
+        notificationsLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// "Mark all as read". Optimistic; the backend call never throws.
+  Future<void> markAllNotificationsRead() async {
+    if (unreadNotificationCount == 0) return;
+    final now = DateTime.now();
+    notifications = [for (final n in notifications) n.markedRead(now)];
+    notifyListeners();
+    await notificationsRepository.markRead();
+  }
+
+  /// Marks one note read, e.g. when it's tapped. No-op if it already is.
+  Future<void> markNotificationRead(String id) async {
+    final i = notifications.indexWhere((n) => n.id == id);
+    if (i < 0 || notifications[i].isRead) return;
+    notifications = List.of(notifications)
+      ..[i] = notifications[i].markedRead(DateTime.now());
+    notifyListeners();
+    await notificationsRepository.markRead([id]);
+  }
+
+  /// Keeps the list live while signed in: reloads on every change to this
+  /// person's notes, and every 5 minutes asks for any due session reminders.
+  /// Idempotent.
+  void subscribeNotifications() {
+    if (_notificationsSub != null) return;
+    _notificationsSub =
+        notificationsRepository.changes.listen((_) => loadNotifications());
+    // Reminders come from the live backend only.
+    if (!backendInfo.isLive) return;
+    Future<void> remind() async {
+      await notificationsRepository.queueMyReminders();
+      await loadNotifications();
+    }
+
+    remind();
+    _reminderTimer =
+        Timer.periodic(const Duration(minutes: 5), (_) => remind());
+  }
+
+  Future<void> _unsubscribeNotifications() async {
+    _reminderTimer?.cancel();
+    _reminderTimer = null;
+    await _notificationsSub?.cancel();
+    _notificationsSub = null;
+    await notificationsRepository.stopChanges();
   }
 
   // ---- Signed-in user ------------------------------------------------------
@@ -1107,6 +1203,7 @@ class AppState extends ChangeNotifier {
       loadSchedule(),
       loadAnnouncements(),
       loadReadAnnouncements(),
+      loadNotifications(),
       loadMyAssignments(),
       loadSummitStatus(),
       loadGallery(),
@@ -1115,6 +1212,7 @@ class AppState extends ChangeNotifier {
     // Signed out while those ran: don't reopen the realtime feed.
     if (epoch != _epoch) return;
     subscribeAnnouncements();
+    subscribeNotifications();
   }
 
   /// Auto-onboards a dev-login test account: picks the role from the allowlist
@@ -1213,6 +1311,7 @@ class AppState extends ChangeNotifier {
   Future<void> signOut() async {
     _epoch++;
     await _unsubscribeAnnouncements();
+    await _unsubscribeNotifications();
     await authService.signOut();
     profile = null;
     profileLoadFailed = false;
@@ -1222,6 +1321,9 @@ class AppState extends ChangeNotifier {
     _myRegistrations.clear();
     _disciplines = const [];
     announcements = const [];
+    notifications = const [];
+    notificationsError = null;
+    notificationsAvailable = false;
     galleryPhotos = const [];
     _seenAnnouncementIds.clear();
     _openedAnnouncementIds.clear();

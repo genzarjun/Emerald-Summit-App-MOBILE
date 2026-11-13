@@ -595,6 +595,53 @@ class SampleSessionMediaRepository implements SessionMediaRepository {
   }
 }
 
+/// Sample notes for the bell, so the list has something to show without a
+/// backend. Read state lives in memory.
+class SampleNotificationsRepository implements NotificationsRepository {
+  SampleNotificationsRepository();
+
+  final List<AppNotification> _items = [
+    AppNotification(
+      id: 'n1',
+      kind: NotificationKind.reminder,
+      title: 'Coming up at 10:30 AM: AI Playground',
+      body: 'Your session starts within the hour.',
+      createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
+    ),
+    AppNotification(
+      id: 'n2',
+      kind: NotificationKind.announcement,
+      title: 'Summit Admin posted to everyone',
+      body: 'Parking and drop-off',
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    ),
+  ];
+
+  @override
+  Future<List<AppNotification>> fetch({int limit = 100}) async =>
+      _items.take(limit).toList();
+
+  @override
+  Future<void> markRead([Iterable<String>? ids]) async {
+    final now = DateTime.now();
+    final only = ids?.toSet();
+    for (var i = 0; i < _items.length; i++) {
+      if (only == null || only.contains(_items[i].id)) {
+        _items[i] = _items[i].markedRead(now);
+      }
+    }
+  }
+
+  @override
+  Future<void> queueMyReminders() async {}
+
+  @override
+  Stream<void> get changes => const Stream.empty();
+
+  @override
+  Future<void> stopChanges() async {}
+}
+
 class SampleAllowlistRepository implements AllowlistRepository {
   // Gated roles never appear in demo mode (no auth gate), so nobody is eligible.
   @override

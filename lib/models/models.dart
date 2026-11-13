@@ -673,6 +673,85 @@ class Announcement {
   }
 }
 
+/// What a [AppNotification] is about.
+enum NotificationKind {
+  /// A new post in News for you ("Priya Shah posted to TechVerse").
+  announcement,
+
+  /// A personal note ("You have been assigned to manage …").
+  notice,
+
+  /// A session you're in starts within the hour.
+  reminder;
+
+  static NotificationKind parse(Object? raw) => switch (raw) {
+        'announcement' => NotificationKind.announcement,
+        'reminder' => NotificationKind.reminder,
+        _ => NotificationKind.notice,
+      };
+}
+
+/// One row of the bell's Notifications list (the `notifications` table): a
+/// short note about the signed-in person, separate from News. Tapping one opens
+/// the post ([announcementId]) or the session ([sessionId]) it's about.
+class AppNotification {
+  const AppNotification({
+    required this.id,
+    required this.kind,
+    required this.title,
+    this.body = '',
+    this.announcementId,
+    this.sessionId,
+    this.createdAt,
+    this.readAt,
+  });
+
+  final String id;
+  final NotificationKind kind;
+  final String title;
+  final String body;
+  final String? announcementId;
+  final String? sessionId;
+  final DateTime? createdAt;
+  final DateTime? readAt;
+
+  bool get isRead => readAt != null;
+
+  /// "just now", "5m ago", "3h ago", "2d ago".
+  String get timeAgo {
+    final then = createdAt;
+    if (then == null) return '';
+    final diff = DateTime.now().difference(then);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  AppNotification markedRead(DateTime at) => AppNotification(
+        id: id,
+        kind: kind,
+        title: title,
+        body: body,
+        announcementId: announcementId,
+        sessionId: sessionId,
+        createdAt: createdAt,
+        readAt: readAt ?? at,
+      );
+
+  factory AppNotification.fromMap(Map<String, dynamic> row) => AppNotification(
+        id: row['id'].toString(),
+        kind: NotificationKind.parse(row['kind']),
+        title: (row['title'] ?? '') as String,
+        body: (row['body'] ?? '') as String,
+        announcementId: row['announcement_id']?.toString(),
+        sessionId: row['session_id']?.toString(),
+        createdAt:
+            DateTime.tryParse(row['created_at'] as String? ?? '')?.toLocal(),
+        readAt: DateTime.tryParse(row['read_at'] as String? ?? '')?.toLocal(),
+      );
+}
+
 /// A photo or file sent with an announcement. The bytes live in the public
 /// `announcement_attachments` Storage bucket; the row's `attachments` jsonb
 /// holds one of these per file ({url, path, name, type, size}).

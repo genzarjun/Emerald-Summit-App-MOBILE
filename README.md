@@ -342,15 +342,15 @@ Home header** (Uber-style), not a bottom-bar tab.
   (plus admins and the volunteers who manage it); "Everyone" reaches all.
   A volunteer with the **post-announcements** capability gets the composer too,
   but scoped: they can only target the discipline(s) they manage. **Personal
-  announcements:** the feed also carries per-user items (a `target_user_id`) —
-  e.g. when an admin assigns a volunteer to a session, that volunteer gets an
-  automatic *"You have been assigned to manage &lt;session&gt; in
-  &lt;discipline&gt;"* item (and in-app banner), visible only to them (RLS-scoped).
-  Filtering is
-  applied to both the feed and the banner. **Per-user read state (two-tier,
-  Instagram-style):** the News tab and Home "What's new" tile show a red count
-  of *unseen* announcements; opening the News tab marks the feed **seen** and
-  clears that count. Independently, each feed card keeps a green **unread dot**
+  notices** (a `target_user_id`), e.g. *"You have been assigned to manage
+  &lt;session&gt; in &lt;discipline&gt;"* when an admin assigns a volunteer,
+  go to the bell, not News (see **Notifications** below); their in-app banner
+  opens Notifications. Until the bell's table has loaded once, News still
+  shows them to their recipient. Filtering is applied to both the feed and the
+  banner. **Per-user read state (two-tier, Instagram-style):** opening the News
+  tab marks the feed **seen**. The News tab and the Home "What's new" tile no
+  longer show a count: the bell counts new posts, so a post isn't counted
+  twice. Independently, each feed card keeps a green **unread dot**
   until the user taps (opens) that specific card — so dots persist after the red
   badge is gone. Both tiers are private per user, tracked in the
   `announcement_reads` table (a row = seen; `opened_at` = opened), RLS-scoped to
@@ -367,6 +367,23 @@ Home header** (Uber-style), not a bottom-bar tab.
   Without the dismissals table, swipe-to-hide simply doesn't persist across
   restarts. **OS push** (when the app is closed) is designed but not yet built
   (see Roadmap).
+- **Notifications** — the **bell** on Home, beside the avatar
+  ([notifications_screen.dart](lib/screens/notifications_screen.dart)), with a
+  red count of unread notes. Short notes about you, separate from News: a new
+  post that reaches you (*"Priya Shah posted to TechVerse"*, opens the post), a
+  personal notice (assignments, team changes, expert approval, the admins'
+  sheet and expert-queue notices; opens its session when it has one), and
+  *"Coming up at 10:30 AM: AI Playground"* in the hour before a session you're
+  in or managing. Tap a note to mark it read; **Mark all as read** clears the
+  bell. Rows live in `notifications` and are written only by the backend
+  ([notifications_setup.sql](supabase/notifications_setup.sql)): triggers on
+  `announcements` fan new posts out to their audience and copy personal
+  notices; reminders come from `queue_my_session_reminders()`, which the app
+  calls on sign-in and every 5 minutes (they start once `summit_date` is set; a
+  pg_cron job can run `queue_session_reminders()` for everyone, for push
+  later). Realtime keeps the list live. `notifications_enabled` doesn't touch
+  the bell: it only mutes the in-app banner (and push, once built). The
+  website has the same bell and list.
 - **Archie** — the in-app **AI assistant**
   ([lib/screens/archie_screen.dart](lib/screens/archie_screen.dart)), a dragon
   mascot in shades (`assets/branding/archie.png`), replacing the old Resources
@@ -1345,9 +1362,10 @@ things the app doesn't do; they were removed so the two behave the same:
 editing or re-pinning a post after it's posted, link attachments, News search
 and categories, a per-post "Mark as read" button, the web QR scanner and
 front-desk roster, and an About row. Two website-only things stay: test-account
-sign-in stops asking for 15 minutes after five wrong passwords in that browser
-(the `dev-login` function still has no lockout of its own; each refusal waits
-1.5 s), and the header search also jumps to pages.
+sign-in also stops asking for 15 minutes after five wrong passwords in that
+browser (on top of the `dev-login` function's own lockout, see SUPABASE.md
+§3b), and the header search also jumps to pages. Both now have the bell's
+Notifications list.
 
 **Shipping the website.** Every push to the website repo's `main` deploys to
 production on Vercel (a free plan run by a teammate, Production environment
@@ -1858,25 +1876,6 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   when the app is closed (see Roadmap for the planned pipeline).
 
 ## Roadmap (later, from the spec)
-- **Notifications feed, separate from News (recommended Nov 11, not decided;
-  needs SQL here first).** Today personal notices are announcements with `target_user_id`, so
-  "You've been assigned to manage …" sits in News next to the organizers'
-  posts. Plan: a bell (top right on the website, on Home in the app) opens a
-  **Notifications** list with **Mark all as read**; News keeps only posts.
-  - New `notifications` table (owner-only RLS; rows written only by SECURITY
-    DEFINER functions): `user_id`, `kind`, `title`, `body`, `session_id` /
-    `announcement_id` to link to, `created_at`, `read_at`. The RPCs and
-    triggers that insert personal notices today (assignment, unassign, team
-    leave/remove, session cancelled, organizer notices, expert approval, role
-    change, the Google Sheet problem notice) write here instead.
-  - A new announcement adds one row per person in its audience ("An admin
-    posted to everyone in TechVerse") linking to the post; opening it opens the
-    post and marks it opened. News then drops its tab count and keeps the
-    per-post dots, so a post isn't counted twice.
-  - "Your AI Playground session starts in 1 hour": a scheduled job adds a row
-    per person per session.
-  - Push (below) sends one push per row, skipped when `notifications_enabled`
-    is off. The website shows the bell only; no browser push.
 - **OS push notifications (deferred — designed, not built).** Announcements are
   already "instant" while the app is open (Realtime + in-app banner); this adds
   delivery when the app is **closed/backgrounded**. Planned pipeline:

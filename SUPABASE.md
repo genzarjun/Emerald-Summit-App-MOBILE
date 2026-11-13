@@ -440,6 +440,20 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     `permission denied for table announcements` warning and no notice goes
     out, though the allowlist itself still syncs. Safe to re-run.
     *(Run on the dev project 2026-10-27.)*
+59. `supabase/notifications_setup.sql`: **the bell's Notifications list**,
+    separate from News. Adds `notifications` (owner-only reads; rows written
+    only by the triggers and functions in the file), copies every personal
+    notice (`target_user_id`) there and every new post to the people it
+    reaches, adds `mark_notifications_read` and session reminders
+    (`queue_my_session_reminders`, which the app and website call every 5
+    minutes; reminders start once `summit_date` is set), and adds the table to
+    Realtime. Until it's run both clients keep personal notices in News. Safe
+    to re-run. *(Not run yet.)*
+60. `supabase/dev_login_lockout.sql`: **lockout for test sign-in** (§3b).
+    Adds `dev_login_failures`, which the `dev-login` function uses to refuse
+    with `429` after 5 wrong passwords from one address in 15 minutes, or 50
+    from anywhere in an hour. Run it, then redeploy `dev-login`. Safe to
+    re-run. *(Not run yet.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
@@ -555,7 +569,10 @@ want to test. Make **one code email per scenario** to cover unique permissions.
 > enable it in production. Since the website shares this backend and anyone can
 > read the publishable key out of a web page, the function needs a **shared
 > test-account password** (`DEV_LOGIN_PASSWORD`). A wrong password gets a `401`
-> after a 1.5 s delay, which keeps guessing slow. The sign-in screen first asks
+> after a 1.5 s delay, and after 5 wrong passwords from one address in 15
+> minutes (or 50 from anywhere in an hour) every attempt gets a `429` until
+> they age out ([`dev_login_lockout.sql`](supabase/dev_login_lockout.sql); without
+> that table the function still works, with no lockout). The sign-in screen first asks
 > the function whether an email is a test account (so it knows to show the
 > password box), which means anyone can find out that, say, `admin@ehs.org` is
 > one; the password is what keeps them out. Every refused sign-in is logged
@@ -597,8 +614,10 @@ want to test. Make **one code email per scenario** to cover unique permissions.
      person taps *Email me a code*; `true` means show the password box, `false`
      (or any error) means send the normal code.
    - `{ "email", "password" }` → `200 { test: true, otp, type }` (then
-     `verifyOtp({ email, token: otp, type })`), `401` wrong email or password.
-   - Either call: `403` disabled or no password set, `500` error.
+     `verifyOtp({ email, token: otp, type })`), `401` wrong email or password,
+     `429` too many wrong passwords lately.
+   - Either call: `403` disabled or no password set, `500` error (details in
+     the function logs only).
 
 ## 3c. Archie — the AI assistant (`archie-chat`)
 The **Archie** tab streams answers from the

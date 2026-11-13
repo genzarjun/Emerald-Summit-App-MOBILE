@@ -106,6 +106,7 @@ class SupabaseAuthService implements AuthService {
     } on FunctionException catch (ex) {
       throw AuthFailure(switch (ex.status) {
         401 => 'Wrong email or password.',
+        429 => 'Too many wrong passwords. Try again later.',
         403 || 404 => 'Test accounts are turned off on this server.',
         _ => 'Could not reach the test sign-in. Try again.',
       });

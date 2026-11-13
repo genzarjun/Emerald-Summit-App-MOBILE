@@ -26,6 +26,7 @@ Future<void> main() async {
     await appState.loadCatalog();
     await appState.loadAnnouncements();
     await appState.loadReadAnnouncements();
+    await appState.loadNotifications();
     await appState.loadGallery();
   }
 

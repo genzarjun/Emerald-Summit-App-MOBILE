@@ -15,6 +15,7 @@ import '../widgets/duotone_icon.dart';
 import '../widgets/summit_logo.dart';
 import 'announcement_detail_screen.dart';
 import 'discipline_screen.dart';
+import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'resources_screen.dart';
 import 'session_detail_screen.dart';
@@ -161,6 +162,8 @@ class _HeaderState extends State<_Header> {
                   ],
                 ),
               ),
+              const _BellButton(),
+              const SizedBox(width: 10),
               const _AvatarButton(),
             ],
           ),
@@ -311,6 +314,46 @@ class _CountdownUnit extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The bell: opens Notifications, with a red count of unread notes.
+class _BellButton extends StatelessWidget {
+  const _BellButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final unread = appState.unreadNotificationCount;
+        return Tooltip(
+          message: unread > 0 ? 'Notifications: $unread unread' : 'Notifications',
+          child: Badge(
+            isLabelVisible: unread > 0,
+            label: Text(unread > 99 ? '99+' : '$unread'),
+            largeSize: 20,
+            offset: const Offset(2, -2),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () => openNotificationsScreen(context),
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .18),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withValues(alpha: .5)),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.notifications_outlined,
+                    color: Colors.white, semanticLabel: 'Notifications'),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -934,7 +977,6 @@ class _QuickActions extends StatelessWidget {
   }
 
   Widget _buildActions(BuildContext context) {
-    final unread = appState.unreadAnnouncementCount;
     final actions = <_Action>[
       _Action(
         icon: Duotone.calendarCheck,
@@ -949,7 +991,6 @@ class _QuickActions extends StatelessWidget {
       _Action(
         icon: Duotone.megaphoneSimple,
         label: 'What\'s new',
-        badge: unread > 0 ? '$unread' : null,
         onTap: () => rootTab.value = kNewsTabIndex,
       ),
       _Action(
@@ -1015,12 +1056,10 @@ class _Action {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.badge,
   });
   final DuotoneIconData icon;
   final String label;
   final VoidCallback onTap;
-  final String? badge;
 }
 
 class _ActionTile extends StatelessWidget {
@@ -1046,41 +1085,11 @@ class _ActionTile extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  DuotoneIcon(
-                    action.icon,
-                    color: theme.colorScheme.primary,
-                    fillOpacity: .28,
-                    size: 34,
-                  ),
-                  if (action.badge != null)
-                    Positioned(
-                      right: -6,
-                      top: -6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.error,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        constraints: const BoxConstraints(minWidth: 20),
-                        child: Text(
-                          action.badge!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: theme.colorScheme.onError,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+              DuotoneIcon(
+                action.icon,
+                color: theme.colorScheme.primary,
+                fillOpacity: .28,
+                size: 34,
               ),
               const SizedBox(height: 10),
               // Room for two lines on every tile keeps the grid even.

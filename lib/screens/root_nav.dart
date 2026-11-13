@@ -7,6 +7,7 @@ import 'schedule_screen.dart';
 import 'discover_screen.dart';
 import 'announcements_screen.dart';
 import 'archie_screen.dart';
+import 'notifications_screen.dart';
 
 /// Bottom-tab shell hosting the five main sections of the app (Home ·
 /// Schedule · Discover · News · Archie). Resources is no longer a tab — it's
@@ -25,10 +26,15 @@ class _RootNavState extends State<RootNav> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // The in-app banner for a personal notice opens the bell's list.
+    openNotifications = () {
+      if (mounted) openNotificationsScreen(context);
+    };
   }
 
   @override
   void dispose() {
+    openNotifications = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -88,15 +94,11 @@ class _RootNavState extends State<RootNav> with WidgetsBindingObserver {
                   selectedIcon: Icon(Icons.explore),
                   label: 'Discover',
                 ),
-                NavigationDestination(
-                  icon: _newsIcon(
-                    const Icon(Icons.campaign_outlined),
-                    appState.unreadAnnouncementCount,
-                  ),
-                  selectedIcon: _newsIcon(
-                    const Icon(Icons.campaign),
-                    appState.unreadAnnouncementCount,
-                  ),
+                // No count here: the bell on Home counts new posts, so a post
+                // isn't counted twice. Each post keeps its own dot in News.
+                const NavigationDestination(
+                  icon: Icon(Icons.campaign_outlined),
+                  selectedIcon: Icon(Icons.campaign),
                   label: 'News',
                 ),
                 const NavigationDestination(
@@ -110,12 +112,5 @@ class _RootNavState extends State<RootNav> with WidgetsBindingObserver {
         ),
       ),
     );
-  }
-
-  /// The News icon, with an Instagram-style red count badge when there are
-  /// unread announcements. Plain icon when the count is zero.
-  static Widget _newsIcon(Icon icon, int unread) {
-    if (unread <= 0) return icon;
-    return Badge.count(count: unread, child: icon);
   }
 }

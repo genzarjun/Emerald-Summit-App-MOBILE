@@ -13,3 +13,7 @@ const int kScheduleTabIndex = 1;
 const int kDiscoverTabIndex = 2;
 const int kNewsTabIndex = 3;
 const int kArchieTabIndex = 4;
+
+/// Opens the bell's Notifications list from code outside the widget tree (the
+/// in-app banner for a personal notice). [RootNav] sets it; null before then.
+VoidCallback? openNotifications;

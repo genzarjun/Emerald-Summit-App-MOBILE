@@ -453,6 +453,30 @@ abstract interface class AnnouncementsRepository {
   Future<void> stopEvents();
 }
 
+/// The bell's Notifications list (`notifications_setup.sql`): short notes about
+/// the signed-in person, written by the backend. Separate from News.
+abstract interface class NotificationsRepository {
+  /// The signed-in person's notes, newest first (at most [limit]). Empty when
+  /// signed out. Throws on a failed read so the screen can offer a retry.
+  Future<List<AppNotification>> fetch({int limit = 100});
+
+  /// Marks [ids] read, or every unread note when [ids] is null ("Mark all as
+  /// read"). Best-effort: never throws.
+  Future<void> markRead([Iterable<String>? ids]);
+
+  /// Asks the backend to add "starts within the hour" reminders for the
+  /// signed-in person's sessions. Does nothing until the summit date is set.
+  /// Best-effort: never throws.
+  Future<void> queueMyReminders();
+
+  /// Fires whenever one of the signed-in person's notes is added or changed,
+  /// so the list can reload. A backend without realtime never fires.
+  Stream<void> get changes;
+
+  /// Tears down the live subscription (e.g. on sign-out). No-op if none.
+  Future<void> stopChanges();
+}
+
 /// Photo sets shown in the app, each backed by its own storage bucket: EVERY
 /// image in the given bucket is a photo. Curation is just uploading/deleting
 /// files — no table. Different parts of the app read different buckets (the
