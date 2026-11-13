@@ -325,7 +325,7 @@ Home header** (Uber-style), not a bottom-bar tab.
   ([announcement_detail_screen.dart](lib/screens/announcement_detail_screen.dart)):
   audience + pinned chips, sender and full date, the whole (selectable)
   message, photos (tap for a swipeable, pinch-to-zoom full-screen viewer) and
-  files (tap to open in the browser/viewer), plus a menu to remove it from your
+  files (tap to open in the browser/viewer), plus a ⋯ menu to remove it from your
   feed (admins can also delete it for everyone). The Home **Latest news** peek
   opens the same page. **Admins** get a **New announcement** composer
   (subject, message, audience, pin, **photos & files**). Attachments (up to 10,
@@ -356,16 +356,16 @@ Home header** (Uber-style), not a bottom-bar tab.
   `announcement_reads` table (a row = seen; `opened_at` = opened), RLS-scoped to
   the owner. The app degrades gracefully: no reads table → "all unseen"; reads
   table but no `opened_at` column → seen/badge work, dots don't persist. Falls
-  back to sample data when the backend isn't configured. **Swipe-to-delete:**
-  every user can **swipe a card left** to remove it. A plain user's swipe hides
-  it **from their own feed only** (a per-user dismissal in
-  `announcement_dismissals`, RLS-scoped to the owner, with an **Undo** snackbar);
-  the announcement stays in place for everyone else. An **admin's** swipe opens a
-  choice sheet: **"Remove from my feed"** (the same per-user hide) or **"Delete
-  for everyone"**, which **hard-deletes the row** (admin-only DELETE policy) and
+  back to sample data when the backend isn't configured. **Remove from my feed:**
+  each card (and the post's own page) has a **⋯** menu with **"Remove this
+  announcement from my feed"**, kept out of sight on purpose (there's no swipe
+  any more). It asks first, *"Once you remove … you can't get it back in your
+  feed. It stays in News for everyone else."*, because it can't be undone (no
+  Undo). It's a per-user dismissal in `announcement_dismissals`, RLS-scoped to
+  the owner. **Admins** also get **"Delete for everyone"** in the same menu,
+  which asks first, **hard-deletes the row** (admin-only DELETE policy) and
   **propagates live over Realtime** so it disappears on every open device.
-  Without the dismissals table, swipe-to-hide simply doesn't persist across
-  restarts. **OS push** (when the app is closed) is designed but not yet built
+  Without the dismissals table, a removal doesn't persist across restarts. **OS push** (when the app is closed) is designed but not yet built
   (see Roadmap).
 - **Notifications** — the **bell** on Home, beside the avatar
   ([notifications_screen.dart](lib/screens/notifications_screen.dart)), with a
@@ -1348,7 +1348,7 @@ Done on the website, against this backend:
   `preview_role_change` and the app's wording.
 - **Phase 3, read-only:** Home with the `fetch_summit_status()` date line and
   countdown, Discover, News with pinned posts, shared read state
-  (`announcement_reads.opened_at`) and "Remove from my feed"
+  (`announcement_reads.opened_at`) and "Remove this announcement from my feed"
   (`announcement_dismissals`), and the check-in QR pass.
 - **Phase 4:** a session page (`/sessions/:id`) with each role's Add to my
   day choices, the participant form (solo or team, project name, team codes
@@ -1391,6 +1391,14 @@ sign-in also stops asking for 15 minutes after five wrong passwords in that
 browser (on top of the `dev-login` function's own lockout, see SUPABASE.md
 §3b), and the header search also jumps to pages. Both now have the bell's
 Notifications list.
+
+**Latest (Nov 12, 2026), both sides:** the bell's Notifications list (see
+**Notifications**); personal notices out of News; "Remove this announcement
+from my feed" behind each post's ⋯ menu with a can't-be-undone warning; the
+`dev-login` lockout. On the website: the phone bottom bar is the app's five
+tabs (Home, Schedule, Discover, News, Archie) with Profile as an avatar in the
+top bar, and the Profile switch is labelled **Mobile app notifications**
+(it's the app's `notifications_enabled`; the website has no push).
 
 **Shipping the website.** Every push to the website repo's `main` deploys to
 production on Vercel (a free plan run by a teammate, Production environment

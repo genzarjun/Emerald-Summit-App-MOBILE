@@ -40,7 +40,9 @@ class AnnouncementDetailScreen extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Announcement'),
-            actions: [if (!removed) _ActionsMenu(item: a)],
+            actions: [
+              if (!removed) AnnouncementActionsMenu(item: a, closePage: true)
+            ],
           ),
           body: removed ? const _RemovedNote() : _Body(item: a),
         );
@@ -315,26 +317,45 @@ class _FileTile extends StatelessWidget {
 
 enum _Action { hide, deleteForEveryone }
 
-/// Overflow menu: hide from my feed (everyone), delete for everyone (admins).
-class _ActionsMenu extends StatelessWidget {
-  const _ActionsMenu({required this.item});
+/// The ⋯ menu on a post, in the News feed and on the post's own page:
+/// "Remove this announcement from my feed" (everyone) and "Delete for everyone"
+/// (admins). Removing is tucked away here on purpose and asks first, because
+/// it can't be undone: there's no way to bring a post back into your feed.
+/// [closePage] pops the post's page afterwards (true on that page).
+class AnnouncementActionsMenu extends StatelessWidget {
+  const AnnouncementActionsMenu(
+      {super.key, required this.item, this.closePage = false});
   final Announcement item;
+  final bool closePage;
 
   Future<void> _onSelected(BuildContext context, _Action action) async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     switch (action) {
       case _Action.hide:
-        await appState.hideAnnouncement(item.id);
-        navigator.pop();
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('Removed from your feed'),
-            action: SnackBarAction(
-              label: 'Undo',
-              onPressed: () => appState.unhideAnnouncement(item.id),
-            ),
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Remove from your feed?'),
+            content: Text('Once you remove "${item.title}", you can\'t get it '
+                'back in your feed. It stays in News for everyone else.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Remove'),
+              ),
+            ],
           ),
+        );
+        if (confirmed != true) return;
+        await appState.hideAnnouncement(item.id);
+        if (closePage) navigator.pop();
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Removed from your feed')),
         );
       case _Action.deleteForEveryone:
         final confirmed = await showDialog<bool>(
@@ -359,7 +380,7 @@ class _ActionsMenu extends StatelessWidget {
         if (confirmed != true) return;
         try {
           await appState.deleteAnnouncementForEveryone(item.id);
-          navigator.pop();
+          if (closePage) navigator.pop();
           messenger.showSnackBar(
             const SnackBar(content: Text('Announcement deleted for everyone')),
           );
@@ -374,6 +395,8 @@ class _ActionsMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<_Action>(
+      icon: const Icon(Icons.more_horiz),
+      tooltip: 'More options',
       onSelected: (a) => _onSelected(context, a),
       itemBuilder: (_) => [
         const PopupMenuItem(
@@ -381,7 +404,7 @@ class _ActionsMenu extends StatelessWidget {
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.visibility_off_outlined),
-            title: Text('Remove from my feed'),
+            title: Text('Remove this announcement from my feed'),
           ),
         ),
         if (appState.isAdmin)

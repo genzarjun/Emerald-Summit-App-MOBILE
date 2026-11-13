@@ -611,8 +611,8 @@ class AppState extends ChangeNotifier {
   final Set<String> _seenAnnouncementIds = {};
   final Set<String> _openedAnnouncementIds = {};
 
-  // Announcement ids the user has hidden from their own feed (swipe-left
-  // "delete from my view"). Private per user; loaded alongside read-state.
+  // Announcement ids the user has removed from their own feed (the post's ⋯
+  // menu). Private per user; loaded alongside read-state.
   final Set<String> _dismissedAnnouncementIds = {};
 
   /// False until read-state has been fetched at least once. The announcements
@@ -711,8 +711,9 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Undo of [hideAnnouncement] — brings a hidden announcement back into this
-  /// user's feed. No-op if it wasn't hidden.
+  /// Undo of [hideAnnouncement]. Nothing in the app offers this any more
+  /// (removing a post from your feed is final, and the app says so); kept for
+  /// tests and support fixes. No-op if it wasn't hidden.
   Future<void> unhideAnnouncement(String id) async {
     if (!_dismissedAnnouncementIds.remove(id)) return;
     notifyListeners();
