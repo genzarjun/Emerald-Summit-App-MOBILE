@@ -12,6 +12,12 @@ now uses this app's Supabase project, so both share accounts and data, and
 its signed-in screens are being matched to the app. Anyone working on that:
 start with **Website sync** below.
 
+**Not a competition.** The Summit is a day for students to share project
+ideas, work on them together, and get feedback from visiting experts. The
+website's copy says so and avoids competing, judging, winners and awards.
+Some shared names still use the older words, such as the schedule kinds
+`competing` and `judging` on the backend; they are not shown as labels.
+
 > **Status: role-driven backend live.** All screens and interactions work, and
 > the backend is wired up and verified end-to-end on the dev project (two-device
 > testing). **Auth (passwordless email OTP, plus native Google sign-in)** is
@@ -667,12 +673,14 @@ RPC failed on every call — an unqualified `id` in its role check clashed
 with the `id` output column, which PL/pgSQL rejects as ambiguous. The
 current file drops and recreates it.)*
 
-**Launch splash.** An animated splash plays once at app start
+**Launch splash.** An animated splash ("Arc Traverse") plays once at app start
 ([lib/screens/splash_screen.dart](lib/screens/splash_screen.dart)): an emerald
-"warp field" of sparks bursts from behind the brand mark while the summit logo
-scales in, holds, then recedes, cross-fading into the first real screen (auth
-gate or, in sample mode, the app). Duolingo-style haptics pulse through the
-burst; tap to skip. The brand mark is rebuilt in Flutter as a `CustomPainter`
+sun rises from behind the left peaks of a mountain range, arcs across a starry
+sky and sets behind the right peaks, while the "Emerald Summit '27" wordmark
+wipes on as the sun crests. It then fades into the first real screen (auth
+gate or, in sample mode, the app). Haptic taps build toward the crest and
+settle as it sets; tap to skip. The website's landing intro is modelled on
+it: the same sun rises and sets in its hero sky. The brand mark is rebuilt in Flutter as a `CustomPainter`
 ([lib/widgets/summit_logo.dart](lib/widgets/summit_logo.dart)) — no image asset.
 The native iOS launch storyboard and Android launch background are set to the
 same deep emerald (`#02100B`) so cold start flows into the burst with no white
@@ -943,7 +951,7 @@ lib/
   widgets/day_summary.dart  My Day summary line: sessions and time booked, sessions that still fit
   widgets/duotone_icon.dart  Phosphor duotone icons (bundled font) + DuotoneIcon widget
   screens/
-    splash_screen.dart      Animated launch splash (warp burst + logo + haptics)
+    splash_screen.dart      Animated launch splash (sun arc + wordmark + haptics)
     root_nav.dart           Bottom navigation shell (Home · Schedule · Discover · News · Archie)
     dashboard_screen.dart   Home launchpad (greeting, photo slideshow, quote, up-next, action grid, links)
     auth/                   auth_gate, sign_in_screen, onboarding_screen (+ role gate), phone_required_screen
