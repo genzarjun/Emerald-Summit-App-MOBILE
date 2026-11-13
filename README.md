@@ -929,6 +929,31 @@ check-in, which works on any day.
 the Home countdown shows, and Volunteer hours names the date. On summit day,
 feedback should open once the last session ends.
 
+## Registration lock and hidden session times
+
+**Status (Nov 12, 2026): registration closed, times hidden.** Two switches on
+the `summit_settings` row, both `false` by default
+([website_switches.sql](supabase/website_switches.sql), already run):
+
+- `website_registration_open`: while false, `register_for_session` refuses
+  every new sign-up (participant, spectator or expert, joining a team too)
+  with the error `registration_closed`
+  ([registration_closed_lock.sql](supabase/registration_closed_lock.sql), run
+  after registrations_manage_overlap.sql). This holds for every caller, the
+  app included. Removing a session and editing an existing registration still
+  work. The website also greys out "Add to my day" with "Registration will
+  open on November 21st". The app has no message for it yet: it shows its
+  generic "couldn't update" error. The refusal is an error, not a new outcome,
+  because the app reads an outcome it doesn't know as `added`.
+- `website_show_session_times`: website only. While false, the website shows
+  session times, lengths and deadlines as "TBD". The app ignores it.
+
+To open either one: `update public.summit_settings set
+website_registration_open = true;` (or `website_show_session_times`) in the
+SQL editor, or tick the box in Table Editor. No release or deploy needed.
+Admins hold the update grant too. If registration_closed_lock.sql is ever
+superseded by a newer copy of `register_for_session`, carry the check over.
+
 ## App writing rule
 Nothing a user reads in the app should sound machine-written. That covers every
 on-screen string, sample and seed data, notification text in SQL triggers,
