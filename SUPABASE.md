@@ -462,7 +462,7 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     session without the box (`eighth_grade_not_allowed`) or in 7th grade and
     below (`middle_school_not_allowed`). Spectating stays open to everyone.
     Run after `registration_closed_lock.sql`; it carries that check over.
-    Safe to re-run. *(Not run yet.)*
+    Safe to re-run. *(Run on the dev project 2026-11-13.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

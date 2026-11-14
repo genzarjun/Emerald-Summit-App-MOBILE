@@ -1408,15 +1408,15 @@ before it launches. Tick an item off here when it lands.
 - [ ] **8th graders in sessions.** Participating is for high schoolers; an
   8th grader can participate only in sessions whose editors ticked **Let 8th
   graders participate**, and anyone can spectate any session.
-  - Run [eighth_grade_participation.sql](supabase/eighth_grade_participation.sql)
-    first (*not run yet*). It adds `sessions.allow_eighth_graders` (default
+  - Backend: [eighth_grade_participation.sql](supabase/eighth_grade_participation.sql)
+    (run on the dev project Nov 13, 2026). It adds `sessions.allow_eighth_graders` (default
     false), rebuilds `sessions_with_counts` with it, adds `grade_number(text)`,
     and makes `register_for_session` refuse a new participant whose
     `details.grade` is 8 on a session without the box
     (`eighth_grade_not_allowed`) or 7 and below anywhere
-    (`middle_school_not_allowed`). A blank grade isn't blocked. Once it's run
-    the rule holds for the app too, but the app only shows its generic
-    "couldn't update" error.
+    (`middle_school_not_allowed`). A blank grade isn't blocked (participants
+    must give one at sign-up). The rule already holds for the app, but the
+    app only shows its generic "couldn't update" error.
   - Session model: read `allow_eighth_graders`.
   - Session editor: a **Let 8th graders participate** checkbox that writes
     `allow_eighth_graders`. Website helper text: "Only high schoolers can
