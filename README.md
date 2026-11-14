@@ -374,7 +374,9 @@ Home header** (Uber-style), not a bottom-bar tab.
   personal notice (assignments, team changes, expert approval, the admins'
   sheet and expert-queue notices; opens its session when it has one), and
   *"Coming up at 10:30 AM: AI Playground"* in the hour before a session you're
-  in or managing. Tap a note to mark it read; **Mark all as read** clears the
+  in or managing. Each note shows "5m ago" / "2d ago" under it (the website
+  now shows a date, or a time for today's notes; see the website to-do list).
+  Tap a note to mark it read; **Mark all as read** clears the
   bell. Rows live in `notifications` and are written only by the backend
   ([notifications_setup.sql](supabase/notifications_setup.sql)): triggers on
   `announcements` fan new posts out to their audience and copy personal
@@ -1455,6 +1457,12 @@ one go. Backend: `preview_manager_assignment` and
 [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
 (**not run yet**). The app still refuses every clash; see the to-do below.
 
+**Latest (Nov 13, 2026), website only:** every note in the bell's
+Notifications list shows a date at the right of its title, and a time when
+it's from today ("Today, 3:45 PM", "Thu, Nov 12", "Nov 12, 2025"), instead of
+"5m ago". The **News** tab is now called **Announcements** on the website.
+Both are on the to-do list below.
+
 ### Website changes to bring into the app (to-do)
 Updated Nov 13, 2026. These shipped on the website and the app doesn't have
 them yet. The app isn't public yet, so none of them is urgent, but do them
@@ -1542,6 +1550,46 @@ have it yet; see the to-do below.
     from this session, so you can't sign up for it again. If you think this
     was a mistake, contact the summit team." (today the app shows its generic
     error).
+- [ ] **Date and time on every bell note.** The website's bell no longer says
+  "5m ago" / "2d ago"; each note shows when it arrived, right-aligned on its
+  title row, in the phone's time zone:
+  - from today (the calendar day, not the last 24 hours): **Today, 3:45 PM**;
+  - an earlier day this year: **Thu, Nov 12**;
+  - another year: **Nov 12, 2025**.
+
+  A note from 11 PM yesterday is **Wed, Nov 11**, not a time. The website
+  shows the full date and time on hover ("Thursday, November 12, 2026 at 9:05
+  AM"); the app can show it on long-press or leave it out. The rule and its
+  tests are `notificationStamp` / `notificationFullTime` in the website's
+  `src/models/notifications.ts` and `src/pages/__tests__/NotificationsPage.test.tsx`.
+  **Why the app needs it:** "2d ago" doesn't say which day a note came from,
+  and a bell that says "Today, 9:05 AM" on the website and "3h ago" on the
+  phone for the same note looks broken; a person checking which reminder or
+  schedule change came first needs real times. In the app:
+  - Replace `AppNotification.timeAgo` in [models.dart](lib/models/models.dart)
+    with a stamp getter. The app has no `intl` dependency; either add it
+    (`DateFormat.jm()` for today, `'EEE, MMM d'` this year, `'MMM d, y'`
+    otherwise) or format by hand with short month/weekday name lists and
+    `MaterialLocalizations.formatTimeOfDay` for the time, as
+    [archie_insights_screen.dart](lib/screens/archie_insights_screen.dart)
+    does. Compare calendar days on `createdAt.toLocal()`.
+  - In [notifications_screen.dart](lib/screens/notifications_screen.dart)
+    (line ~141 joins `item.body` and `item.timeAgo` in the subtitle), move
+    the stamp to the right of the title, like the website, and drop it from
+    the subtitle.
+  - Add tests for the four cases, including the just-after-midnight one.
+  - Not needed for the News/Announcements feed's own `timeAgo`
+    ([dashboard_screen.dart](lib/screens/dashboard_screen.dart) and the
+    feed); only the bell changed.
+- [ ] **Rename the News tab to Announcements.** The website calls it
+  Announcements everywhere (sidebar, bottom bar, page title, Home shortcut,
+  composer hints, remove-from-feed warning). In the app: the tab `label:
+  'News'` in [root_nav.dart](lib/screens/root_nav.dart) (it fits; the website's
+  bottom bar shows "Announcements" in full at 320 px wide), the warning "It
+  stays in News for everyone else." in
+  [announcement_detail_screen.dart](lib/screens/announcement_detail_screen.dart),
+  and the comments that say "News tab". The feed screen's title already reads
+  Announcements. No backend change.
 - [ ] **Managing replaces a clash.** A person does one thing at a time, and
   managing wins. On the website an admin can assign someone who's busy at
   that time, and what they were doing comes off their day.
@@ -1556,8 +1604,8 @@ have it yet; see the to-do below.
     - `assign_manager_replacing_conflicts` deletes those registrations (the
       team triggers pass ownership to the earliest-joined teammate, delete an
       emptied team and tell teammates), removes them from the overlapping
-      managed sessions (and deletes those "You're managing" notices), adds
-      them to `session_volunteers`, and sends one "You're managing a
+      managed sessions (their old "You're managing" notice for each stays in
+      the feed and bell as a dated record), adds them to `session_volunteers`, and sends one "You're managing a
       session" notice that names what was taken off their day. No notice
       when an admin passes their own id. Returns `{outcome: 'assigned',
       replaced: [...]}`. Removed sign-ups aren't blocked from signing up

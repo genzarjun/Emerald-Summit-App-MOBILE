@@ -471,7 +471,8 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     overlapping sign-ups, overlapping managed sessions, with team details),
     and `assign_manager_replacing_conflicts(p_session_id, p_user_id)`, which
     removes all of that and assigns them in one transaction, with one notice
-    to the person. The registration triggers handle teams.
+    to the person. The registration triggers handle teams. Old "You're
+    managing" notices for replaced sessions stay as dated records.
     `assign_volunteer_to_session` and `set_session_manage` are unchanged.
     Run after `registrations_manage_overlap.sql`, `teams_ownership_setup.sql`,
     `team_leave_notices.sql` and `unassign_notification.sql`. Safe to

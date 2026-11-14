@@ -28,8 +28,9 @@
 --          joined teammate ("You're now the owner"), and teammates get
 --          "Teammate removed". Nothing goes into session_removals, so they
 --          can sign up for those sessions again later.
---       b. removes them as manager of every overlapping session, and deletes
---          the stale "You're managing …" notice for each.
+--       b. removes them as manager of every overlapping session. Its old
+--          "You're managing …" notice stays in their feed and bell, as a
+--          dated record; the new notice says they've stopped.
 --       c. adds them to session_volunteers (the usual co-organizer notices
 --          fire).
 --       d. sends them ONE personal notice that names what was replaced,
@@ -144,12 +145,9 @@ begin
 
   for v_item in select * from jsonb_array_elements(v_replaced) loop
     if v_item->>'kind' = 'managing' then
+      -- Their old "You're managing …" notice for it stays (a dated record).
       delete from public.session_volunteers
        where session_id = (v_item->>'session_id')::uuid and user_id = p_user_id;
-      -- The stale "You're managing …" notice for that session.
-      delete from public.announcements
-       where target_user_id = p_user_id
-         and session_id = (v_item->>'session_id')::uuid;
       v_lines := v_lines || format('"%s" (you were managing it)', v_item->>'title');
     else
       -- Triggers hand off or delete the team and tell teammates.
