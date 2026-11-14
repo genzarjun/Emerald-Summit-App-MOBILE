@@ -1189,6 +1189,14 @@ test/widget_test.dart       Widget tests
     exists for anyone who merely requested a sign-in code).
     [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql) (run on the dev
     project)
+    Anyone who passes the roster's gate can take someone off a session
+    (website only for now): `remove_session_registration` deletes the
+    registration, records it in `session_removals`, and sends a personal
+    "Removed from a session" notice; a `before insert` trigger on
+    `registrations` then refuses that person with `removed_from_session`
+    until `allow_back_to_session` lifts it. `fetch_session_removals` lists
+    them. [session_participant_removal.sql](supabase/session_participant_removal.sql)
+    (**not run yet**)
   - `announcements` gains `created_by` + `discipline_id`, **admin** write
     policies, and **Realtime**. [announcements_write_setup.sql](supabase/announcements_write_setup.sql)
     Later gains `target_user_id` for **personal** announcements (RLS: a targeted
@@ -1466,6 +1474,49 @@ before it launches. Tick an item off here when it lands.
   - Archie: [knowledge.md](supabase/archie/knowledge.md) still says only high
     schoolers can participate ("Who can attend", the roles table, the FAQ
     answer). Update those lines and re-upload the knowledge file.
+**Latest (Nov 13, 2026), website + backend:** organizers can remove someone
+from a session, e.g. an account that looks fake. On the website the
+Participants and Experts tabs have **Remove** on every row and a **Removed**
+list with **Allow back**, through the new RPCs in
+[session_participant_removal.sql](supabase/session_participant_removal.sql)
+(**not run yet**; the website hides the buttons until it is). The app doesn't
+have it yet; see the to-do below.
+
+- [ ] **Remove someone from a session.** Anyone who can see a session's
+  roster (admins, the volunteers assigned to it, and session editors for its
+  discipline) can take a participant, spectator or expert off it.
+  - Backend: [session_participant_removal.sql](supabase/session_participant_removal.sql)
+    (**not run yet**). Adds `session_removals (session_id, user_id,
+    participation_type, removed_by, removed_at)` (no client grants) and
+    `can_see_session_roster(p_session_id)`, which is `fetch_session_roster`'s
+    gate. `remove_session_registration(p_session_id, p_user_id)` deletes the
+    registration, upserts the `session_removals` row, sends the person a
+    personal "Removed from a session" announcement, and returns
+    `{outcome: 'removed' | 'not_registered' | 'cannot_remove_self'}`. The
+    existing registration triggers handle teams: an emptied team is deleted,
+    a removed owner's team goes to the earliest-joined member ("You're now
+    the owner"), and the other members get "X was removed from your team".
+    A `before insert` trigger on `registrations` raises
+    `removed_from_session` for anyone in `session_removals`.
+    `allow_back_to_session(p_session_id, p_user_id)` deletes that row (it
+    doesn't re-register them). `fetch_session_removals(p_session_id)`
+    returns `user_id, full_name, email, participation_type, removed_by_name,
+    removed_at`, newest first.
+  - Roster screen ([session_roster_screen.dart](lib/screens/session_roster_screen.dart),
+    or the person sheet in [roster_person_sheet.dart](lib/widgets/roster_person_sheet.dart)):
+    a **Remove** action for each person, with a
+    confirm: "They'll be taken off "<session>" and get a notice saying an
+    organizer removed them. They can't sign up for it again unless someone
+    allows them back." plus, for a team member, "Their teammates will be
+    told they were removed." or, for an owner, "They own a team, so it
+    passes to the teammate who joined first." Then refresh the roster.
+  - A **Removed** section at the bottom: name, type, "Removed by X", date,
+    and an **Allow back** button. Hide both while `fetch_session_removals`
+    errors (the SQL not run yet).
+  - Add to my day: map `removed_from_session` to "An organizer removed you
+    from this session, so you can't sign up for it again. If you think this
+    was a mistake, contact the summit team." (today the app shows its generic
+    error).
 - [ ] **Override a schedule clash when assigning.** On the website an admin
   can assign a volunteer to a session that overlaps one they already manage
   or are signed up for.
