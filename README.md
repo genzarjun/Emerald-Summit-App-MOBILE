@@ -1477,6 +1477,12 @@ date ("Thu, Nov 12", or "Nov 12, 2025" for another year) instead of "2d ago". Th
 Both are on the to-do list below.
 
 ### Website changes to bring into the app (to-do)
+Open items, in the order below: 8th graders in sessions · Remove someone
+from a session · Dates on older bell notes · Rename the News tab to
+Announcements · Managing replaces a clash · See and convert signed-up
+volunteers · Registration closed message · Universe subtitles · Archie and
+the FAQ. Checked against the website on Nov 13, 2026: everything else the
+website does, the app does too, apart from the website-only list at the end.
 Updated Nov 13, 2026. These shipped on the website and the app doesn't have
 them yet. The app isn't public yet, so none of them is urgent, but do them
 before it launches. Tick an item off here when it lands.
@@ -2212,11 +2218,31 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
     account stored as a function secret).
   - Foreground messages reuse the existing in-app banner
     ([lib/widgets/in_app_banner.dart](lib/widgets/in_app_banner.dart)).
-  - No in-app on/off switch: people turn push off in the phone's Settings,
-    which Profile's **Notifications** row opens. Don't gate sends on
-    `notifications_enabled`; the OS already drops pushes the person turned
-    off. Ask for permission the first time it's needed. On iPhone the app's
-    Settings page has no Notifications entry until it has asked.
+  - **When building it, in the app** (decided Nov 13, 2026; see **No
+    notification setting** above):
+    - [ ] Ask the phone for permission once, the first time the app opens
+      after push ships. iOS: `FirebaseMessaging.requestPermission()`.
+      Android 13 and up: the `POST_NOTIFICATIONS` runtime permission (add it
+      to `AndroidManifest.xml`); older Android needs no prompt. If they say
+      no, don't ask again.
+    - [ ] Keep Profile's **Notifications** row as it is: no switch, and it
+      opens the phone's notification settings for the app
+      (`AppSettings.openAppSettings(type: AppSettingsType.notification)`).
+      It's how someone who said no turns push on later. On iPhone the app's
+      Settings page only gets a Notifications entry once the app has asked,
+      which is why the first step comes first.
+    - [ ] Send to every device token in the audience. Don't filter by a
+      profile column (there isn't one: `notifications_enabled` is unused);
+      the phone drops pushes the person turned off.
+    - [ ] While the app is open, show the in-app banner instead of a system
+      notification, so nothing shows twice
+      (`FirebaseMessaging.onMessage` → `inAppBanner.show`). The banner
+      always shows; nothing mutes it.
+    - [ ] Tapping a push opens the post in Announcements, or the bell's list
+      for a personal notice, the same places the banner goes.
+    - [ ] Delete the device's token on sign-out, so the next person on that
+      phone doesn't get the last one's pushes.
+    - [ ] Nothing on the website: it has no browser push and no setting.
   - **Expert approvals:** also push the admins' *"Experts waiting for
     approval"* notice (posted by `refresh_expert_queue_notice` in
     [role_change_downgrades.sql](supabase/role_change_downgrades.sql)). The
