@@ -1458,6 +1458,9 @@ one go. Backend: `preview_manager_assignment` and
 [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
 (run on the dev project Nov 13, 2026). The app still refuses every clash; see
 the to-do below.
+Admins also see which volunteers are already signed up for a session (in
+the Volunteers tab and tagged in the Assign picker) and can **Make manager**
+in one click, which takes them off the roster; same RPCs, no new SQL.
 
 **Latest (Nov 13, 2026), website only:** a bell note from today still says
 "5m ago" / "3h ago", but once it's from an earlier calendar day it shows the
@@ -1629,9 +1632,30 @@ have it yet; see the to-do below.
   - Add to my day → Manage: on a `set_session_manage` conflict, the same
     dialog in the second person ("Replace what you're doing?") with
     **Manage instead**, calling the RPC with the admin's own id.
-  - Since this covers a volunteer signed up for the same session, the
-    untracked `convert_registrant_to_manager.sql` from another session isn't
-    needed and won't be run.
+- [ ] **See and convert signed-up volunteers.** On the website, an admin
+  sees which volunteers are already signed up for a session and can make one
+  its manager in a click. No new backend: it uses the two RPCs from
+  **Managing replaces a clash** above (do that first) plus
+  `fetch_session_roster`.
+  - Volunteers tab, admins only: under the managers, a **Volunteers signed up
+    for this session** list, from `fetch_session_roster` filtered to
+    `role = 'volunteer'` and minus anyone already managing. Each row: name,
+    "Signed up as participant" / "spectator" / "expert", email, and a **Make
+    manager** button. Hidden when empty; don't fetch the roster for
+    non-admins.
+  - Assign picker: those volunteers sort first with the same "Signed up as …"
+    tag, and tapping one opens the dialog below instead of calling
+    `assign_volunteer_to_session`.
+  - Dialog: call `preview_manager_assignment`, then show **Make Sam Lee a
+    manager?** with "This will make them a manager of this session, and they
+    will no longer be a participant of this session." ("a spectator" / "an
+    expert" for those types), the team line for the `registered_this` item
+    if they're on a team, and "It also takes these off their day, since they
+    overlap:" with any other items, then "They'll get a notice about the
+    change." **Cancel** / **Make manager**, which calls
+    `assign_manager_replacing_conflicts`. Toast: "Sam Lee now manages this
+    session and is off its roster. They've been told." Website code:
+    `src/components/session/MakeManagerDialog.tsx`.
 - [ ] **Registration closed message.** While `website_registration_open` is
   off, the website says "Registration will open on November 21st" for the
   `registration_closed` error; the app shows its generic error (see
