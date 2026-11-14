@@ -476,7 +476,7 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     `assign_volunteer_to_session` and `set_session_manage` are unchanged.
     Run after `registrations_manage_overlap.sql`, `teams_ownership_setup.sql`,
     `team_leave_notices.sql` and `unassign_notification.sql`. Safe to
-    re-run. *(Not run yet.)*
+    re-run. *(Run on the dev project 2026-11-13.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

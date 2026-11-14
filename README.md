@@ -375,7 +375,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   sheet and expert-queue notices; opens its session when it has one), and
   *"Coming up at 10:30 AM: AI Playground"* in the hour before a session you're
   in or managing. Each note shows "5m ago" / "2d ago" under it (the website
-  now shows a date, or a time for today's notes; see the website to-do list).
+  shows a date instead once a note is from an earlier day; see the website
+  to-do list).
   Tap a note to mark it read; **Mark all as read** clears the
   bell. Rows live in `notifications` and are written only by the backend
   ([notifications_setup.sql](supabase/notifications_setup.sql)): triggers on
@@ -1455,12 +1456,12 @@ overlapping managed sessions, and what happens to their team) and, on
 one go. Backend: `preview_manager_assignment` and
 `assign_manager_replacing_conflicts` in
 [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
-(**not run yet**). The app still refuses every clash; see the to-do below.
+(run on the dev project Nov 13, 2026). The app still refuses every clash; see
+the to-do below.
 
-**Latest (Nov 13, 2026), website only:** every note in the bell's
-Notifications list shows a date at the right of its title, and a time when
-it's from today ("Today, 3:45 PM", "Thu, Nov 12", "Nov 12, 2025"), instead of
-"5m ago". The **News** tab is now called **Announcements** on the website.
+**Latest (Nov 13, 2026), website only:** a bell note from today still says
+"5m ago" / "3h ago", but once it's from an earlier calendar day it shows the
+date ("Thu, Nov 12", or "Nov 12, 2025" for another year) instead of "2d ago". The **News** tab is now called **Announcements** on the website.
 Both are on the to-do list below.
 
 ### Website changes to bring into the app (to-do)
@@ -1550,37 +1551,40 @@ have it yet; see the to-do below.
     from this session, so you can't sign up for it again. If you think this
     was a mistake, contact the summit team." (today the app shows its generic
     error).
-- [ ] **Date and time on every bell note.** The website's bell no longer says
-  "5m ago" / "2d ago"; each note shows when it arrived, right-aligned on its
-  title row, in the phone's time zone:
-  - from today (the calendar day, not the last 24 hours): **Today, 3:45 PM**;
-  - an earlier day this year: **Thu, Nov 12**;
+- [ ] **Dates on older bell notes.** On the website, a note from today keeps
+  the app's relative stamp, and anything older shows its date. The stamp sits
+  right-aligned on the title row, in the phone's time zone:
+  - today, under a minute: **just now**; under an hour: **5m ago**; earlier
+    today: **3h ago** (as the app does now);
+  - an earlier calendar day this year: **Thu, Nov 12** (replaces "1d ago",
+    "2d ago", …);
   - another year: **Nov 12, 2025**.
 
-  A note from 11 PM yesterday is **Wed, Nov 11**, not a time. The website
-  shows the full date and time on hover ("Thursday, November 12, 2026 at 9:05
-  AM"); the app can show it on long-press or leave it out. The rule and its
-  tests are `notificationStamp` / `notificationFullTime` in the website's
-  `src/models/notifications.ts` and `src/pages/__tests__/NotificationsPage.test.tsx`.
+  "Today" is the calendar day, not the last 24 hours: at noon, a note from
+  11 PM yesterday is **Wed, Nov 11**, not "13h ago", and one from 12:05 AM
+  today is **11h ago**. The website shows the full date and time on hover
+  ("Thursday, November 12, 2026 at 9:05 AM"); the app can show it on
+  long-press or leave it out. The rule and its tests are `notificationStamp`
+  / `notificationFullTime` in the website's `src/models/notifications.ts` and
+  `src/pages/__tests__/NotificationsPage.test.tsx`.
   **Why the app needs it:** "2d ago" doesn't say which day a note came from,
-  and a bell that says "Today, 9:05 AM" on the website and "3h ago" on the
-  phone for the same note looks broken; a person checking which reminder or
-  schedule change came first needs real times. In the app:
-  - Replace `AppNotification.timeAgo` in [models.dart](lib/models/models.dart)
-    with a stamp getter. The app has no `intl` dependency; either add it
-    (`DateFormat.jm()` for today, `'EEE, MMM d'` this year, `'MMM d, y'`
-    otherwise) or format by hand with short month/weekday name lists and
-    `MaterialLocalizations.formatTimeOfDay` for the time, as
+  so someone checking when a schedule change or team notice arrived has to
+  count back, and the same note would read "Wed, Nov 11" on the website and
+  "1d ago" on the phone.
+  In the app:
+  - In `AppNotification.timeAgo` ([models.dart](lib/models/models.dart)), keep
+    the minutes/hours branches only while `createdAt.toLocal()` is on today's
+    date; otherwise return the date. The app has no `intl` dependency; either
+    add it (`DateFormat('EEE, MMM d')` this year, `DateFormat('MMM d, y')`
+    otherwise) or use `MaterialLocalizations.formatShortMonthDay` as
     [archie_insights_screen.dart](lib/screens/archie_insights_screen.dart)
-    does. Compare calendar days on `createdAt.toLocal()`.
-  - In [notifications_screen.dart](lib/screens/notifications_screen.dart)
-    (line ~141 joins `item.body` and `item.timeAgo` in the subtitle), move
-    the stamp to the right of the title, like the website, and drop it from
-    the subtitle.
-  - Add tests for the four cases, including the just-after-midnight one.
-  - Not needed for the News/Announcements feed's own `timeAgo`
-    ([dashboard_screen.dart](lib/screens/dashboard_screen.dart) and the
-    feed); only the bell changed.
+    does (that needs a `BuildContext`, so it would move to
+    [notifications_screen.dart](lib/screens/notifications_screen.dart)).
+  - In notifications_screen.dart (line ~141 joins `item.body` and
+    `item.timeAgo` in the subtitle), move the stamp to the right of the
+    title, like the website, and drop it from the subtitle.
+  - Add tests for each case, including 11 PM yesterday and 12:05 AM today.
+  - Only the bell changes; the News feed's own `timeAgo` stays.
 - [ ] **Rename the News tab to Announcements.** The website calls it
   Announcements everywhere (sidebar, bottom bar, page title, Home shortcut,
   composer hints, remove-from-feed warning). In the app: the tab `label:
@@ -1594,7 +1598,8 @@ have it yet; see the to-do below.
   managing wins. On the website an admin can assign someone who's busy at
   that time, and what they were doing comes off their day.
   - Backend: [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
-    (**not run yet**), admin only, both RPCs take `(p_session_id, p_user_id)`:
+    (run on the dev project Nov 13, 2026), admin only, both RPCs take
+    `(p_session_id, p_user_id)`:
     - `preview_manager_assignment` → `{already_managing, replaces: [...]}`.
       Each item has `session_id`, `title`, `start_time`, `end_time`, `kind`
       (`registered_this` = signed up for this same session, `registered` =
@@ -1626,7 +1631,7 @@ have it yet; see the to-do below.
     **Manage instead**, calling the RPC with the admin's own id.
   - Since this covers a volunteer signed up for the same session, the
     untracked `convert_registrant_to_manager.sql` from another session isn't
-    needed.
+    needed and won't be run.
 - [ ] **Registration closed message.** While `website_registration_open` is
   off, the website says "Registration will open on November 21st" for the
   `registration_closed` error; the app shows its generic error (see
