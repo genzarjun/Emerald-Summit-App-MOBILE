@@ -1165,7 +1165,11 @@ test/widget_test.dart       Widget tests
     [session_organizer_notices.sql](supabase/session_organizer_notices.sql),
     [assignment_notifications.sql](supabase/assignment_notifications.sql),
     [unassign_notification.sql](supabase/unassign_notification.sql),
-    [session_participation_setup.sql](supabase/session_participation_setup.sql)
+    [session_participation_setup.sql](supabase/session_participation_setup.sql).
+    Admins can assign over a time clash with
+    `assign_volunteer_overriding_conflict` (website only for now), which sets
+    `session_volunteers.conflict_override`:
+    [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
   - `summit_checkins` + attendance RPCs — session rosters
     (`fetch_session_roster`, which also returns each registrant's
     participation type, answers, project/team, whether they own the team, and
@@ -1412,6 +1416,15 @@ Gallery strip, and signed-in people get **Sessions similar to this** with each
 card's photo, using the app's `suggestedSessions` rule. No backend change was
 needed. Details are in the website README's **Sessions** section.
 
+**Latest (Nov 13, 2026), website + backend:** admins can override a schedule
+clash when assigning a volunteer. A refused assignment on the website now
+offers **Assign anyway** (and an admin's own refused Manage offers **Manage
+anyway**), through the new `assign_volunteer_overriding_conflict` RPC in
+[volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
+(**not run yet**). The row gets `session_volunteers.conflict_override = true`
+and the Volunteers tab tags that person **Overlap approved**. The app still
+refuses every clash; see the to-do below.
+
 ### Website changes to bring into the app (to-do)
 Updated Nov 13, 2026. These shipped on the website and the app doesn't have
 them yet. The app isn't public yet, so none of them is urgent, but do them
@@ -1453,6 +1466,31 @@ before it launches. Tick an item off here when it lands.
   - Archie: [knowledge.md](supabase/archie/knowledge.md) still says only high
     schoolers can participate ("Who can attend", the roles table, the FAQ
     answer). Update those lines and re-upload the knowledge file.
+- [ ] **Override a schedule clash when assigning.** On the website an admin
+  can assign a volunteer to a session that overlaps one they already manage
+  or are signed up for.
+  - Backend: [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
+    (**not run yet**). Adds `session_volunteers.conflict_override` (default
+    false) and `assign_volunteer_overriding_conflict(p_session_id,
+    p_user_id)`, admin only. It skips the overlap checks, sets
+    `conflict_override` when there was a clash, and returns
+    `{outcome: 'assigned', conflicting_title}`. It still returns `conflict` /
+    `registered_this` for someone signed up for this same session. The
+    volunteer's "You're managing a session" notice adds "It overlaps with
+    "X", which is also on your schedule. An admin approved the overlap." An
+    admin passing their own id gets no notice.
+  - Volunteers tab: when `assign_volunteer_to_session` returns a clash with
+    another session, the dialog reads "Sam is already on "X" at the same
+    time. You can assign them anyway if they'll cover both." with **Cancel**
+    and **Assign anyway** (calls the new RPC). A `registered_this` refusal
+    keeps the single **Got it**. Admins read `conflict_override` from
+    `session_volunteers` and show an **Overlap approved** tag by the name.
+  - Add to my day → Manage: on a clash, "… You can manage it anyway if
+    you'll cover both." with **Manage anyway** (the new RPC with the admin's
+    own id).
+  - Volunteer hours: summit-day hours count each managed session in full,
+    so an overridden pair counts both. Decide whether that's right before
+    the summit (the hours sheet sync does the same).
 - [ ] **Registration closed message.** While `website_registration_open` is
   off, the website says "Registration will open on November 21st" for the
   `registration_closed` error; the app shows its generic error (see

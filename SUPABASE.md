@@ -464,6 +464,17 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     Run after `registration_closed_lock.sql`; it carries that check over.
     Safe to re-run. *(Run on the dev project 2026-11-13.)*
 
+62. `supabase/volunteer_conflict_override.sql`: **admins can assign over a
+    time clash.** Adds `session_volunteers.conflict_override` (default false)
+    and the admin-only `assign_volunteer_overriding_conflict(p_session_id,
+    p_user_id)`, which assigns a volunteer (or the admin themself) even when
+    they manage or are signed up for another session at the same time, and
+    marks the row. It still refuses someone signed up for that same session
+    (`registered_this`). `assign_volunteer_to_session` and
+    `set_session_manage` are unchanged. Run after
+    `registrations_manage_overlap.sql` and `session_organizer_notices.sql`.
+    Safe to re-run. *(Not run yet.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 
