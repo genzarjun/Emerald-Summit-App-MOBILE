@@ -204,7 +204,19 @@ class _SignInScreenState extends State<SignInScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.eco, size: 56, color: theme.colorScheme.primary),
+                  // The dragon badge sits on white, so clip it to a disc;
+                  // that keeps it clean on the dark theme too.
+                  Center(
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/branding/logo.png',
+                        width: 112,
+                        height: 112,
+                        fit: BoxFit.cover,
+                        semanticLabel: 'Emerald Summit logo',
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Emerald Summit ’27',

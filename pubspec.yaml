@@ -89,6 +89,8 @@ flutter:
   assets:
     # Archie, the in-app assistant's dragon mascot (transparent background).
     - assets/branding/archie.png
+    # The Emerald Summit dragon badge, shown on the sign-in screen.
+    - assets/branding/logo.png
 
   fonts:
     # Phosphor duotone icons (phosphoricons.com, MIT; license beside the
