@@ -1218,7 +1218,8 @@ test/widget_test.dart       Widget tests
     per file with `getPublicUrl`. Public read/**list** + **admin** write on the
     bucket's objects (the list policy is intentional here). Different parts of
     the app point at different buckets — the **dashboard slideshow** reads
-    `gallery_photos` (`AppState.dashboardGalleryBucket`); a new section just adds
+    `gallery_photos` (`AppState.dashboardGalleryBucket`; the website's Home
+    slideshow lists the same bucket); a new section just adds
     a new bucket + a `fetchPhotos` call. This is the **first use of Supabase
     Storage**. [gallery_setup.sql](supabase/gallery_setup.sql)
   - **Session photos = the `session_photos` bucket**, one folder per session id
@@ -1342,7 +1343,8 @@ porting surface. Everything in the "Data model" section above is Supabase's
 
 ## Website sync: one backend for the app and the website
 
-**Status: nearly at par** (updated Nov 11, 2026; planned Oct 27). The website
+**Status: at par** (updated Nov 13, 2026; planned Oct 27). The website does
+everything the app does except Archie and front-desk check-in. The website
 ([dogethecoderr/Emerald-Summit-Website](https://github.com/dogethecoderr/Emerald-Summit-Website),
 React + TypeScript + Vite, deployed on Vercel at
 `https://emerald-summit.vercel.app`) has moved off its own Supabase
@@ -1392,10 +1394,9 @@ Done on the website, against this backend:
   icons, discipline palettes copied exactly.
 
 Not on the website yet: Archie and Archie insights (phase 8; the website's
-Archie tab says "Coming soon", since each chat is a paid Claude call), front-desk
-check-in (app-only on purpose), the discipline editor, and three parts of
-Home: the photo slideshow (`gallery_photos`), the quote card and the Links
-card. Discover still uses the website's fixed list of six disciplines.
+Archie tab says "Coming soon", since each chat is a paid Claude call) and
+front-desk check-in (app-only on purpose). Push notifications are app-only;
+the website shows the app's in-app banner as a toast instead.
 
 **Nothing website-only (checked Nov 11, 2026).** The website had grown a few
 things the app doesn't do; they were removed so the two behave the same:
@@ -1423,6 +1424,22 @@ session page shows the hero (or the first photo when none is set) and the
 Gallery strip, and signed-in people get **Sessions similar to this** with each
 card's photo, using the app's `suggestedSessions` rule. No backend change was
 needed. Details are in the website README's **Sessions** section.
+
+**Also Nov 13, 2026, website only (an app-to-website audit):** Discover now
+reads the `disciplines` table in its `sort_order`, like the app, and admins
+get **New discipline** (the app's discipline editor: id, name, tagline, icon).
+Home has the app's photo slideshow (`gallery_photos`), quote card and Links
+card. My Day has the app's day summary line ("N sessions · X booked", "N open
+sessions still fit around these. Find one"). A new post that reaches someone
+while the site is open shows the app's in-app banner rule as a toast. Phone
+numbers in the Volunteer hub and a session's Volunteers tab get the app's
+copy, Call and Text, and session rosters show each person's mobile number and
+all their sign-up answers, as the app's roster person sheet does. Switching
+Discover to the table made the website show the table's subtitles, which are
+still the old ones: run [universe_subtitles.sql](supabase/universe_subtitles.sql)
+(see the to-do below). The website also orders the disciplines by the table
+now (TechVerse, VentureVerse, BioSphere, NovaSphere, CivicVerse, ImagineX);
+the public landing page keeps its own order.
 
 **Latest (Nov 13, 2026), website + backend:** admins can override a schedule
 clash when assigning a volunteer. A refused assignment on the website now
@@ -1549,9 +1566,11 @@ have it yet; see the to-do below.
 - [ ] **Universe subtitles.** The website renamed four: ImagineX "Arts,
   Literature, Music, Drama & Improv", NovaSphere "Core Sciences, Climate
   Change & Sustainability", VentureVerse "Entrepreneurship & Marketing",
-  CivicVerse "Mock Trial, Government Policy & Rights". The app shows each
-  discipline's `tagline` from the database, so change them in the app's
-  discipline editor (no code change).
+  CivicVerse "Mock Trial, Government Policy & Rights". The app and now the
+  website show each discipline's `tagline` from the database. Neither client
+  can edit a discipline (the app's editor only creates one), so run
+  [universe_subtitles.sql](supabase/universe_subtitles.sql) in the SQL Editor
+  (not run yet). No code change.
 - [ ] **Archie and the FAQ.** The website's FAQ added why the Summit is in
   January, whether a project needs to be perfect, and why there are no awards
   (every participant gets a certificate of participation). Add them to
