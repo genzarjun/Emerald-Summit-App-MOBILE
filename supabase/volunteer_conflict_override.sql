@@ -1,47 +1,130 @@
--- Emerald Summit — admins can assign a volunteer despite a schedule clash
--- Run AFTER registrations_manage_overlap.sql and session_organizer_notices.sql.
--- Safe to re-run. Additive only: nothing the app reads changes.
+-- Emerald Summit — managing a session replaces whatever it clashes with
+-- Run AFTER registrations_manage_overlap.sql, teams_ownership_setup.sql,
+-- team_leave_notices.sql and unassign_notification.sql. Safe to re-run.
+-- Additive only: no existing function changes, so app builds keep working.
 --
--- assign_volunteer_to_session and set_session_manage refuse anyone who already
--- manages or is signed up for a session at the same time. That stays the
--- default. This file lets an admin knowingly override it:
+-- A person does one thing at a time at the summit. assign_volunteer_to_session
+-- and set_session_manage refuse anyone already busy at that time, and they
+-- still do (the app uses them). These two admin-only RPCs let an admin assign
+-- the person anyway, and the managed session WINS:
 --
---  1. session_volunteers.conflict_override (boolean, default false). True on
---     an assignment an admin made over a time clash, so the website can mark
---     it. Admins read it straight from the table (RLS already lets them); a
---     volunteer can read it on their own rows.
---  2. assign_volunteer_overriding_conflict(p_session_id, p_user_id), admin
---     only. Same as assign_volunteer_to_session, but an overlap with another
---     session the person manages or is signed up for doesn't stop it. It
---     still refuses someone signed up for THIS session ('conflict' with
---     conflict_kind 'registered_this'): a manager runs a session, they don't
---     also take part in it, so they remove it from their day first.
---     An admin can pass their own id to manage a session over a clash (the
---     override for set_session_manage); they get no "You're managing" notice.
---     Returns {outcome: 'assigned', conflicting_title: <title or null>}.
+--  1. preview_manager_assignment(p_session_id, p_user_id) → jsonb
+--     What assigning would take off their day, so the admin sees it first:
+--       { "already_managing": bool,
+--         "replaces": [ { "session_id", "title", "start_time", "end_time",
+--                         "kind": "registered_this" | "registered" | "managing",
+--                         "participation_type",          -- registrations only
+--                         "team_name", "team_owner",     -- null when solo
+--                         "teammates" } ] }              -- others on the team
+--     'registered_this' = signed up for THIS session: they'll manage it
+--     instead of taking part. 'registered' / 'managing' = another session at
+--     the same time, which is dropped.
 --
--- The old RPCs are unchanged, so app builds keep refusing clashes as before.
--- The app has no override button yet (see the README's website to-do list).
--- Note: summit-day hours are counted per managed session, so an overridden
--- assignment counts both overlapping sessions in full.
+--  2. assign_manager_replacing_conflicts(p_session_id, p_user_id) → jsonb
+--     In one transaction:
+--       a. deletes their registration for this session and every registration
+--          that overlaps it. The registration triggers do the team work: an
+--          emptied team is deleted, an owner's team passes to the earliest-
+--          joined teammate ("You're now the owner"), and teammates get
+--          "Teammate removed". Nothing goes into session_removals, so they
+--          can sign up for those sessions again later.
+--       b. removes them as manager of every overlapping session, and deletes
+--          the stale "You're managing …" notice for each.
+--       c. adds them to session_volunteers (the usual co-organizer notices
+--          fire).
+--       d. sends them ONE personal notice that names what was replaced,
+--          tagged with session_id so unassigning removes it. An admin passing
+--          their own id (self-manage) gets no notice.
+--     Returns { "outcome": "assigned", "replaced": [ same items as above ] }.
+--
+-- Summit-day volunteer hours follow session_volunteers, so they follow the
+-- replacement too; nothing double-counts.
 
--- 1. Column ------------------------------------------------------------------
-alter table public.session_volunteers
-  add column if not exists conflict_override boolean not null default false;
-
--- 2. Override RPC ------------------------------------------------------------
-create or replace function public.assign_volunteer_overriding_conflict(
+-- What the person is doing during p_session_id (this session's sign-up, plus
+-- anything overlapping). Internal; both RPCs below use it.
+create or replace function public.manager_assignment_conflicts(
   p_session_id uuid, p_user_id uuid)
 returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $function$
+language sql stable security definer set search_path = public as $$
+  with target as (
+    select * from public.sessions where id = p_session_id
+  ), items as (
+    select s.id as session_id, s.title, s.start_time, s.end_time,
+           case when s.id = p_session_id then 'registered_this' else 'registered' end as kind,
+           r.participation_type, t.project_name as team_name,
+           (t.id is not null and t.owner_id = p_user_id) as team_owner,
+           (select count(*) from public.registrations o
+             where t.id is not null and o.team_id = t.id
+               and o.user_id <> p_user_id)::int as teammates,
+           case when s.id = p_session_id then 0 else 1 end as ord
+      from public.registrations r
+      join public.sessions s on s.id = r.session_id
+      left join public.teams t on t.id = r.team_id
+      cross join target v
+     where r.user_id = p_user_id
+       and (s.id = p_session_id
+            or (v.start_time::time < s.end_time::time
+                and s.start_time::time < v.end_time::time))
+    union all
+    select s.id, s.title, s.start_time, s.end_time, 'managing',
+           null, null, null, null, 2
+      from public.session_volunteers sv
+      join public.sessions s on s.id = sv.session_id
+      cross join target v
+     where sv.user_id = p_user_id and s.id <> p_session_id
+       and v.start_time::time < s.end_time::time
+       and s.start_time::time < v.end_time::time
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'session_id', session_id, 'title', title,
+           'start_time', start_time, 'end_time', end_time, 'kind', kind,
+           'participation_type', participation_type,
+           'team_name', team_name, 'team_owner', team_owner,
+           'teammates', teammates)
+         order by ord, start_time, title), '[]'::jsonb)
+    from items;
+$$;
+
+revoke execute on function public.manager_assignment_conflicts(uuid, uuid)
+  from public, anon, authenticated;
+
+-- 1. Preview -----------------------------------------------------------------
+create or replace function public.preview_manager_assignment(
+  p_session_id uuid, p_user_id uuid)
+returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only admins may assign volunteers';
+  end if;
+  if not exists (select 1 from public.sessions where id = p_session_id) then
+    raise exception 'Session not found';
+  end if;
+  if exists (select 1 from public.session_volunteers
+              where session_id = p_session_id and user_id = p_user_id) then
+    return jsonb_build_object('already_managing', true, 'replaces', '[]'::jsonb);
+  end if;
+  return jsonb_build_object(
+    'already_managing', false,
+    'replaces', public.manager_assignment_conflicts(p_session_id, p_user_id));
+end;
+$$;
+
+revoke execute on function public.preview_manager_assignment(uuid, uuid) from public, anon;
+grant execute on function public.preview_manager_assignment(uuid, uuid) to authenticated;
+
+-- 2. Assign, replacing clashes -----------------------------------------------
+create or replace function public.assign_manager_replacing_conflicts(
+  p_session_id uuid, p_user_id uuid)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
 declare
-  v_sess  public.sessions%rowtype;
-  v_clash text;
-  v_disc  text;
-  v_self  boolean := p_user_id = auth.uid();
+  v_sess     public.sessions%rowtype;
+  v_disc     text;
+  v_replaced jsonb;
+  v_item     jsonb;
+  v_lines    text[] := '{}';
+  v_self     boolean := p_user_id = auth.uid();
 begin
   if not public.is_admin() then
     raise exception 'Only admins may assign volunteers';
@@ -49,7 +132,7 @@ begin
 
   if exists (select 1 from public.session_volunteers
              where session_id = p_session_id and user_id = p_user_id) then
-    return jsonb_build_object('outcome', 'assigned');
+    return jsonb_build_object('outcome', 'assigned', 'replaced', '[]'::jsonb);
   end if;
 
   select * into v_sess from public.sessions where id = p_session_id;
@@ -57,36 +140,41 @@ begin
     raise exception 'Session not found';
   end if;
 
-  -- Signed up for this very session: still refused, override or not.
-  if exists (select 1 from public.registrations
-              where user_id = p_user_id and session_id = p_session_id) then
-    return jsonb_build_object('outcome', 'conflict',
-                              'conflicting_title', v_sess.title,
-                              'conflict_kind', 'registered_this');
-  end if;
+  v_replaced := public.manager_assignment_conflicts(p_session_id, p_user_id);
 
-  -- Find the clash being overridden (managed sessions first, then sign-ups),
-  -- only to record it and name it in the notice.
-  select s.title into v_clash
-    from public.session_volunteers sv
-    join public.sessions s on s.id = sv.session_id
-   where sv.user_id = p_user_id and s.id <> p_session_id
-     and v_sess.start_time::time < s.end_time::time
-     and s.start_time::time     < v_sess.end_time::time
-   limit 1;
-  if v_clash is null then
-    select s.title into v_clash
-      from public.registrations r
-      join public.sessions s on s.id = r.session_id
-     where r.user_id = p_user_id and s.id <> p_session_id
-       and v_sess.start_time::time < s.end_time::time
-       and s.start_time::time     < v_sess.end_time::time
-     limit 1;
-  end if;
+  for v_item in select * from jsonb_array_elements(v_replaced) loop
+    if v_item->>'kind' = 'managing' then
+      delete from public.session_volunteers
+       where session_id = (v_item->>'session_id')::uuid and user_id = p_user_id;
+      -- The stale "You're managing …" notice for that session.
+      delete from public.announcements
+       where target_user_id = p_user_id
+         and session_id = (v_item->>'session_id')::uuid;
+      v_lines := v_lines || format('"%s" (you were managing it)', v_item->>'title');
+    else
+      -- Triggers hand off or delete the team and tell teammates.
+      delete from public.registrations
+       where session_id = (v_item->>'session_id')::uuid and user_id = p_user_id;
+      if v_item->>'kind' = 'registered_this' then
+        v_lines := v_lines || format('your sign-up to %s in "%s" (you''ll run it instead)',
+          case v_item->>'participation_type'
+            when 'expert' then 'serve as an expert'
+            when 'spectator' then 'spectate'
+            else 'participate' end,
+          v_item->>'title');
+      else
+        v_lines := v_lines || format('"%s" (you were signed up to %s)',
+          v_item->>'title',
+          case v_item->>'participation_type'
+            when 'expert' then 'serve as an expert'
+            when 'spectator' then 'spectate'
+            else 'participate' end);
+      end if;
+    end if;
+  end loop;
 
-  insert into public.session_volunteers
-    (session_id, user_id, assigned_by, conflict_override)
-    values (p_session_id, p_user_id, auth.uid(), v_clash is not null);
+  insert into public.session_volunteers (session_id, user_id, assigned_by)
+    values (p_session_id, p_user_id, auth.uid());
 
   if not v_self then
     select name into v_disc from public.disciplines where id = v_sess.discipline_id;
@@ -97,20 +185,17 @@ begin
       'You''re managing a session',
       format('You have been assigned to manage "%s" in %s.',
              v_sess.title, coalesce(v_disc, 'the summit'))
-        || case when v_clash is not null
-             then format(' It overlaps with "%s", which is also on your schedule. '
-                         'An admin approved the overlap.', v_clash)
+        || case when cardinality(v_lines) > 0
+             then ' You can only do one thing at a time, so an admin took this off '
+                  || 'your day: ' || array_to_string(v_lines, '; ') || '.'
              else '' end,
       'Summit Admin', 'Personal', false,
       v_sess.discipline_id, auth.uid(), p_user_id, p_session_id);
   end if;
 
-  return jsonb_build_object('outcome', 'assigned',
-                            'conflicting_title', v_clash);
+  return jsonb_build_object('outcome', 'assigned', 'replaced', v_replaced);
 end;
-$function$;
+$$;
 
-revoke execute on function public.assign_volunteer_overriding_conflict(uuid, uuid)
-  from public, anon;
-grant execute on function public.assign_volunteer_overriding_conflict(uuid, uuid)
-  to authenticated;
+revoke execute on function public.assign_manager_replacing_conflicts(uuid, uuid) from public, anon;
+grant execute on function public.assign_manager_replacing_conflicts(uuid, uuid) to authenticated;

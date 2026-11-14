@@ -1166,9 +1166,12 @@ test/widget_test.dart       Widget tests
     [assignment_notifications.sql](supabase/assignment_notifications.sql),
     [unassign_notification.sql](supabase/unassign_notification.sql),
     [session_participation_setup.sql](supabase/session_participation_setup.sql).
-    Admins can assign over a time clash with
-    `assign_volunteer_overriding_conflict` (website only for now), which sets
-    `session_volunteers.conflict_override`:
+    A person does one thing at a time, so managing takes precedence: an admin
+    can assign someone who's busy at that time with
+    `assign_manager_replacing_conflicts`, which takes their clashing sign-ups
+    (this session's included) and managed sessions off their day, after
+    `preview_manager_assignment` shows the admin what that removes (website
+    only for now):
     [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
   - `summit_checkins` + attendance RPCs — session rosters
     (`fetch_session_roster`, which also returns each registrant's
@@ -1441,14 +1444,16 @@ still the old ones: run [universe_subtitles.sql](supabase/universe_subtitles.sql
 now (TechVerse, VentureVerse, BioSphere, NovaSphere, CivicVerse, ImagineX);
 the public landing page keeps its own order.
 
-**Latest (Nov 13, 2026), website + backend:** admins can override a schedule
-clash when assigning a volunteer. A refused assignment on the website now
-offers **Assign anyway** (and an admin's own refused Manage offers **Manage
-anyway**), through the new `assign_volunteer_overriding_conflict` RPC in
+**Latest (Nov 13, 2026), website + backend:** managing a session takes
+precedence over anything the person was doing at that time. When an admin
+assigns a volunteer (or themself) who's busy then, the website lists what
+comes off their day (their sign-up for this session, overlapping sign-ups,
+overlapping managed sessions, and what happens to their team) and, on
+**Assign and replace** / **Manage instead**, removes those and assigns them in
+one go. Backend: `preview_manager_assignment` and
+`assign_manager_replacing_conflicts` in
 [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
-(**not run yet**). The row gets `session_volunteers.conflict_override = true`
-and the Volunteers tab tags that person **Overlap approved**. The app still
-refuses every clash; see the to-do below.
+(**not run yet**). The app still refuses every clash; see the to-do below.
 
 ### Website changes to bring into the app (to-do)
 Updated Nov 13, 2026. These shipped on the website and the app doesn't have
@@ -1537,31 +1542,43 @@ have it yet; see the to-do below.
     from this session, so you can't sign up for it again. If you think this
     was a mistake, contact the summit team." (today the app shows its generic
     error).
-- [ ] **Override a schedule clash when assigning.** On the website an admin
-  can assign a volunteer to a session that overlaps one they already manage
-  or are signed up for.
+- [ ] **Managing replaces a clash.** A person does one thing at a time, and
+  managing wins. On the website an admin can assign someone who's busy at
+  that time, and what they were doing comes off their day.
   - Backend: [volunteer_conflict_override.sql](supabase/volunteer_conflict_override.sql)
-    (**not run yet**). Adds `session_volunteers.conflict_override` (default
-    false) and `assign_volunteer_overriding_conflict(p_session_id,
-    p_user_id)`, admin only. It skips the overlap checks, sets
-    `conflict_override` when there was a clash, and returns
-    `{outcome: 'assigned', conflicting_title}`. It still returns `conflict` /
-    `registered_this` for someone signed up for this same session. The
-    volunteer's "You're managing a session" notice adds "It overlaps with
-    "X", which is also on your schedule. An admin approved the overlap." An
-    admin passing their own id gets no notice.
-  - Volunteers tab: when `assign_volunteer_to_session` returns a clash with
-    another session, the dialog reads "Sam is already on "X" at the same
-    time. You can assign them anyway if they'll cover both." with **Cancel**
-    and **Assign anyway** (calls the new RPC). A `registered_this` refusal
-    keeps the single **Got it**. Admins read `conflict_override` from
-    `session_volunteers` and show an **Overlap approved** tag by the name.
-  - Add to my day → Manage: on a clash, "… You can manage it anyway if
-    you'll cover both." with **Manage anyway** (the new RPC with the admin's
-    own id).
-  - Volunteer hours: summit-day hours count each managed session in full,
-    so an overridden pair counts both. Decide whether that's right before
-    the summit (the hours sheet sync does the same).
+    (**not run yet**), admin only, both RPCs take `(p_session_id, p_user_id)`:
+    - `preview_manager_assignment` → `{already_managing, replaces: [...]}`.
+      Each item has `session_id`, `title`, `start_time`, `end_time`, `kind`
+      (`registered_this` = signed up for this same session, `registered` =
+      signed up for an overlapping one, `managing` = manages an overlapping
+      one), `participation_type`, `team_name`, `team_owner`, `teammates`
+      (others on the team).
+    - `assign_manager_replacing_conflicts` deletes those registrations (the
+      team triggers pass ownership to the earliest-joined teammate, delete an
+      emptied team and tell teammates), removes them from the overlapping
+      managed sessions (and deletes those "You're managing" notices), adds
+      them to `session_volunteers`, and sends one "You're managing a
+      session" notice that names what was taken off their day. No notice
+      when an admin passes their own id. Returns `{outcome: 'assigned',
+      replaced: [...]}`. Removed sign-ups aren't blocked from signing up
+      again.
+  - Volunteers tab: when `assign_volunteer_to_session` returns `conflict`,
+    call the preview and show **Replace what they're doing?**: "Sam Lee can
+    only do one thing at a time. Managing "X" takes these off their day:",
+    one line per item, e.g. "Their sign-up to participate in this session.
+    They'll manage it instead.", ""Bio Lab", where they're signed up to
+    spectate.", ""Drone Lab", which they manage. They'll stop managing it.",
+    plus the team line ("They own "Rover"; it passes to the teammate who
+    joined first." / "Their teammates on "Rover" are told." / "Their team
+    "Rover" has no one else, so it's deleted."), then "They'll get a notice
+    listing these changes." with **Cancel** and **Assign and replace**.
+    Wording is `describeReplacement` in the website's `src/services/organizer.ts`.
+  - Add to my day → Manage: on a `set_session_manage` conflict, the same
+    dialog in the second person ("Replace what you're doing?") with
+    **Manage instead**, calling the RPC with the admin's own id.
+  - Since this covers a volunteer signed up for the same session, the
+    untracked `convert_registrant_to_manager.sql` from another session isn't
+    needed.
 - [ ] **Registration closed message.** While `website_registration_open` is
   off, the website says "Registration will open on November 21st" for the
   `registration_closed` error; the app shows its generic error (see
