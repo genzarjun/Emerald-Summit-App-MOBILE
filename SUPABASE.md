@@ -455,6 +455,15 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     from anywhere in an hour. Run it, then redeploy `dev-login`. Safe to
     re-run. *(Not run yet.)*
 
+61. `supabase/eighth_grade_participation.sql`: **8th graders participate
+    only where allowed.** Adds `sessions.allow_eighth_graders` (default
+    false), rebuilds `sessions_with_counts` with it, adds `grade_number`, and
+    makes `register_for_session` refuse a new participant in 8th grade on a
+    session without the box (`eighth_grade_not_allowed`) or in 7th grade and
+    below (`middle_school_not_allowed`). Spectating stays open to everyone.
+    Run after `registration_closed_lock.sql`; it carries that check over.
+    Safe to re-run. *(Not run yet.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

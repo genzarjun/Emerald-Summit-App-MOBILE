@@ -1400,6 +1400,68 @@ tabs (Home, Schedule, Discover, News, Archie) with Profile as an avatar in the
 top bar, and the Profile switch is labelled **Mobile app notifications**
 (it's the app's `notifications_enabled`; the website has no push).
 
+### Website changes to bring into the app (to-do)
+Updated Nov 13, 2026. These shipped on the website and the app doesn't have
+them yet. The app isn't public yet, so none of them is urgent, but do them
+before it launches. Tick an item off here when it lands.
+
+- [ ] **8th graders in sessions.** Participating is for high schoolers; an
+  8th grader can participate only in sessions whose editors ticked **Let 8th
+  graders participate**, and anyone can spectate any session.
+  - Run [eighth_grade_participation.sql](supabase/eighth_grade_participation.sql)
+    first (*not run yet*). It adds `sessions.allow_eighth_graders` (default
+    false), rebuilds `sessions_with_counts` with it, adds `grade_number(text)`,
+    and makes `register_for_session` refuse a new participant whose
+    `details.grade` is 8 on a session without the box
+    (`eighth_grade_not_allowed`) or 7 and below anywhere
+    (`middle_school_not_allowed`). A blank grade isn't blocked. Once it's run
+    the rule holds for the app too, but the app only shows its generic
+    "couldn't update" error.
+  - Session model: read `allow_eighth_graders`.
+  - Session editor: a **Let 8th graders participate** checkbox that writes
+    `allow_eighth_graders`. Website helper text: "Only high schoolers can
+    participate. Anyone can spectate, 8th graders included." / "8th graders
+    can register to participate, the same as high schoolers." and, when it's
+    unticked on a session that had it, "8th graders who already registered
+    stay registered."
+  - Add to my day: grey out **Participate** for a grade-8 account on a
+    session without the box ("This session isn't open to 8th graders. You can
+    spectate it.") and for 7th grade and below everywhere ("Participating is
+    for high schoolers. You can spectate."). Where the box is ticked, an 8th
+    grader sees the normal sheet. Map the two errors to: "This session isn't
+    open to 8th graders for participating. You can still add it as a
+    spectator." and "Participating is for high schoolers, and 8th graders in
+    some sessions. You can still add this session as a spectator."
+  - `gradeLabel` in [metrics.dart](lib/models/metrics.dart): read "eighth" as
+    8, like the website and `grade_number`.
+  - Sign-up: under the participant's grade, "8th graders can participate in
+    some sessions and spectate any of them. Middle schoolers must come with
+    an adult." Parent / Spectator sign-up gets a note: "Curious minds of all
+    ages are welcome. Middle schoolers and younger need a parent with them."
+  - Archie: [knowledge.md](supabase/archie/knowledge.md) still says only high
+    schoolers can participate ("Who can attend", the roles table, the FAQ
+    answer). Update those lines and re-upload the knowledge file.
+- [ ] **Registration closed message.** While `website_registration_open` is
+  off, the website says "Registration will open on November 21st" for the
+  `registration_closed` error; the app shows its generic error (see
+  **Registration lock and hidden session times**).
+- [ ] **Universe subtitles.** The website renamed four: ImagineX "Arts,
+  Literature, Music, Drama & Improv", NovaSphere "Core Sciences, Climate
+  Change & Sustainability", VentureVerse "Entrepreneurship & Marketing",
+  CivicVerse "Mock Trial, Government Policy & Rights". The app shows each
+  discipline's `tagline` from the database, so change them in the app's
+  discipline editor (no code change).
+- [ ] **Archie and the FAQ.** The website's FAQ added why the Summit is in
+  January, whether a project needs to be perfect, and why there are no awards
+  (every participant gets a certificate of participation). Add them to
+  Archie's knowledge if Archie should answer them.
+
+Website-only on purpose, no app work: the public landing page (hero, the
+arrival, the Summit figure, the FAQ, the universes orbit), the
+`website_show_session_times` switch, the header search jumping to pages, the
+browser's 15-minute pause after five wrong test passwords, and the "your QR
+pass is also in the mobile app" note.
+
 **Shipping the website.** Every push to the website repo's `main` deploys to
 production on Vercel (a free plan run by a teammate, Production environment
 only), so website settings live in code rather than Vercel variables where
