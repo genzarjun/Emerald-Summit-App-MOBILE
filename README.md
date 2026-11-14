@@ -1199,7 +1199,7 @@ test/widget_test.dart       Widget tests
     `registrations` then refuses that person with `removed_from_session`
     until `allow_back_to_session` lifts it. `fetch_session_removals` lists
     them. [session_participant_removal.sql](supabase/session_participant_removal.sql)
-    (**not run yet**)
+    (run on the dev project Nov 13, 2026)
   - `announcements` gains `created_by` + `discipline_id`, **admin** write
     policies, and **Realtime**. [announcements_write_setup.sql](supabase/announcements_write_setup.sql)
     Later gains `target_user_id` for **personal** announcements (RLS: a targeted
@@ -1501,14 +1501,14 @@ from a session, e.g. an account that looks fake. On the website the
 Participants and Experts tabs have **Remove** on every row and a **Removed**
 list with **Allow back**, through the new RPCs in
 [session_participant_removal.sql](supabase/session_participant_removal.sql)
-(**not run yet**; the website hides the buttons until it is). The app doesn't
+(run on the dev project Nov 13, 2026, so it's live on the website). The app doesn't
 have it yet; see the to-do below.
 
 - [ ] **Remove someone from a session.** Anyone who can see a session's
   roster (admins, the volunteers assigned to it, and session editors for its
   discipline) can take a participant, spectator or expert off it.
   - Backend: [session_participant_removal.sql](supabase/session_participant_removal.sql)
-    (**not run yet**). Adds `session_removals (session_id, user_id,
+    (run on the dev project Nov 13, 2026). Adds `session_removals (session_id, user_id,
     participation_type, removed_by, removed_at)` (no client grants) and
     `can_see_session_roster(p_session_id)`, which is `fetch_session_roster`'s
     gate. `remove_session_registration(p_session_id, p_user_id)` deletes the
