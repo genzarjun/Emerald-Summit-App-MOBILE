@@ -1216,7 +1216,10 @@ test/widget_test.dart       Widget tests
     `can_manage_discipline`. The app uploads in-app (`image_picker` →
     `SessionMediaRepository.uploadPhoto`) and lists a session's folder for its
     gallery; the hero image is a `hero_image_url` column pointing at one of these
-    files. [session_pages_setup.sql](supabase/session_pages_setup.sql)
+    files. [session_pages_setup.sql](supabase/session_pages_setup.sql) The
+    website's session editor writes the same folders and column (it shrinks
+    photos to 2000 px at 85% JPEG like the app and names them `p_<millis>.jpg`),
+    so a photo added on either shows on both.
   - **Always load Storage images with `CachedNetworkImage`, never
     `Image.network`.** Storage downloads count against the free plan's
     **Cached Egress** quota (5 GB/month). `Image.network` only caches in memory,
@@ -1378,9 +1381,9 @@ Done on the website, against this backend:
 
 Not on the website yet: Archie and Archie insights (phase 8; the website's
 Archie tab says "Coming soon", since each chat is a paid Claude call), front-desk
-check-in (app-only on purpose), session photos (hero and gallery uploads) and
-the discipline editor. Discover still uses the website's fixed list of six
-disciplines.
+check-in (app-only on purpose), the discipline editor, and three parts of
+Home: the photo slideshow (`gallery_photos`), the quote card and the Links
+card. Discover still uses the website's fixed list of six disciplines.
 
 **Nothing website-only (checked Nov 11, 2026).** The website had grown a few
 things the app doesn't do; they were removed so the two behave the same:
@@ -1399,6 +1402,15 @@ from my feed" behind each post's ⋯ menu with a can't-be-undone warning; the
 tabs (Home, Schedule, Discover, News, Archie) with Profile as an avatar in the
 top bar, and the Profile switch is labelled **Mobile app notifications**
 (it's the app's `notifications_enabled`; the website has no push).
+
+**Latest (Nov 13, 2026), website only:** session photos now match the app.
+People who can edit a session (admins and the discipline's session editors)
+set the hero photo and add or delete gallery photos in the website's session
+editor, against the same `session_photos` folders and `hero_image_url`. The
+session page shows the hero (or the first photo when none is set) and the
+Gallery strip, and signed-in people get **Sessions similar to this** with each
+card's photo, using the app's `suggestedSessions` rule. No backend change was
+needed. Details are in the website README's **Sessions** section.
 
 ### Website changes to bring into the app (to-do)
 Updated Nov 13, 2026. These shipped on the website and the app doesn't have
