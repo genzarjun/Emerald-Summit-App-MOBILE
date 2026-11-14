@@ -1510,7 +1510,8 @@ have it yet; see the to-do below.
     registration, upserts the `session_removals` row, sends the person a
     personal "Removed from a session" announcement, and returns
     `{outcome: 'removed' | 'not_registered' | 'cannot_remove_self'}`. The
-    existing registration triggers handle teams: an emptied team is deleted,
+    existing registration triggers handle teams: a team left with nobody on
+    it is deleted,
     a removed owner's team goes to the earliest-joined member ("You're now
     the owner"), and the other members get "X was removed from your team".
     A `before insert` trigger on `registrations` raises
@@ -1525,8 +1526,10 @@ have it yet; see the to-do below.
     confirm: "They'll be taken off "<session>" and get a notice saying an
     organizer removed them. They can't sign up for it again unless someone
     allows them back." plus, for a team member, "Their teammates will be
-    told they were removed." or, for an owner, "They own a team, so it
-    passes to the teammate who joined first." Then refresh the roster.
+    told they were removed.", for an owner, "They own a team, so it passes
+    to the teammate who joined first.", or, for the last one on a team,
+    "They're the only one on their team, so the team is deleted too." Then
+    refresh the roster.
   - A **Removed** section at the bottom: name, type, "Removed by X", date,
     and an **Allow back** button. Hide both while `fetch_session_removals`
     errors (the SQL not run yet).
