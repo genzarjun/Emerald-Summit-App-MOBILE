@@ -802,12 +802,13 @@ class AppState extends ChangeNotifier {
       loadMyAssignments();
       if (event.title == expertQueueNoticeTitle) loadExpertRequests();
     }
-    // Don't banner the poster, or if they muted notifications.
+    // Don't banner the poster. There's no setting to mute the banner: it
+    // always shows, in the app and on the website. Push is muted in the
+    // phone's own Settings.
     if (event.createdBy != null &&
         event.createdBy == authService.currentUser?.id) {
       return;
     }
-    if (!notificationsEnabled) return;
     // Only banner if it actually reaches this user (audience or personal target).
     if (!reachesMe(
         disciplineId: event.disciplineId, targetUserId: event.targetUserId)) {
@@ -945,10 +946,6 @@ class AppState extends ChangeNotifier {
 
   static const String _demoName = 'Alex Rivera';
   static const String _demoRole = 'Participant';
-
-  // Display source for the profile screen. Synced from [profile] on load; the
-  // demo defaults apply only in sample mode.
-  bool notificationsEnabled = true;
 
   String get userName =>
       (profile?.fullName.isNotEmpty ?? false) ? profile!.fullName : _demoName;
@@ -1186,9 +1183,6 @@ class AppState extends ChangeNotifier {
           !profile!.onboarded) {
         await _autoOnboardTestAccount();
       }
-      if (profile != null) {
-        notificationsEnabled = profile!.notificationsEnabled;
-      }
     } catch (e) {
       debugPrint('Profile load failed: $e');
       profileLoadFailed = true;
@@ -1275,7 +1269,6 @@ class AppState extends ChangeNotifier {
     // Re-read so the server's enforced role + volunteer scope/capabilities (set
     // by the role_allowlist trigger) are reflected locally, not just what we sent.
     profile = await profileRepository.fetchMine() ?? updated;
-    notificationsEnabled = profile!.notificationsEnabled;
     notifyListeners();
     // A role change can move sessions down to spectating (or drop managed
     // ones) on the server; pull the schedule so it shows right away.
@@ -1336,13 +1329,6 @@ class AppState extends ChangeNotifier {
     _isTestAccountSession = false;
     _testAccountNotice = null;
     notifyListeners();
-  }
-
-  Future<void> setNotifications(bool value) async {
-    notificationsEnabled = value;
-    profile?.notificationsEnabled = value;
-    notifyListeners();
-    await profileRepository.patch({'notifications_enabled': value});
   }
 }
 

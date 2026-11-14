@@ -1,3 +1,4 @@
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -179,12 +180,18 @@ class _VisibilityCard extends StatelessWidget {
                         Text('Settings', style: theme.textTheme.titleMedium),
                   ),
                 ),
-                SwitchListTile(
-                  title: const Text('Push notifications'),
+                // Push is turned on or off in the phone's own Settings, so
+                // this only takes you there. There's no in-app switch.
+                ListTile(
+                  leading: Icon(Icons.notifications_outlined,
+                      color: theme.colorScheme.primary),
+                  title: const Text('Notifications'),
                   subtitle:
-                      const Text('Next-session reminders & announcements'),
-                  value: appState.notificationsEnabled,
-                  onChanged: appState.setNotifications,
+                      const Text("Turn them on or off in your phone's Settings"),
+                  trailing: const Icon(Icons.open_in_new, size: 20),
+                  onTap: () => AppSettings.openAppSettings(
+                    type: AppSettingsType.notification,
+                  ),
                 ),
                 const _AppearanceTile(),
                 if (appState.profile != null)

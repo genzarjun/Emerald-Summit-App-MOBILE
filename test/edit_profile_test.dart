@@ -83,7 +83,7 @@ void main() {
     expect(p.canManageDiscipline('techverse'), isTrue);
     expect(p.canPostToDiscipline('techverse'), isTrue);
     expect(p.volunteerHours, 3);
-    expect(appState.notificationsEnabled, isFalse);
+    expect(p.notificationsEnabled, isFalse);
   });
 
   testWidgets('prefills the name and sign-up answers', (tester) async {

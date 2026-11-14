@@ -384,9 +384,16 @@ Home header** (Uber-style), not a bottom-bar tab.
   notices; reminders come from `queue_my_session_reminders()`, which the app
   calls on sign-in and every 5 minutes (they start once `summit_date` is set; a
   pg_cron job can run `queue_session_reminders()` for everyone, for push
-  later). Realtime keeps the list live. `notifications_enabled` doesn't touch
-  the bell: it only mutes the in-app banner (and push, once built). The
-  website has the same bell and list.
+  later). Realtime keeps the list live. The website has the same bell and
+  list.
+- **No notification setting in the app or on the website** (decided Nov 13,
+  2026). The in-app banner always shows, in the app and on the website, and
+  nothing mutes it. Push, once built, is turned on or off only in the phone's
+  own Settings: Profile's **Notifications** row (no switch) opens the app's
+  notification settings there (the `app_settings` package; on iPhone, iOS 16
+  and up go straight to Notifications). The website has no row at all, since
+  it has no browser push. `profiles.notifications_enabled` stays in the table
+  (schema changes are additive) but nothing reads or writes it.
 - **Archie** — the in-app **AI assistant**
   ([lib/screens/archie_screen.dart](lib/screens/archie_screen.dart)), a dragon
   mascot in shades (`assets/branding/archie.png`), replacing the old Resources
@@ -1419,8 +1426,9 @@ Notifications list.
 from my feed" behind each post's ⋯ menu with a can't-be-undone warning; the
 `dev-login` lockout. On the website: the phone bottom bar is the app's five
 tabs (Home, Schedule, Discover, News, Archie) with Profile as an avatar in the
-top bar, and the Profile switch is labelled **Mobile app notifications**
-(it's the app's `notifications_enabled`; the website has no push).
+top bar. (The Profile switch that was here, **Mobile app notifications**,
+was removed on Nov 13, 2026 with the app's own switch; see **No notification
+setting** above.)
 
 **Latest (Nov 13, 2026), website only:** session photos now match the app.
 People who can edit a session (admins and the discipline's session editors)
@@ -2203,6 +2211,11 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
     account stored as a function secret).
   - Foreground messages reuse the existing in-app banner
     ([lib/widgets/in_app_banner.dart](lib/widgets/in_app_banner.dart)).
+  - No in-app on/off switch: people turn push off in the phone's Settings,
+    which Profile's **Notifications** row opens. Don't gate sends on
+    `notifications_enabled`; the OS already drops pushes the person turned
+    off. Ask for permission the first time it's needed. On iPhone the app's
+    Settings page has no Notifications entry until it has asked.
   - **Expert approvals:** also push the admins' *"Experts waiting for
     approval"* notice (posted by `refresh_expert_queue_notice` in
     [role_change_downgrades.sql](supabase/role_change_downgrades.sql)). The

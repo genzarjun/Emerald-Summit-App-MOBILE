@@ -314,9 +314,13 @@ class UserProfile {
   SummitRole role;
   bool onboarded;
 
+  /// `profiles.notifications_enabled`. Nothing sets or reads it any more:
+  /// the in-app banner always shows, and push is muted in the phone's own
+  /// Settings. Kept because the column stays (schema changes are additive).
+  bool notificationsEnabled;
+
   /// Per-user app state, stored on the profile row so it follows the account
   /// across devices (was in-memory in AppState before Phase 1).
-  bool notificationsEnabled;
   double volunteerHours;
 
   /// The volunteer's subtype (EAF ambassador / parent / student), or null for
