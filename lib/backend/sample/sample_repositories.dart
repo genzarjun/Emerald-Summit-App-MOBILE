@@ -437,7 +437,6 @@ class SampleProfileRepository implements ProfileRepository {
             role: profile.role,
             onboarded: profile.onboarded,
             details: profile.details,
-            notificationsEnabled: old.notificationsEnabled,
             volunteerHours: old.volunteerHours,
             volunteerSubtype: old.volunteerSubtype,
             canEditSessions: old.canEditSessions,
@@ -453,9 +452,6 @@ class SampleProfileRepository implements ProfileRepository {
   Future<void> patch(Map<String, dynamic> fields) async {
     final p = _store.profile;
     if (p == null) return;
-    if (fields.containsKey('notifications_enabled')) {
-      p.notificationsEnabled = fields['notifications_enabled'] as bool;
-    }
     if (fields.containsKey('volunteer_hours')) {
       p.volunteerHours = (fields['volunteer_hours'] as num).toDouble();
     }

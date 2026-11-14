@@ -295,7 +295,6 @@ class UserProfile {
     this.fullName = '',
     this.role = SummitRole.participant,
     this.onboarded = false,
-    this.notificationsEnabled = true,
     this.volunteerHours = 0,
     this.volunteerSubtype,
     this.canEditSessions = false,
@@ -313,11 +312,6 @@ class UserProfile {
   String fullName;
   SummitRole role;
   bool onboarded;
-
-  /// `profiles.notifications_enabled`. Nothing sets or reads it any more:
-  /// the in-app banner always shows, and push is muted in the phone's own
-  /// Settings. Kept because the column stays (schema changes are additive).
-  bool notificationsEnabled;
 
   /// Per-user app state, stored on the profile row so it follows the account
   /// across devices (was in-memory in AppState before Phase 1).
@@ -394,7 +388,6 @@ class UserProfile {
         fullName: (row['full_name'] ?? '') as String,
         role: SummitRoleX.fromId(row['role'] as String?),
         onboarded: (row['onboarded'] ?? false) as bool,
-        notificationsEnabled: (row['notifications_enabled'] ?? true) as bool,
         volunteerHours: (row['volunteer_hours'] as num?)?.toDouble() ?? 0,
         volunteerSubtype:
             VolunteerSubtypeX.fromId(row['volunteer_subtype'] as String?),
@@ -411,7 +404,7 @@ class UserProfile {
       );
 
   /// Columns the app writes back. Deliberately omits per-user state that has its
-  /// own targeted update path (notifications_enabled, volunteer_hours) and any
+  /// own targeted update path (volunteer_hours) and any
   /// role-scope columns the server owns, so a profile save never clobbers them.
   Map<String, dynamic> toMap() => {
         'id': id,

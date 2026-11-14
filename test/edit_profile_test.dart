@@ -59,7 +59,6 @@ void main() {
       fullName: 'Sam Lee',
       role: SummitRole.volunteer,
       onboarded: true,
-      notificationsEnabled: false,
       volunteerHours: 3,
       volunteerSubtype: VolunteerSubtype.eafAmbassador,
       canEditSessions: true,
@@ -83,7 +82,6 @@ void main() {
     expect(p.canManageDiscipline('techverse'), isTrue);
     expect(p.canPostToDiscipline('techverse'), isTrue);
     expect(p.volunteerHours, 3);
-    expect(p.notificationsEnabled, isFalse);
   });
 
   testWidgets('prefills the name and sign-up answers', (tester) async {

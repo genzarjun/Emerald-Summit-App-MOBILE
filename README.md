@@ -393,7 +393,8 @@ Home header** (Uber-style), not a bottom-bar tab.
   notification settings there (the `app_settings` package; on iPhone, iOS 16
   and up go straight to Notifications). The website has no row at all, since
   it has no browser push. `profiles.notifications_enabled` stays in the table
-  (schema changes are additive) but nothing reads or writes it.
+  (schema changes are additive) but the app's code no longer has the field;
+  nothing reads or writes it.
 - **Archie** — the in-app **AI assistant**
   ([lib/screens/archie_screen.dart](lib/screens/archie_screen.dart)), a dragon
   mascot in shades (`assets/branding/archie.png`), replacing the old Resources
