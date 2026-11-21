@@ -448,12 +448,12 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     (`queue_my_session_reminders`, which the app and website call every 5
     minutes; reminders start once `summit_date` is set), and adds the table to
     Realtime. Until it's run both clients keep personal notices in News. Safe
-    to re-run. *(Run Nov 21, 2026.)*
+    to re-run. *(Not run yet.)*
 60. `supabase/dev_login_lockout.sql`: **lockout for test sign-in** (§3b).
     Adds `dev_login_failures`, which the `dev-login` function uses to refuse
     with `429` after 5 wrong passwords from one address in 15 minutes, or 50
     from anywhere in an hour. Run it, then redeploy `dev-login`. Safe to
-    re-run. *(Run Nov 21, 2026.)*
+    re-run. *(Not run yet.)*
 
 61. `supabase/eighth_grade_participation.sql`: **8th graders participate
     only where allowed.** Adds `sessions.allow_eighth_graders` (default
