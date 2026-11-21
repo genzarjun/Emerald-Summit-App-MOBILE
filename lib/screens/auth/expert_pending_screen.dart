@@ -56,9 +56,7 @@ class _ExpertPendingScreenState extends State<ExpertPendingScreen>
     if (appState.needsExpertApproval) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('Not approved yet.')),
-        );
+        ..showSnackBar(const SnackBar(content: Text('Not approved yet.')));
     }
   }
 
@@ -69,9 +67,7 @@ class _ExpertPendingScreenState extends State<ExpertPendingScreen>
     );
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Couldn't open your email app."),
-        ),
+        const SnackBar(content: Text("Couldn't open your email app.")),
       );
     }
   }
@@ -120,13 +116,15 @@ class _ExpertPendingScreenState extends State<ExpertPendingScreen>
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(profile.fullName,
-                              style: theme.textTheme.titleSmall),
+                          Text(
+                            profile.fullName,
+                            style: theme.textTheme.titleSmall,
+                          ),
                           if (expertise.isNotEmpty)
                             Text(expertise, style: theme.textTheme.bodyMedium),
                           Text(

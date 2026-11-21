@@ -3,29 +3,20 @@ import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../models/models.dart';
-import '../widgets/discipline_effects.dart';
 import '../widgets/discipline_vibe.dart';
 import '../widgets/duotone_icon.dart';
 import '../widgets/eighth_grade_badge.dart';
 import 'session_detail_screen.dart';
 import 'session_editor_screen.dart';
 
-/// Opens [discipline]'s page with its portal transition and entrance haptic.
-/// [from] is the tapped widget's context; the reveal grows from its center.
-void openDiscipline(BuildContext context, Discipline discipline,
-    {BuildContext? from}) {
-  final vibe = DisciplineVibe.of(discipline);
-  final size = MediaQuery.sizeOf(context);
-  var origin = Offset(size.width / 2, size.height / 2);
-  final box = from?.findRenderObject();
-  if (box is RenderBox && box.hasSize) {
-    origin = box.localToGlobal(box.size.center(Offset.zero));
-  }
-  vibe.playEntrance();
+/// Opens [discipline]'s page using the platform's standard page transition.
+void openDiscipline(
+  BuildContext context,
+  Discipline discipline, {
+  BuildContext? from,
+}) {
   Navigator.of(context).push(
-    DisciplinePortalRoute<void>(
-      origin: origin,
-      color: vibe.background,
+    MaterialPageRoute<void>(
       builder: (_) => DisciplineScreen(discipline: discipline),
     ),
   );
@@ -35,7 +26,7 @@ void openDiscipline(BuildContext context, Discipline discipline,
 String disciplineHeroTag(String id) => 'discipline-badge-$id';
 
 /// Lists the sessions within one discipline, in that discipline's own look:
-/// its colors, animated background and a flowing border around the screen.
+/// its colors and a clear list of tracks.
 /// Its sessions are listed under "Tracks" (a track is a session), grouped by
 /// start time, and can be filtered by open seats or time of day. Admins and mentors scoped to this discipline also
 /// get controls to create and edit sessions. Disciplines can't be deleted
@@ -52,14 +43,8 @@ class DisciplineScreen extends StatefulWidget {
 enum _Filter { all, open, morning, afternoon }
 
 class _DisciplineScreenState extends State<DisciplineScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final DisciplineVibe _vibe = DisciplineVibe.of(widget.discipline);
-
-  /// Pours the border in once the portal has opened.
-  late final AnimationController _intro = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
 
   /// Fades the session list in; replayed quickly when the filter changes.
   late final AnimationController _list = AnimationController(
@@ -71,22 +56,16 @@ class _DisciplineScreenState extends State<DisciplineScreen>
   final _titleShown = ValueNotifier(false);
 
   _Filter _filter = _Filter.all;
-  double _swipe = 0;
 
   @override
   void initState() {
     super.initState();
     _scroll.addListener(() => _titleShown.value = _scroll.offset > 120);
-    Future<void>.delayed(const Duration(milliseconds: 280), () {
-      if (!mounted) return;
-      _intro.forward();
-      _list.forward();
-    });
+    _list.forward();
   }
 
   @override
   void dispose() {
-    _intro.dispose();
     _list.dispose();
     _scroll.dispose();
     _titleShown.dispose();
@@ -132,7 +111,8 @@ class _DisciplineScreenState extends State<DisciplineScreen>
 
   Widget _buildPage(BuildContext context, Discipline d, bool canManage) {
     final topInset = MediaQuery.paddingOf(context).top;
-    final sessions = [...d.sessions]..sort((a, b) {
+    final sessions = [...d.sessions]
+      ..sort((a, b) {
         final byTime = a.startMinutes.compareTo(b.startMinutes);
         return byTime != 0 ? byTime : a.title.compareTo(b.title);
       });
@@ -151,18 +131,22 @@ class _DisciplineScreenState extends State<DisciplineScreen>
 
     final slivers = <Widget>[
       for (final MapEntry(key: time, value: group) in groups.entries) ...[
-        SliverToBoxAdapter(child: faded(_TimeHeader(label: time, vibe: _vibe))),
+        SliverToBoxAdapter(
+          child: faded(_TimeHeader(label: time, vibe: _vibe)),
+        ),
         for (final s in group)
           SliverToBoxAdapter(
-            child: faded(Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: _SessionCard(
-                session: s,
-                discipline: d,
-                vibe: _vibe,
-                canManage: canManage,
+            child: faded(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: _SessionCard(
+                  session: s,
+                  discipline: d,
+                  vibe: _vibe,
+                  canManage: canManage,
+                ),
               ),
-            )),
+            ),
           ),
       ],
     ];
@@ -205,7 +189,6 @@ class _DisciplineScreenState extends State<DisciplineScreen>
           : null,
       body: Stack(
         children: [
-          Positioned.fill(child: AmbientMotif(vibe: _vibe)),
           CustomScrollView(
             controller: _scroll,
             slivers: [
@@ -229,12 +212,12 @@ class _DisciplineScreenState extends State<DisciplineScreen>
                     children: [
                       Text(
                         'TRACKS',
-                        style:
-                            Theme.of(context).textTheme.labelMedium?.copyWith(
-                                  color: _vibe.textDim,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.6,
-                                ),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: _vibe.textDim,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.6,
+                            ),
                       ),
                       if (appState.isEighthGradeParticipant) ...[
                         const SizedBox(height: 6),
@@ -242,9 +225,7 @@ class _DisciplineScreenState extends State<DisciplineScreen>
                           'Tracks marked "${EighthGradeBadge.label}" are '
                           'the ones you can participate in. You can spectate '
                           'any of them.',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
+                          style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: _vibe.textDim),
                         ),
                       ],
@@ -267,29 +248,6 @@ class _DisciplineScreenState extends State<DisciplineScreen>
                 ),
               ),
             ],
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: FlowingBorder(vibe: _vibe, intro: _intro),
-            ),
-          ),
-          // Swipe back from the left edge (the portal route has no built-in
-          // back gesture).
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 24,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onHorizontalDragStart: (_) => _swipe = 0,
-              onHorizontalDragUpdate: (e) => _swipe += e.delta.dx,
-              onHorizontalDragEnd: (e) {
-                if (_swipe > 70 || (e.primaryVelocity ?? 0) > 500) {
-                  Navigator.of(context).maybePop();
-                }
-              },
-            ),
           ),
         ],
       ),
@@ -314,7 +272,9 @@ class _Header extends StatelessWidget {
     final theme = Theme.of(context);
     final d = discipline;
     final open = d.sessions.fold<int>(
-        0, (sum, s) => sum + (s.seatsLeft > 0 ? s.seatsLeft : 0));
+      0,
+      (sum, s) => sum + (s.seatsLeft > 0 ? s.seatsLeft : 0),
+    );
     final mine = d.sessions.where((s) => appState.isRegistered(s.id)).length;
     final topics = d.tagline
         .split(',')
@@ -346,8 +306,10 @@ class _Header extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               topics,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: vibe.textDim, height: 1.45),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: vibe.textDim,
+                height: 1.45,
+              ),
             ),
           ],
           const SizedBox(height: 16),
@@ -397,17 +359,17 @@ class DisciplineBadge extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: Color.lerp(vibe.background, vibe.accent, .18),
-        borderRadius: BorderRadius.circular(size * .28),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: vibe.accent.withValues(alpha: .45)),
       ),
       child: switch (vibe.mark) {
         final DuotoneIconData mark => DuotoneIcon(
-            mark,
-            size: size * .58,
-            color: vibe.accent,
-            fillColor: vibe.accent2,
-            fillOpacity: .4,
-          ),
+          mark,
+          size: size * .58,
+          color: vibe.accent,
+          fillColor: vibe.accent2,
+          fillOpacity: .4,
+        ),
         null => Icon(discipline.icon, size: size * .52, color: vibe.accent),
       },
     );
@@ -454,14 +416,14 @@ class _FilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget chip(String label, bool selected, VoidCallback onTap) => Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(label),
-            selected: selected,
-            showCheckmark: false,
-            onSelected: (_) => onTap(),
-          ),
-        );
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        showCheckmark: false,
+        onSelected: (_) => onTap(),
+      ),
+    );
     return SizedBox(
       height: 60,
       child: ListView(
@@ -469,12 +431,21 @@ class _FilterBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
         children: [
           chip('All', filter == _Filter.all, () => onFilter(_Filter.all)),
-          chip('Open seats', filter == _Filter.open,
-              () => onFilter(_Filter.open)),
-          chip('Morning', filter == _Filter.morning,
-              () => onFilter(_Filter.morning)),
-          chip('Afternoon', filter == _Filter.afternoon,
-              () => onFilter(_Filter.afternoon)),
+          chip(
+            'Open seats',
+            filter == _Filter.open,
+            () => onFilter(_Filter.open),
+          ),
+          chip(
+            'Morning',
+            filter == _Filter.morning,
+            () => onFilter(_Filter.morning),
+          ),
+          chip(
+            'Afternoon',
+            filter == _Filter.afternoon,
+            () => onFilter(_Filter.afternoon),
+          ),
         ],
       ),
     );
@@ -540,8 +511,6 @@ class _SessionCardState extends State<_SessionCard> {
 
   void _open() {
     HapticFeedback.lightImpact();
-    // Grows out of the tapped card over the same world, so the background,
-    // motif and border carry on while the list swaps for the session.
     openSession(context, widget.session, from: context);
   }
 
@@ -552,16 +521,16 @@ class _SessionCardState extends State<_SessionCard> {
     final vibe = widget.vibe;
     final registered = appState.isRegistered(s.id);
     final filled = s.capacity == 0 ? 1.0 : s.enrolled / s.capacity;
-    final low = !s.isFull &&
-        s.seatsLeft <= (s.capacity * .2).ceil().clamp(3, 1 << 30);
+    final low =
+        !s.isFull && s.seatsLeft <= (s.capacity * .2).ceil().clamp(3, 1 << 30);
 
     final (status, statusColor) = s.isFull
         ? ('Full · waitlist only', _full)
         : s.participationClosed
-            ? ('${s.seatsLeft} seats left · spectators only', vibe.textDim)
-            : low
-                ? ('Only ${s.seatsLeft} seats left', _lowSeats)
-                : ('${s.seatsLeft} of ${s.capacity} seats left', vibe.textDim);
+        ? ('${s.seatsLeft} seats left · spectators only', vibe.textDim)
+        : low
+        ? ('Only ${s.seatsLeft} seats left', _lowSeats)
+        : ('${s.seatsLeft} of ${s.capacity} seats left', vibe.textDim);
 
     return Semantics(
       button: true,
@@ -577,19 +546,12 @@ class _SessionCardState extends State<_SessionCard> {
           child: Container(
             decoration: BoxDecoration(
               color: vibe.surface,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: registered
                     ? vibe.accent.withValues(alpha: .7)
                     : Colors.white.withValues(alpha: .07),
               ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x66000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
-                ),
-              ],
             ),
             padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
             child: Column(
@@ -651,8 +613,9 @@ class _SessionCardState extends State<_SessionCard> {
                     s.timeLabel,
                     if (s.roomLabel.isNotEmpty) s.roomLabel,
                   ].join('  ·  '),
-                  style:
-                      theme.textTheme.bodySmall?.copyWith(color: vibe.textDim),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: vibe.textDim,
+                  ),
                 ),
                 if (appState.isEighthGradeParticipant &&
                     s.allowEighthGraders) ...[
@@ -667,8 +630,8 @@ class _SessionCardState extends State<_SessionCard> {
                     color: s.isFull
                         ? _full
                         : low
-                            ? _lowSeats
-                            : vibe.accent,
+                        ? _lowSeats
+                        : vibe.accent,
                   ),
                 ),
                 const SizedBox(height: 6),

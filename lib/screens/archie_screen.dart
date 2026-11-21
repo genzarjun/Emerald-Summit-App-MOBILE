@@ -14,14 +14,12 @@ import '../theme.dart';
 
 const _archieAsset = 'assets/branding/archie.png';
 
-/// Archie's own palette, Gemini-style: black with a faint emerald glow,
-/// green cards and navy chat bubbles in dark mode (matching the app's dark
-/// theme) and a soft mint-white in light mode. [of] picks the one matching the app's current theme.
+/// Archie's palette: green cards and navy chat bubbles in dark mode,
+/// and a soft mint-white in light mode. [of] follows the app's current theme.
 class _ArchieColors {
   const _ArchieColors({
     required this.brightness,
     required this.background,
-    required this.glow,
     required this.surface,
     required this.surfaceHigh,
     required this.border,
@@ -32,13 +30,10 @@ class _ArchieColors {
     required this.onMint,
     required this.userBubble,
     required this.error,
-    required this.greeting,
-    required this.shadow,
   });
 
   final Brightness brightness;
   final Color background;
-  final Color glow;
   final Color surface;
   final Color surfaceHigh;
   final Color border;
@@ -54,14 +49,9 @@ class _ArchieColors {
   final Color userBubble;
   final Color error;
 
-  /// The gradient the user's name is painted in on the welcome screen.
-  final List<Color> greeting;
-  final Color shadow;
-
   static const dark = _ArchieColors(
     brightness: Brightness.dark,
     background: Color(0xFF000000),
-    glow: Color(0xFF0E7A57),
     surface: EmeraldTheme.nightSurface,
     surfaceHigh: Color(0xFF1B3B2F),
     border: EmeraldTheme.nightBorder,
@@ -72,14 +62,11 @@ class _ArchieColors {
     onMint: Color(0xFF000000),
     userBubble: Color(0xFF26457E),
     error: Color(0xFFF2A39B),
-    greeting: [Color(0xFF9BF6CB), Color(0xFF3CC48A)],
-    shadow: Color(0x59000000),
   );
 
   static const light = _ArchieColors(
     brightness: Brightness.light,
     background: Color(0xFFF3F8F5),
-    glow: Color(0xFF8FDDB8),
     surface: Colors.white,
     surfaceHigh: Color(0xFFE4F0E9),
     border: Color(0xFFD2E3D9),
@@ -90,8 +77,6 @@ class _ArchieColors {
     onMint: Colors.white,
     userBubble: EmeraldTheme.emerald,
     error: Color(0xFFB3261E),
-    greeting: [Color(0xFF1FA572), EmeraldTheme.deepEmerald],
-    shadow: Color(0x1A0A5F43),
   );
 
   static _ArchieColors of(BuildContext context) =>
@@ -131,8 +116,10 @@ class ArchieScreen extends StatefulWidget {
           surface: c.background,
           onSurface: c.text,
         );
-    return ThemeData(
-      useMaterial3: true,
+    final base = c.brightness == Brightness.dark
+        ? EmeraldTheme.dark()
+        : EmeraldTheme.light();
+    return base.copyWith(
       colorScheme: scheme,
       scaffoldBackgroundColor: c.background,
       textSelectionTheme: TextSelectionThemeData(
@@ -426,7 +413,7 @@ class _ArchieScreenState extends State<ArchieScreen>
       isScrollControlled: true,
       backgroundColor: c.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
       builder: (sheetContext) => Theme(
         data: ArchieScreen._archieTheme(c),
@@ -558,7 +545,7 @@ class _ArchieScreenState extends State<ArchieScreen>
           resizeToAvoidBottomInset: false,
           body: Stack(
             children: [
-              const Positioned.fill(child: _GlowBackground()),
+              const Positioned.fill(child: _ArchieBackground()),
               // The bottom inset is the floating tab bar's height, so the
               // composer sits just above it (and above the keyboard).
               SafeArea(
@@ -736,22 +723,14 @@ class _Starter {
 // Chrome: background, header, composer
 // ---------------------------------------------------------------------------
 
-/// The night background with a soft glow rising from the bottom, à la Gemini.
-class _GlowBackground extends StatelessWidget {
-  const _GlowBackground();
+/// A quiet background behind the conversation.
+class _ArchieBackground extends StatelessWidget {
+  const _ArchieBackground();
 
   @override
   Widget build(BuildContext context) {
     final c = _ArchieColors.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: const Alignment(0, 0.9),
-          radius: 1.25,
-          colors: [c.glow.withValues(alpha: .30), c.background],
-        ),
-      ),
-    );
+    return ColoredBox(color: c.background);
   }
 }
 
@@ -811,7 +790,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// The Gemini-style pill input with a send / stop button.
+/// The message input with a send / stop button.
 class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
@@ -844,15 +823,8 @@ class _Composer extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 4, 6, 4),
             decoration: BoxDecoration(
               color: c.surface,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: c.border),
-              boxShadow: [
-                BoxShadow(
-                  color: c.shadow,
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -988,7 +960,7 @@ class _ChatFullNotice extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(18, 14, 10, 14),
         decoration: BoxDecoration(
           color: c.surface,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: c.border),
         ),
         child: Row(
@@ -1322,7 +1294,7 @@ class _WelcomeState extends State<_Welcome> with TickerProviderStateMixin {
                     ),
                     child: child,
                   ),
-                  child: const ArchieAvatar(size: 88, glow: true),
+                  child: const ArchieAvatar(size: 88),
                 ),
               ),
               const SizedBox(height: 18),
@@ -1336,13 +1308,7 @@ class _WelcomeState extends State<_Welcome> with TickerProviderStateMixin {
                       WidgetSpan(
                         alignment: PlaceholderAlignment.baseline,
                         baseline: TextBaseline.alphabetic,
-                        child: ShaderMask(
-                          blendMode: BlendMode.srcIn,
-                          shaderCallback: (bounds) =>
-                              LinearGradient(colors: c.greeting)
-                                  .createShader(bounds),
-                          child: Text(name, style: greetingStyle),
-                        ),
+                        child: Text(name, style: greetingStyle),
                       ),
                       const TextSpan(text: ",\nwhat's the move?"),
                     ],
@@ -1403,7 +1369,7 @@ class _StarterCard extends StatelessWidget {
     return Material(
       color: c.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(color: c.border),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1452,10 +1418,10 @@ class _UserBubble extends StatelessWidget {
           decoration: BoxDecoration(
             color: c.userBubble,
             borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
+              topLeft: Radius.circular(12),
               topRight: Radius.circular(6),
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
+              bottomLeft: Radius.circular(12),
+              bottomRight: Radius.circular(12),
             ),
           ),
           child: SelectableText(
@@ -1900,34 +1866,20 @@ Future<void> _openLink(BuildContext context, String? href) async {
 // Archie's face — used in the header, beside replies, and in the tab bar.
 // ---------------------------------------------------------------------------
 
-/// The Archie mascot in a soft mint disc (Sparky-style avatar). [glow] adds an
-/// emerald halo for the large welcome-screen version.
+/// The Archie mascot on a flat mint disc.
 class ArchieAvatar extends StatelessWidget {
-  const ArchieAvatar({super.key, required this.size, this.glow = false});
+  const ArchieAvatar({super.key, required this.size});
 
   final double size;
-  final bool glow;
 
   @override
   Widget build(BuildContext context) {
-    final c = _ArchieColors.of(context);
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const RadialGradient(
-          center: Alignment(-.3, -.4),
-          colors: [Color(0xFFF2FFF8), Color(0xFFB9EDD3)],
-        ),
-        boxShadow: [
-          if (glow)
-            BoxShadow(
-              color: c.mint.withValues(alpha: .35),
-              blurRadius: size * .45,
-              spreadRadius: size * .04,
-            ),
-        ],
+        color: Color(0xFFDDF3E7),
       ),
       padding: EdgeInsets.all(size * .08),
       child: Image.asset(_archieAsset, filterQuality: FilterQuality.medium),

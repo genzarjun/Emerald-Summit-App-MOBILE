@@ -8,7 +8,6 @@ import '../backend/service_locator.dart';
 import '../models/metrics.dart';
 import '../models/models.dart';
 import '../models/user_profile.dart';
-import '../widgets/discipline_effects.dart';
 import '../widgets/discipline_vibe.dart';
 import '../widgets/eighth_grade_badge.dart';
 import '../widgets/manager_replace_dialogs.dart';
@@ -18,22 +17,10 @@ import 'session_registration_screen.dart';
 import 'session_roster_screen.dart';
 import 'session_volunteers_screen.dart';
 
-/// Opens [session]'s page in its discipline's world, growing out of [from]
-/// (the tapped widget) like the discipline portal. From the discipline page
-/// it grows over the same background, so the list seems to swap for the
-/// session; from anywhere else it's a full screen in that world.
+/// Opens [session]'s page with the platform's standard navigation transition.
 void openSession(BuildContext context, Session session, {BuildContext? from}) {
-  final vibe = _vibeFor(session);
-  final size = MediaQuery.sizeOf(context);
-  var origin = Offset(size.width / 2, size.height / 2);
-  final box = from?.findRenderObject();
-  if (box is RenderBox && box.hasSize) {
-    origin = box.localToGlobal(box.size.center(Offset.zero));
-  }
   Navigator.of(context).push(
-    DisciplinePortalRoute<void>(
-      origin: origin,
-      color: vibe.background,
+    MaterialPageRoute<void>(
       builder: (_) => SessionDetailScreen(session: session),
     ),
   );
@@ -42,8 +29,7 @@ void openSession(BuildContext context, Session session, {BuildContext? from}) {
 DisciplineVibe _vibeFor(Session s) =>
     DisciplineVibe.forKey(s.disciplineId, name: s.disciplineName);
 
-/// The session page — a vibrant, tabbed view of a single session, drawn in
-/// its discipline's world (colors, animated motif and flowing border).
+/// The session page uses its discipline's palette and a simple tabbed layout.
 ///
 /// A horizontal (scrollable) tab bar surfaces tabs based on the viewer's
 /// permission:
@@ -70,9 +56,6 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   // Bumped after returning from the editor to force the About tab to reload its
   // photos (they live in Storage, separate from the catalog row).
   int _refreshToken = 0;
-
-  /// How far a swipe from the left edge has travelled.
-  double _swipe = 0;
 
   Future<void> _openEditor(Session current) async {
     final discipline = appState.disciplines.firstWhere(
@@ -153,8 +136,12 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         }
         if (canSeeVolunteers) {
           tabs.add(const Tab(text: 'Volunteers'));
-          views.add(SessionVolunteersView(
-              session: current, canAssign: appState.isAdmin));
+          views.add(
+            SessionVolunteersView(
+              session: current,
+              canAssign: appState.isAdmin,
+            ),
+          );
         }
         if (canSeeRoster) {
           tabs.add(const Tab(text: 'Metrics'));
@@ -193,35 +180,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                     tabs: tabs,
                   ),
           ),
-          body: Stack(
-            children: [
-              Positioned.fill(child: AmbientMotif(vibe: vibe)),
-              Positioned.fill(
-                child: single ? views.first : TabBarView(children: views),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(child: FlowingBorder(vibe: vibe)),
-              ),
-              // Swipe back from the left edge (the portal route has no
-              // built-in back gesture).
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 24,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onHorizontalDragStart: (_) => _swipe = 0,
-                  onHorizontalDragUpdate: (e) => _swipe += e.delta.dx,
-                  onHorizontalDragEnd: (e) {
-                    if (_swipe > 70 || (e.primaryVelocity ?? 0) > 500) {
-                      Navigator.of(context).maybePop();
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
+          body: single ? views.first : TabBarView(children: views),
         );
         return Theme(
           data: vibe.theme,
@@ -307,8 +266,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
   /// Best-effort: without it the page just leaves out the Expert line.
   Future<void> _loadExperts() async {
     try {
-      final names =
-          await expertsRepository.fetchSessionExperts(widget.session.id);
+      final names = await expertsRepository.fetchSessionExperts(
+        widget.session.id,
+      );
       if (mounted) setState(() => _experts = names);
     } catch (_) {}
   }
@@ -385,7 +345,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     final profile = appState.profile;
     final gradeBlock = profile?.role == SummitRole.participant
         ? participationGradeBlock(
-            profile?.details['grade']?.toString(), s.allowEighthGraders)
+            profile?.details['grade']?.toString(),
+            s.allowEighthGraders,
+          )
         : null;
     return showModalBottomSheet<AddMode>(
       context: context,
@@ -485,7 +447,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     // Leaving the current team (to go solo, start a new one, or join another)
     // means an owner with teammates hands the team over first.
     final current = _project;
-    final leavingTeam = current != null &&
+    final leavingTeam =
+        current != null &&
         current.isTeam &&
         switch (form.project.action) {
           ProjectAction.stayOnTeam => false,
@@ -546,7 +509,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     final id = await _pickNewOwner(
       fresh,
       title: 'Choose a new owner',
-      blurb: 'You own "${fresh.projectName}". Pick the teammate who takes it '
+      blurb:
+          'You own "${fresh.projectName}". Pick the teammate who takes it '
           'over before you $action.',
     );
     return (proceed: id != null, newOwnerId: id);
@@ -588,7 +552,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               ),
               for (final m in candidates)
                 ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.person_outline),
+                  ),
                   title: Text(m.name),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(ctx).pop(m.id),
@@ -698,7 +664,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
     final id = await _pickNewOwner(
       fresh,
       title: 'Transfer ownership',
-      blurb: "Pick the teammate who'll own \"${fresh.projectName}\". You'll "
+      blurb:
+          "Pick the teammate who'll own \"${fresh.projectName}\". You'll "
           'stay on the team.',
     );
     if (id == null || !mounted) return;
@@ -712,7 +679,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
       _showBlockedDialog("Couldn't transfer ownership", e.message);
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text("Couldn't transfer ownership. Try again.")),
+        const SnackBar(
+          content: Text("Couldn't transfer ownership. Try again."),
+        ),
       );
     }
     _loadProject();
@@ -763,12 +732,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
   }) async {
     final messenger = ScaffoldMessenger.of(context);
     final result = await _guarded(
-      () => appState.toggle(
-        s,
-        type: type,
-        answers: answers,
-        project: project,
-      ),
+      () => appState.toggle(s, type: type, answers: answers, project: project),
     );
     if (result == null || !mounted) return;
     messenger.hideCurrentSnackBar();
@@ -808,26 +772,23 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
         final unmanageHint = appState.isAdmin
             ? ' Stop managing that one first to add this.'
             : appState.isVolunteer
-                ? ' Ask an admin to take you off that one first.'
-                : '';
-        _showBlockedDialog(
-          'Time conflict',
-          switch (result.conflictKind) {
-            ConflictKind.managingThis =>
-              "You're managing this session, so you can't also sign up "
-                  'for it.',
-            ConflictKind.managing =>
-              'This overlaps with "${result.conflictingTitle}", which '
-                  "you're managing.$unmanageHint",
-            _ => 'This overlaps with "${result.conflictingTitle}", which is '
+            ? ' Ask an admin to take you off that one first.'
+            : '';
+        _showBlockedDialog('Time conflict', switch (result.conflictKind) {
+          ConflictKind.managingThis =>
+            "You're managing this session, so you can't also sign up "
+                'for it.',
+          ConflictKind.managing =>
+            'This overlaps with "${result.conflictingTitle}", which '
+                "you're managing.$unmanageHint",
+          _ =>
+            'This overlaps with "${result.conflictingTitle}", which is '
                 'already on your schedule. Remove that one first to add '
                 'this.',
-          },
-        );
+        });
       case AddOutcome.participationClosed:
         final deadline = s.participantDeadline;
-        final when =
-            deadline == null ? '' : ' on ${formatDeadline(deadline)}';
+        final when = deadline == null ? '' : ' on ${formatDeadline(deadline)}';
         _showBlockedDialog(
           'Participant registration closed',
           'Registration to participate closed$when. You can still add this '
@@ -846,8 +807,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
       if (!handOff.proceed || !mounted) return;
       newOwnerId = handOff.newOwnerId;
     }
-    final result =
-        await _guarded(() => appState.toggle(s, newOwnerId: newOwnerId));
+    final result = await _guarded(
+      () => appState.toggle(s, newOwnerId: newOwnerId),
+    );
     if (result == null || !mounted) return;
     if (result.outcome == AddOutcome.invalidProject) {
       _showBlockedDialog(
@@ -894,8 +856,12 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
             : await assignmentRepository.previewManagerAssignment(s.id, me);
         if (!mounted) return;
         if (items != null && items.isNotEmpty) {
-          final ok = await showReplaceScheduleDialog(context,
-              personName: null, sessionTitle: s.title, items: items);
+          final ok = await showReplaceScheduleDialog(
+            context,
+            personName: null,
+            sessionTitle: s.title,
+            items: items,
+          );
           if (!ok || !mounted) return;
           try {
             await appState.manageReplacingConflicts(s);
@@ -903,8 +869,11 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               SnackBar(content: Text('You\'re now managing "${s.title}"')),
             );
           } catch (_) {
-            messenger.showSnackBar(const SnackBar(
-                content: Text("Couldn't update your day. Try again.")));
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text("Couldn't update your day. Try again."),
+              ),
+            );
           }
           return;
         }
@@ -912,9 +881,9 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
           'Time conflict',
           result.conflictKind == ConflictKind.registeredThis
               ? "You're signed up for this session. Remove it from your day "
-                  'first to manage it.'
+                    'first to manage it.'
               : 'Managing this overlaps with "${result.conflictingTitle}", '
-                  'which is already on your schedule.',
+                    'which is already on your schedule.',
         );
       case AddOutcome.full:
       case AddOutcome.invalidProject:
@@ -987,7 +956,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
               if (_experts.isNotEmpty)
                 _InfoRow(
                   icon: Icons.person,
-                  text: '${_experts.length == 1 ? 'Expert' : 'Experts'}: '
+                  text:
+                      '${_experts.length == 1 ? 'Expert' : 'Experts'}: '
                       '${_experts.join(', ')}',
                 ),
               _InfoRow(
@@ -1008,7 +978,8 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                       )
                     : const _InfoRow(
                         icon: Icons.info_outline,
-                        text: "Not open to 8th graders for participating. "
+                        text:
+                            "Not open to 8th graders for participating. "
                             'You can spectate it.',
                       ),
               if (current.participantDeadline != null || widget.canEdit) ...[
@@ -1054,7 +1025,7 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
@@ -1341,7 +1312,7 @@ class _Gallery extends StatelessWidget {
         itemCount: photos.length,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (context, i) => ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(4),
           child: CachedNetworkImage(
             imageUrl: photos[i].imageUrl,
             width: 220,
@@ -1410,43 +1381,48 @@ class _ParticipantDeadlineCard extends StatelessWidget {
     final afterClose = session.isFull
         ? 'The session is also full, so there are no spots left to spectate.'
         : registered && !canEdit
-            ? 'People who registered before then keep their spot.'
-            : 'You can still register to spectate. $seats '
-                'spot${seats == 1 ? '' : 's'} left.';
+        ? 'People who registered before then keep their spot.'
+        : 'You can still register to spectate. $seats '
+              'spot${seats == 1 ? '' : 's'} left.';
 
-    final (IconData icon, String title, String body, Color bg, Color fg) =
-        switch (deadline) {
+    final (
+      IconData icon,
+      String title,
+      String body,
+      Color bg,
+      Color fg,
+    ) = switch (deadline) {
       null => (
-          Icons.event_note_outlined,
-          'No participant deadline',
-          'People can register to participate any time while seats are left. '
-              'Set a deadline in the editor to close participant registration '
-              'at a specific date and time.',
-          scheme.surfaceContainerHighest,
-          scheme.onSurfaceVariant,
-        ),
+        Icons.event_note_outlined,
+        'No participant deadline',
+        'People can register to participate any time while seats are left. '
+            'Set a deadline in the editor to close participant registration '
+            'at a specific date and time.',
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+      ),
       final d when session.participationClosed => (
-          Icons.event_busy,
-          'Participant registration closed',
-          'It closed on ${formatDeadline(d)}. $afterClose$editorNote',
-          scheme.errorContainer,
-          scheme.onErrorContainer,
-        ),
+        Icons.event_busy,
+        'Participant registration closed',
+        'It closed on ${formatDeadline(d)}. $afterClose$editorNote',
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+      ),
       final d => (
-          Icons.how_to_reg_outlined,
-          'Register to participate by ${formatDeadline(d)}',
-          'After that, nobody can register to participate, but people can '
-              'still register to spectate while seats are left.$editorNote',
-          scheme.primaryContainer,
-          scheme.onPrimaryContainer,
-        ),
+        Icons.how_to_reg_outlined,
+        'Register to participate by ${formatDeadline(d)}',
+        'After that, nobody can register to participate, but people can '
+            'still register to spectate while seats are left.$editorNote',
+        scheme.primaryContainer,
+        scheme.onPrimaryContainer,
+      ),
     };
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1489,7 +1465,7 @@ class _ManagingCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1545,7 +1521,7 @@ class _RegisteredStatus extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
@@ -1597,7 +1573,7 @@ class _ProjectCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1608,8 +1584,8 @@ class _ProjectCard extends StatelessWidget {
                 p == null
                     ? Icons.help_outline
                     : p.isTeam
-                        ? Icons.groups_outlined
-                        : Icons.person_outline,
+                    ? Icons.groups_outlined
+                    : Icons.person_outline,
                 size: 20,
                 color: theme.colorScheme.primary,
               ),
@@ -1618,8 +1594,8 @@ class _ProjectCard extends StatelessWidget {
                 p == null
                     ? 'Your project'
                     : p.isTeam
-                        ? 'Team project'
-                        : 'Solo project',
+                    ? 'Team project'
+                    : 'Solo project',
                 style: theme.textTheme.labelLarge,
               ),
             ],
@@ -1671,8 +1647,10 @@ class _ProjectCard extends StatelessWidget {
                         IconButton(
                           tooltip: 'Remove ${m.name} from the team',
                           visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.person_remove_outlined,
-                              size: 20),
+                          icon: const Icon(
+                            Icons.person_remove_outlined,
+                            size: 20,
+                          ),
                           color: theme.colorScheme.error,
                           onPressed: () => onRemoveMember(m),
                         ),
@@ -1734,7 +1712,7 @@ class _TeamCodeChip extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1783,8 +1761,9 @@ class _LeaveTeamDialog extends StatefulWidget {
 }
 
 class _LeaveTeamDialogState extends State<_LeaveTeamDialog> {
-  late final TextEditingController _name =
-      TextEditingController(text: widget.initialProjectName);
+  late final TextEditingController _name = TextEditingController(
+    text: widget.initialProjectName,
+  );
   String? _error;
 
   @override
@@ -1841,10 +1820,7 @@ class _LeaveTeamDialogState extends State<_LeaveTeamDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Leave team'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('Leave team')),
       ],
     );
   }

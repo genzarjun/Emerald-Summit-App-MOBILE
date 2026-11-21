@@ -159,7 +159,7 @@ class DisciplineVibe {
         surfaceTintColor: Colors.transparent,
         foregroundColor: text,
       ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
+      floatingActionButtonTheme: base.floatingActionButtonTheme.copyWith(
         backgroundColor: accent,
         foregroundColor: background,
       ),
@@ -179,7 +179,7 @@ class DisciplineVibe {
           ),
           fontWeight: FontWeight.w600,
         ),
-        shape: const StadiumBorder(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
     );
   });

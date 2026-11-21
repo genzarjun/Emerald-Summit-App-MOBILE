@@ -41,7 +41,7 @@ class AnnouncementDetailScreen extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Announcement'),
             actions: [
-              if (!removed) AnnouncementActionsMenu(item: a, closePage: true)
+              if (!removed) AnnouncementActionsMenu(item: a, closePage: true),
             ],
           ),
           body: removed ? const _RemovedNote() : _Body(item: a),
@@ -84,8 +84,9 @@ class _Body extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             [item.author, when].where((s) => s.isNotEmpty).join(' · '),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           if (oversight != null) ...[
             const SizedBox(height: 14),
@@ -135,9 +136,12 @@ class _Chip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: theme.colorScheme.primary),
           const SizedBox(width: 6),
-          Text(label,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(color: theme.colorScheme.primary)),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
         ],
       ),
     );
@@ -156,17 +160,23 @@ class _OversightNote extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(Icons.admin_panel_settings_outlined,
-              size: 18, color: theme.colorScheme.onSecondaryContainer),
+          Icon(
+            Icons.admin_panel_settings_outlined,
+            size: 18,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(text,
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSecondaryContainer)),
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
           ),
         ],
       ),
@@ -183,15 +193,14 @@ class _PhotoTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(4),
       child: Material(
         color: theme.colorScheme.surfaceContainer,
         child: InkWell(
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               fullscreenDialog: true,
-              builder: (_) =>
-                  _PhotoViewer(photos: photos, initialIndex: index),
+              builder: (_) => _PhotoViewer(photos: photos, initialIndex: index),
             ),
           ),
           child: CachedNetworkImage(
@@ -225,8 +234,9 @@ class _PhotoViewer extends StatefulWidget {
 }
 
 class _PhotoViewerState extends State<_PhotoViewer> {
-  late final PageController _controller =
-      PageController(initialPage: widget.initialIndex);
+  late final PageController _controller = PageController(
+    initialPage: widget.initialIndex,
+  );
   late int _index = widget.initialIndex;
 
   @override
@@ -257,7 +267,8 @@ class _PhotoViewerState extends State<_PhotoViewer> {
               memCacheWidth: 1200,
               fit: BoxFit.contain,
               placeholder: (_, _) => const Center(
-                  child: CircularProgressIndicator(color: Colors.white)),
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
               errorWidget: (_, _, _) =>
                   const Icon(Icons.broken_image_outlined, color: Colors.white),
             ),
@@ -290,8 +301,10 @@ class _FileTile extends StatelessWidget {
 
   Future<void> _open(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
-    final ok = await launchUrl(Uri.parse(file.url),
-        mode: LaunchMode.externalApplication);
+    final ok = await launchUrl(
+      Uri.parse(file.url),
+      mode: LaunchMode.externalApplication,
+    );
     if (!ok) {
       messenger.showSnackBar(
         const SnackBar(content: Text("Couldn't open the file")),
@@ -323,8 +336,11 @@ enum _Action { hide, deleteForEveryone }
 /// it can't be undone: there's no way to bring a post back into your feed.
 /// [closePage] pops the post's page afterwards (true on that page).
 class AnnouncementActionsMenu extends StatelessWidget {
-  const AnnouncementActionsMenu(
-      {super.key, required this.item, this.closePage = false});
+  const AnnouncementActionsMenu({
+    super.key,
+    required this.item,
+    this.closePage = false,
+  });
   final Announcement item;
   final bool closePage;
 
@@ -337,8 +353,10 @@ class AnnouncementActionsMenu extends StatelessWidget {
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Remove from your feed?'),
-            content: Text('Once you remove "${item.title}", you can\'t get it '
-                'back in your feed. It stays in Announcements for everyone else.'),
+            content: Text(
+              'Once you remove "${item.title}", you can\'t get it '
+              'back in your feed. It stays in Announcements for everyone else.',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -363,8 +381,9 @@ class AnnouncementActionsMenu extends StatelessWidget {
           builder: (dialogContext) => AlertDialog(
             title: const Text('Delete for everyone?'),
             content: const Text(
-                'This permanently removes the announcement and its '
-                'attachments for all users.'),
+              'This permanently removes the announcement and its '
+              'attachments for all users.',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -433,12 +452,17 @@ class _RemovedNote extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.campaign_outlined,
-                size: 48, color: theme.colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.campaign_outlined,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 12),
-            Text('This announcement was removed.',
-                style: theme.textTheme.titleMedium,
-                textAlign: TextAlign.center),
+            Text(
+              'This announcement was removed.',
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

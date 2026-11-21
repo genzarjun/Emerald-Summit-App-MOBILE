@@ -28,8 +28,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     // Load if the feed hasn't been primed yet (e.g. opened before the auth gate
     // finished, or a direct sample-mode open).
     if (appState.announcements.isEmpty) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => appState.loadAnnouncements());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => appState.loadAnnouncements(),
+      );
     }
   }
 
@@ -100,11 +101,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   Widget _list(List<Announcement> items, {bool alwaysScrollable = false}) {
     return ListView.separated(
-      physics:
-          alwaysScrollable ? const AlwaysScrollableScrollPhysics() : null,
+      physics: alwaysScrollable ? const AlwaysScrollableScrollPhysics() : null,
       // Room at the end for the floating tab bar.
       padding: EdgeInsets.fromLTRB(
-          16, 16, 16, 16 + MediaQuery.paddingOf(context).bottom),
+        16,
+        16,
+        16,
+        16 + MediaQuery.paddingOf(context).bottom,
+      ),
       itemCount: items.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, i) => _AnnouncementCard(item: items[i]),
@@ -137,14 +141,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         children: [
           Icon(Icons.cloud_off, size: 56, color: theme.colorScheme.error),
           const SizedBox(height: 16),
-          Text("Couldn't reach the backend",
-              style: theme.textTheme.titleLarge),
+          Text("Couldn't reach the backend", style: theme.textTheme.titleLarge),
           const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -176,7 +180,7 @@ class _AnnouncementCard extends StatelessWidget {
     final attachmentSummary = _attachmentSummary(item);
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         onTap: () => openAnnouncement(context, item),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -186,14 +190,18 @@ class _AnnouncementCard extends StatelessWidget {
               if (oversight != null) ...[
                 Row(
                   children: [
-                    Icon(Icons.admin_panel_settings_outlined,
-                        size: 14, color: theme.colorScheme.secondary),
+                    Icon(
+                      Icons.admin_panel_settings_outlined,
+                      size: 14,
+                      color: theme.colorScheme.secondary,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         oversight,
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: theme.colorScheme.secondary),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.secondary,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -216,8 +224,11 @@ class _AnnouncementCard extends StatelessWidget {
                     const SizedBox(width: 8),
                   ],
                   if (item.pinned) ...[
-                    Icon(Icons.push_pin,
-                        size: 16, color: theme.colorScheme.primary),
+                    Icon(
+                      Icons.push_pin,
+                      size: 16,
+                      color: theme.colorScheme.primary,
+                    ),
                     const SizedBox(width: 6),
                   ],
                   Expanded(
@@ -236,8 +247,9 @@ class _AnnouncementCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 item.body,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -245,12 +257,18 @@ class _AnnouncementCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.attach_file,
-                        size: 14, color: theme.colorScheme.primary),
+                    Icon(
+                      Icons.attach_file,
+                      size: 14,
+                      color: theme.colorScheme.primary,
+                    ),
                     const SizedBox(width: 4),
-                    Text(attachmentSummary,
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: theme.colorScheme.primary)),
+                    Text(
+                      attachmentSummary,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -259,21 +277,27 @@ class _AnnouncementCard extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainer,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(item.audience,
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: theme.colorScheme.primary)),
+                    child: Text(
+                      item.audience,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      [item.author, item.timeAgo]
-                          .where((s) => s.isNotEmpty)
-                          .join(' · '),
+                      [
+                        item.author,
+                        item.timeAgo,
+                      ].where((s) => s.isNotEmpty).join(' · '),
                       style: theme.textTheme.bodySmall,
                       textAlign: TextAlign.end,
                       maxLines: 1,

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-
 /// One banner's content.
 class BannerMessage {
   const BannerMessage({required this.title, required this.body, this.onTap});
@@ -21,8 +20,10 @@ class InAppBannerController extends ChangeNotifier {
 
   Timer? _timer;
 
-  void show(BannerMessage message,
-      {Duration duration = const Duration(seconds: 4)}) {
+  void show(
+    BannerMessage message, {
+    Duration duration = const Duration(seconds: 4),
+  }) {
     _current = message;
     notifyListeners();
     _timer?.cancel();
@@ -70,16 +71,24 @@ class InAppBannerHost extends StatelessWidget {
                 return AnimatedSwitcher(
                   duration: const Duration(milliseconds: 260),
                   transitionBuilder: (child, animation) => SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, -1),
-                      end: Offset.zero,
-                    ).animate(CurvedAnimation(
-                        parent: animation, curve: Curves.easeOutCubic)),
+                    position:
+                        Tween<Offset>(
+                          begin: const Offset(0, -1),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                        ),
                     child: FadeTransition(opacity: animation, child: child),
                   ),
                   child: msg == null
                       ? const SizedBox.shrink(key: ValueKey('none'))
-                      : _BannerCard(key: const ValueKey('banner'), message: msg),
+                      : _BannerCard(
+                          key: const ValueKey('banner'),
+                          message: msg,
+                        ),
                 );
               },
             ),
@@ -100,11 +109,11 @@ class _BannerCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Material(
-        elevation: 6,
-        borderRadius: BorderRadius.circular(16),
+        elevation: 2,
+        borderRadius: BorderRadius.circular(8),
         color: theme.colorScheme.surface,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           onTap: () {
             inAppBanner.dismiss();
             message.onTap?.call();
@@ -117,23 +126,30 @@ class _BannerCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: theme.colorScheme.surfaceContainer,
-                  child: Icon(Icons.campaign,
-                      size: 20, color: theme.colorScheme.primary),
+                  child: Icon(
+                    Icons.campaign,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(message.title,
-                          style: theme.textTheme.titleSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        message.title,
+                        style: theme.textTheme.titleSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 2),
-                      Text(message.body,
-                          style: theme.textTheme.bodySmall,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        message.body,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),

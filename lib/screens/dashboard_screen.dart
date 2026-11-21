@@ -19,8 +19,8 @@ import 'session_detail_screen.dart';
 
 /// "Home" tab — the launchpad. Instead of dropping the participant straight
 /// into an (often empty) schedule, this greets them, sets the tone with a
-/// rotating quote + brand art, surfaces what's next, and lays out big,
-/// Uber-style action tiles that route into the rest of the app. It stays
+/// daily quote, surfaces what's next, and lays out big,
+/// action tiles that route into the rest of the app. It stays
 /// interesting even before anything is added to the schedule.
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -40,8 +40,9 @@ class DashboardScreen extends StatelessWidget {
         },
         child: ListView(
           // Room at the end for the floating tab bar.
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.paddingOf(context).bottom,
+          ),
           children: const [
             _Header(),
             SizedBox(height: 16),
@@ -124,10 +125,6 @@ class _HeaderState extends State<_Header> {
         color: Theme.of(context).brightness == Brightness.dark
             ? EmeraldTheme.nightHero
             : EmeraldTheme.emerald,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,8 +136,8 @@ class _HeaderState extends State<_Header> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _ShimmerText(
-                      text: '$_greeting,',
+                    Text(
+                      '$_greeting,',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: .9),
                         fontSize: 15,
@@ -238,8 +235,11 @@ class _SummitCountdownState extends State<_SummitCountdown> {
         .map((s) => s.startMinutes)
         .where((m) => m >= 6 * 60);
     final first = starts.isEmpty ? 8 * 60 : starts.reduce(min);
-    return DateTime(date.year, date.month, date.day)
-        .add(Duration(minutes: first));
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+    ).add(Duration(minutes: first));
   }
 
   @override
@@ -261,13 +261,17 @@ class _SummitCountdownState extends State<_SummitCountdown> {
         return Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: Semantics(
-            label: '$days days, $hours hours, $minutes minutes until the '
+            label:
+                '$days days, $hours hours, $minutes minutes until the '
                 'summit',
             excludeSemantics: true,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _CountdownUnit(value: '$days', label: days == 1 ? 'day' : 'days'),
+                _CountdownUnit(
+                  value: '$days',
+                  label: days == 1 ? 'day' : 'days',
+                ),
                 _CountdownUnit(value: two(hours), label: 'hr'),
                 _CountdownUnit(value: two(minutes), label: 'min'),
                 _CountdownUnit(value: two(seconds), label: 'sec'),
@@ -327,26 +331,31 @@ class _BellButton extends StatelessWidget {
       builder: (context, _) {
         final unread = appState.unreadNotificationCount;
         return Tooltip(
-          message: unread > 0 ? 'Notifications: $unread unread' : 'Notifications',
+          message: unread > 0
+              ? 'Notifications: $unread unread'
+              : 'Notifications',
           child: Badge(
             isLabelVisible: unread > 0,
             label: Text(unread > 99 ? '99+' : '$unread'),
             largeSize: 20,
             offset: const Offset(2, -2),
             child: InkWell(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(6),
               onTap: () => openNotificationsScreen(context),
               child: Container(
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: .18),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: Colors.white.withValues(alpha: .5)),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.notifications_outlined,
-                    color: Colors.white, semanticLabel: 'Notifications'),
+                child: const Icon(
+                  Icons.notifications_outlined,
+                  color: Colors.white,
+                  semanticLabel: 'Notifications',
+                ),
               ),
             ),
           ),
@@ -391,29 +400,28 @@ class _AvatarButton extends StatelessWidget {
         largeSize: 20,
         offset: const Offset(2, -2),
         child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: () =>
-            Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .18),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withValues(alpha: .5)),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            initials,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .18),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: .5)),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              initials,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -484,7 +492,7 @@ class _PhotoSlideshowState extends State<_PhotoSlideshow> {
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(8),
             child: AspectRatio(
               aspectRatio: 2 / 1,
               child: Stack(
@@ -646,28 +654,10 @@ class _SlideDots extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Quote card — a rotating dose of inspiration + a spark of brand art.
+// Daily quote — a quiet typographic break between sections.
 // ---------------------------------------------------------------------------
-class _QuoteCard extends StatefulWidget {
+class _QuoteCard extends StatelessWidget {
   const _QuoteCard();
-
-  @override
-  State<_QuoteCard> createState() => _QuoteCardState();
-}
-
-class _QuoteCardState extends State<_QuoteCard>
-    with SingleTickerProviderStateMixin {
-  // Plays once on first mount for the "wipe down" reveal.
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 720),
-  )..forward();
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
 
   static const List<({String quote, String author})> _quotes = [
     (
@@ -702,72 +692,35 @@ class _QuoteCardState extends State<_QuoteCard>
 
   @override
   Widget build(BuildContext context) {
-    // Rotate by day so it feels fresh but is stable within a session.
     final today = DateTime.now();
     final dayOfYear = today.difference(DateTime(today.year, 1, 1)).inDays;
     final q = _quotes[dayOfYear % _quotes.length];
     final scheme = Theme.of(context).colorScheme;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: AnimatedBuilder(
-        animation: _c,
-        builder: (context, child) {
-          final v = Curves.easeOutCubic.transform(_c.value);
-          return Opacity(
-            opacity: v,
-            child: ClipRect(
-              child: Align(
-                alignment: Alignment.topCenter,
-                heightFactor: v,
-                child: child,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.only(left: 16),
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: scheme.primary, width: 2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              q.quote,
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.45,
+                fontWeight: FontWeight.w500,
+                color: scheme.onSurface,
               ),
             ),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                scheme.primary.withValues(alpha: .10),
-                scheme.primary.withValues(alpha: .03),
-              ],
+            const SizedBox(height: 8),
+            Text(
+              q.author,
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
             ),
-            border: Border.all(color: scheme.primary.withValues(alpha: .18)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.format_quote,
-                color: scheme.primary.withValues(alpha: .7),
-                size: 28,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                q.quote,
-                style: TextStyle(
-                  fontSize: 16.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                q.author,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: scheme.onSurface.withValues(alpha: .6),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -837,7 +790,7 @@ class _NextSessionCard extends StatelessWidget {
         Card(
           margin: EdgeInsets.zero,
           child: InkWell(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             onTap: () => openSession(context, session, from: context),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -850,7 +803,7 @@ class _NextSessionCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary.withValues(alpha: .12),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Column(
                       children: [
@@ -903,7 +856,7 @@ class _PlanNudge extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Theme.of(context).colorScheme.outlineVariant
               .withValues(alpha: .5),
@@ -917,7 +870,7 @@ class _PlanNudge extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary
                   .withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
               Icons.event_available,
@@ -986,7 +939,7 @@ class _LatestNews extends StatelessWidget {
           Card(
             margin: EdgeInsets.zero,
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(8),
               onTap: () => openAnnouncement(context, a),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -1101,79 +1054,6 @@ class _LinksCard extends StatelessWidget {
       ),
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// Shimmer text — a light "glimpse" band that sweeps across the greeting,
-// echoing the wordmark shine on the Emerald Summit website.
-// ---------------------------------------------------------------------------
-class _ShimmerText extends StatefulWidget {
-  const _ShimmerText({required this.text, required this.style});
-
-  final String text;
-  final TextStyle style;
-
-  @override
-  State<_ShimmerText> createState() => _ShimmerTextState();
-}
-
-class _ShimmerTextState extends State<_ShimmerText>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2600),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Holds still when the system asks for reduced motion.
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _c.stop();
-    } else if (!_c.isAnimating) {
-      _c.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  static const Color _base = Colors.white;
-  static const Color _highlight = Color(0xFFB9F6D5); // light emerald glimpse
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, child) => ShaderMask(
-        blendMode: BlendMode.srcATop,
-        shaderCallback: (bounds) => LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [_base, _base, _highlight, _base, _base],
-          stops: const [0.0, 0.38, 0.5, 0.62, 1.0],
-          transform: _SweepTransform(_c.value),
-        ).createShader(bounds),
-        child: child,
-      ),
-      child: Text(widget.text, style: widget.style),
-    );
-  }
-}
-
-/// Slides a gradient horizontally so its bright band travels from off the left
-/// edge to off the right edge across one animation cycle (clamped ends leave
-/// the text its base color between passes).
-class _SweepTransform extends GradientTransform {
-  const _SweepTransform(this.t);
-  final double t; // 0..1
-
-  @override
-  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
-      Matrix4.translationValues((2 * t - 1) * bounds.width * 1.4, 0, 0);
 }
 
 // ---------------------------------------------------------------------------

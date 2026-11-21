@@ -13,7 +13,8 @@ const _eafSite = 'https://www.ehsacademics.org';
 
 /// EAF's Zeffy donation form. Opens in the phone's browser, like the website
 /// does on phones.
-const eafDonateUrl = 'https://www.zeffy.com/en-US/donation-form/'
+const eafDonateUrl =
+    'https://www.zeffy.com/en-US/donation-form/'
     'be-the-catalyst-for-learning-and-discovery';
 const eafVolunteerUrl = '$_eafSite/get-involved/parent-volunteering';
 const sponsorshipDetailsUrl = '$_eafSite/initiatives/emerald-summit-27/sponsor';
@@ -30,18 +31,33 @@ class SponsorTier {
 /// From the Sponsorship Tiers table on EAF's sponsor page; each includes the
 /// ones below it.
 const sponsorTiers = [
-  SponsorTier('Capstone', r'$5,000',
-      'Everything in Keystone, plus a year-long portal link'),
-  SponsorTier('Keystone', r'$2,000',
-      'Everything in Pillar, plus a month-long portal link, visibility on the '
-          "EAF portal and an ad on the ES'27 app"),
-  SponsorTier('Pillar', r'$1,500',
-      'Everything in Foundation, plus a table or flyers in the Student Union '
-          'for 2 hours, or a banner at a discipline of your choice'),
-  SponsorTier('Foundation', r'$1,000',
-      'Everything in Cornerstone, plus a banner at the entrance'),
-  SponsorTier('Cornerstone', r'$500',
-      'A mention in the keynote and your logo on the event slides'),
+  SponsorTier(
+    'Capstone',
+    r'$5,000',
+    'Everything in Keystone, plus a year-long portal link',
+  ),
+  SponsorTier(
+    'Keystone',
+    r'$2,000',
+    'Everything in Pillar, plus a month-long portal link, visibility on the '
+        "EAF portal and an ad on the ES'27 app",
+  ),
+  SponsorTier(
+    'Pillar',
+    r'$1,500',
+    'Everything in Foundation, plus a table or flyers in the Student Union '
+        'for 2 hours, or a banner at a discipline of your choice',
+  ),
+  SponsorTier(
+    'Foundation',
+    r'$1,000',
+    'Everything in Cornerstone, plus a banner at the entrance',
+  ),
+  SponsorTier(
+    'Cornerstone',
+    r'$500',
+    'A mention in the keynote and your logo on the event slides',
+  ),
 ];
 
 /// One of EAF's sponsors. The logo (on a white background) links to [url].
@@ -57,14 +73,30 @@ class Sponsor {
 /// `SPONSORS`. Add one here with its logo in assets/sponsors/ and it shows
 /// under its tier.
 const sponsors = [
-  Sponsor('Brightfox', 'Keystone', 'https://gobrightfox.com/',
-      'assets/sponsors/brightfox.png'),
-  Sponsor('Prepaze Academy', 'Cornerstone', 'https://prepazeacademy.com/',
-      'assets/sponsors/prepaze-academy.png'),
-  Sponsor('YoungWonks', 'Cornerstone', 'https://www.youngwonks.com/',
-      'assets/sponsors/youngwonks.png'),
-  Sponsor('Praan Health', 'Cornerstone', 'https://praan.health/',
-      'assets/sponsors/praan-health.png'),
+  Sponsor(
+    'Brightfox',
+    'Keystone',
+    'https://gobrightfox.com/',
+    'assets/sponsors/brightfox.png',
+  ),
+  Sponsor(
+    'Prepaze Academy',
+    'Cornerstone',
+    'https://prepazeacademy.com/',
+    'assets/sponsors/prepaze-academy.png',
+  ),
+  Sponsor(
+    'YoungWonks',
+    'Cornerstone',
+    'https://www.youngwonks.com/',
+    'assets/sponsors/youngwonks.png',
+  ),
+  Sponsor(
+    'Praan Health',
+    'Cornerstone',
+    'https://praan.health/',
+    'assets/sponsors/praan-health.png',
+  ),
 ];
 
 const _leadDevelopers = ['Arjun Mahajan', 'Akhil Muthyala'];
@@ -99,15 +131,13 @@ void _openUrl(BuildContext context, String url) =>
     _open(context, Uri.parse(url));
 
 void _email(BuildContext context, {String? subject}) => _open(
-      context,
-      Uri(
-        scheme: 'mailto',
-        path: sponsorEmail,
-        query: subject == null
-            ? null
-            : 'subject=${Uri.encodeComponent(subject)}',
-      ),
-    );
+  context,
+  Uri(
+    scheme: 'mailto',
+    path: sponsorEmail,
+    query: subject == null ? null : 'subject=${Uri.encodeComponent(subject)}',
+  ),
+);
 
 class _Title extends StatelessWidget {
   const _Title(this.text);
@@ -115,16 +145,16 @@ class _Title extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+    ),
+  );
 }
 
 /// Support EAF: what EAF does, with Donate and Volunteer with EAF.
@@ -144,16 +174,9 @@ class SupportEafSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  scheme.primary.withValues(alpha: 0.10),
-                  scheme.primary.withValues(alpha: 0.03),
-                ],
-              ),
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +235,7 @@ class SupportEafSection extends StatelessWidget {
   }
 }
 
-/// Sponsors: the five tiers as a stepped peak, highest first, each with its
+/// Sponsors: the five tiers, highest first, each with its
 /// sponsors' logos and open spots that email EAF.
 class SponsorsSection extends StatelessWidget {
   const SponsorsSection({super.key});
@@ -239,7 +262,9 @@ class SponsorsSection extends StatelessWidget {
                     'happen. Funds go through EAF, so sponsorships are fully '
                     'tax-deductible.',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                        height: 1.45, color: scheme.onSurfaceVariant),
+                      height: 1.45,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -260,19 +285,14 @@ class SponsorsSection extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  LayoutBuilder(
-                    builder: (context, constraints) => Column(
-                      children: [
-                        for (var i = 0; i < sponsorTiers.length; i++) ...[
-                          if (i > 0) const SizedBox(height: 8),
-                          SizedBox(
-                            // A peak: each lower tier is a little wider.
-                            width: constraints.maxWidth * (0.80 + 0.05 * i),
-                            child: _TierStep(index: i),
-                          ),
-                        ],
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < sponsorTiers.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 8),
+                        _TierStep(index: i),
                       ],
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -304,13 +324,16 @@ class _TierStep extends StatelessWidget {
     final accent = solid
         ? Colors.white.withValues(alpha: 0.85)
         : (dark ? EmeraldTheme.mint : EmeraldTheme.emerald);
-    final inTier = [for (final s in sponsors) if (s.tier == tier.name) s];
+    final inTier = [
+      for (final s in sponsors)
+        if (s.tier == tier.name) s,
+    ];
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: band,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: solid
             ? null
             : Border.all(color: scheme.primary.withValues(alpha: 0.2)),
@@ -365,8 +388,11 @@ class _TierStep extends StatelessWidget {
 /// A tier's logos, then open spots filling out the last row so every row is
 /// full (a whole row of them when the tier is empty or its logos end a row).
 class _TierRow extends StatelessWidget {
-  const _TierRow(
-      {required this.tier, required this.inTier, required this.solid});
+  const _TierRow({
+    required this.tier,
+    required this.inTier,
+    required this.solid,
+  });
   final String tier;
   final List<Sponsor> inTier;
   final bool solid;
@@ -376,25 +402,31 @@ class _TierRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final columns =
-          ((constraints.maxWidth + _gap) / (_minTile + _gap)).floor().clamp(1, 6);
-      final width = (constraints.maxWidth - _gap * (columns - 1)) / columns;
-      final open = columns - inTier.length % columns;
-      return Wrap(
-        spacing: _gap,
-        runSpacing: _gap,
-        children: [
-          for (final s in inTier)
-            SizedBox(width: width, child: _SponsorLogo(sponsor: s)),
-          for (var k = 0; k < open; k++)
-            SizedBox(
-              width: width,
-              child: _OpenSpot(tier: tier, solid: solid, first: k == 0),
-            ),
-        ],
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = ((constraints.maxWidth + _gap) / (_minTile + _gap))
+            .floor()
+            .clamp(1, 6);
+        final width = (constraints.maxWidth - _gap * (columns - 1)) / columns;
+        final open = columns - inTier.length % columns;
+        return Wrap(
+          spacing: _gap,
+          runSpacing: _gap,
+          children: [
+            for (final s in inTier)
+              SizedBox(
+                width: width,
+                child: _SponsorLogo(sponsor: s),
+              ),
+            for (var k = 0; k < open; k++)
+              SizedBox(
+                width: width,
+                child: _OpenSpot(tier: tier, solid: solid, first: k == 0),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -410,16 +442,19 @@ class _SponsorLogo extends StatelessWidget {
       child: Material(
         color: Colors.white,
         elevation: 1,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(4),
           onTap: () => _openUrl(context, sponsor.url),
           child: SizedBox(
             height: 60,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Image.asset(sponsor.logo,
-                  fit: BoxFit.contain, excludeFromSemantics: true),
+              child: Image.asset(
+                sponsor.logo,
+                fit: BoxFit.contain,
+                excludeFromSemantics: true,
+              ),
             ),
           ),
         ),
@@ -432,8 +467,11 @@ class _SponsorLogo extends StatelessWidget {
 /// first says "Your company logo could go here"; the rest are quieter empty
 /// slots with a small +.
 class _OpenSpot extends StatelessWidget {
-  const _OpenSpot(
-      {required this.tier, required this.solid, required this.first});
+  const _OpenSpot({
+    required this.tier,
+    required this.solid,
+    required this.first,
+  });
   final String tier;
   final bool solid;
   final bool first;
@@ -443,20 +481,21 @@ class _OpenSpot extends StatelessWidget {
     final base = solid
         ? Colors.white
         : (Theme.of(context).brightness == Brightness.dark
-            ? EmeraldTheme.mint
-            : EmeraldTheme.emerald);
+              ? EmeraldTheme.mint
+              : EmeraldTheme.emerald);
     final color = base.withValues(alpha: first ? 0.85 : 0.35);
     return Semantics(
       button: true,
       label: 'Your company logo could go here: become a $tier sponsor',
       excludeSemantics: true,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         onTap: () => _email(context, subject: sponsorSubject(tier)),
         child: CustomPaint(
           painter: _DashedBorder(
-              color: base.withValues(alpha: first ? 0.45 : 0.22),
-              width: first ? 1.5 : 1),
+            color: base.withValues(alpha: first ? 0.45 : 0.22),
+            width: first ? 1.5 : 1,
+          ),
           child: SizedBox(
             height: 60,
             child: Center(
@@ -494,10 +533,11 @@ class _DashedBorder extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = width;
-    final rect = Offset(width / 2, width / 2) &
+    final rect =
+        Offset(width / 2, width / 2) &
         Size(size.width - width, size.height - width);
     final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(12)));
+      ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(4)));
     for (final metric in path.computeMetrics()) {
       var d = 0.0;
       while (d < metric.length) {
@@ -524,8 +564,9 @@ class AboutAppSection extends StatelessWidget {
       letterSpacing: 0.6,
       color: theme.colorScheme.onSurfaceVariant,
     );
-    final names =
-        theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600);
+    final names = theme.textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(

@@ -202,7 +202,7 @@ class _CodeOfConductWindowState extends State<CodeOfConductWindow> {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: scheme.outlineVariant),
         color: scheme.surfaceContainerLow,
       ),

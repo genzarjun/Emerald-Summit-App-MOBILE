@@ -34,10 +34,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Day'),
-        bottom: const _EventBanner(),
-      ),
+      appBar: AppBar(title: const Text('My Day'), bottom: const _EventBanner()),
       body: ListenableBuilder(
         listenable: appState,
         builder: (context, _) {
@@ -48,7 +45,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             child: ListView(
               // Room at the end for the floating tab bar.
               padding: EdgeInsets.fromLTRB(
-                  16, 16, 16, 24 + MediaQuery.paddingOf(context).bottom),
+                16,
+                16,
+                16,
+                24 + MediaQuery.paddingOf(context).bottom,
+              ),
               children: _timeline(context, entries),
             ),
           );
@@ -76,10 +77,14 @@ List<Widget> _timeline(BuildContext context, List<ScheduleEntry> entries) {
 
   final out = <Widget>[const DaySummary(), const SizedBox(height: 12)];
   if (upcoming.isEmpty && past.isNotEmpty) {
-    out.add(const Padding(
-      padding: EdgeInsets.fromLTRB(4, 4, 4, 12),
-      child: Text("That's the end of your day. Your sessions are under Past."),
-    ));
+    out.add(
+      const Padding(
+        padding: EdgeInsets.fromLTRB(4, 4, 4, 12),
+        child: Text(
+          "That's the end of your day. Your sessions are under Past.",
+        ),
+      ),
+    );
   }
   for (var i = 0; i < upcoming.length; i++) {
     final s = upcoming[i].session;
@@ -88,10 +93,16 @@ List<Widget> _timeline(BuildContext context, List<ScheduleEntry> entries) {
       out.add(gap >= 15 ? _FreeTime(minutes: gap) : const SizedBox(height: 12));
     }
     final live = today && s.startMinutes <= nowMinutes;
-    out.add(_ScheduleCard(
-      entry: upcoming[i],
-      tag: live ? 'Now' : i == nextIndex ? 'Next' : null,
-    ));
+    out.add(
+      _ScheduleCard(
+        entry: upcoming[i],
+        tag: live
+            ? 'Now'
+            : i == nextIndex
+            ? 'Next'
+            : null,
+      ),
+    );
   }
   if (past.isNotEmpty) {
     out.add(const SizedBox(height: 16));
@@ -197,11 +208,16 @@ class _EmptyPlan extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.event_available,
-                size: 64, color: theme.colorScheme.primary),
+            Icon(
+              Icons.event_available,
+              size: 64,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(height: 16),
-            Text('Your day is a blank slate',
-                style: theme.textTheme.titleLarge),
+            Text(
+              'Your day is a blank slate',
+              style: theme.textTheme.titleLarge,
+            ),
             const SizedBox(height: 8),
             Text(
               'Browse the six disciplines and add sessions to build your '
@@ -211,9 +227,9 @@ class _EmptyPlan extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const DiscoverScreen()),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const DiscoverScreen())),
               icon: const Icon(Icons.explore),
               label: const Text('Browse sessions'),
             ),
@@ -240,11 +256,11 @@ class _ScheduleCard extends StatelessWidget {
       shape: tag == null
           ? null
           : RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(8),
               side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
             ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         onTap: () => openSession(context, session, from: context),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -254,13 +270,17 @@ class _ScheduleCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(session.timeLabel.split(' – ').first,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      )),
-                  Text(session.timeLabel.split(' – ').last,
-                      style: theme.textTheme.bodySmall),
+                  Text(
+                    session.timeLabel.split(' – ').first,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    session.timeLabel.split(' – ').last,
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ],
               ),
               const SizedBox(width: 16),
@@ -287,8 +307,10 @@ class _ScheduleCard extends StatelessWidget {
                       ),
                     Text(session.title, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 4),
-                    Text('${session.disciplineName} · ${session.roomLabel}',
-                        style: theme.textTheme.bodySmall),
+                    Text(
+                      '${session.disciplineName} · ${session.roomLabel}',
+                      style: theme.textTheme.bodySmall,
+                    ),
                     const SizedBox(height: 8),
                     _RoleChip(entry: entry),
                   ],
@@ -303,7 +325,7 @@ class _ScheduleCard extends StatelessWidget {
   }
 }
 
-/// A small pill showing the user's role in a scheduled session: Managing,
+/// A small label showing the user's role in a scheduled session: Managing,
 /// Participating, Spectating, or Expert — each with its own color.
 class _RoleChip extends StatelessWidget {
   const _RoleChip({required this.entry});
@@ -320,28 +342,30 @@ class _RoleChip extends StatelessWidget {
         ? (scheme.primary, scheme.onPrimary)
         : switch (entry.participationType ?? ParticipationType.participant) {
             ParticipationType.participant => (
-                scheme.primaryContainer,
-                scheme.onPrimaryContainer
-              ),
+              scheme.primaryContainer,
+              scheme.onPrimaryContainer,
+            ),
             ParticipationType.spectator => (
-                scheme.surfaceContainerHighest,
-                scheme.onSurfaceVariant
-              ),
+              scheme.surfaceContainerHighest,
+              scheme.onSurfaceVariant,
+            ),
             ParticipationType.expert => (
-                scheme.tertiaryContainer,
-                scheme.onTertiaryContainer
-              ),
+              scheme.tertiaryContainer,
+              scheme.onTertiaryContainer,
+            ),
           };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         entry.roleLabel,
-        style: theme.textTheme.labelSmall
-            ?.copyWith(color: fg, fontWeight: FontWeight.w600),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

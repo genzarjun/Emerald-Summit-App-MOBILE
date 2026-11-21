@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../models/models.dart';
-import '../widgets/discipline_effects.dart';
 import '../widgets/discipline_vibe.dart';
 import '../widgets/eighth_grade_badge.dart';
 import 'discipline_editor_screen.dart';
@@ -13,8 +12,7 @@ import 'session_detail_screen.dart';
 /// "Discover" tab: a browsable catalog of all disciplines
 /// (spec section 04, Build your own schedule). A search box up top finds
 /// sessions across every discipline, and each discipline is a listing in its own
-/// colors with its animated motif. Tapping one opens its page through a
-/// portal transition. Reads the live catalog from [appState]
+/// colors. Tapping one opens its page. Reads the live catalog from [appState]
 /// (backend-backed; sample data when no backend is configured).
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -33,7 +31,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     // Load once if the catalog isn't populated yet (e.g. sample mode, or a
     // direct open before the auth gate primed it).
     if (appState.disciplines.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => appState.loadCatalog());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => appState.loadCatalog(),
+      );
     }
   }
 
@@ -81,7 +81,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               // Room for the admin button, which sits above the floating
               // tab bar.
               padding: EdgeInsets.fromLTRB(
-                  16, 16, 16, 96 + MediaQuery.paddingOf(context).bottom),
+                16,
+                16,
+                16,
+                96 + MediaQuery.paddingOf(context).bottom,
+              ),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
                 TextField(
@@ -103,7 +107,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         : null,
                     filled: true,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -168,7 +172,8 @@ class _DisciplineListingState extends State<_DisciplineListing> {
       _ => '${titles[0]}, ${titles[1]} and ${titles.length - 2} more',
     };
     final facts = [
-      if (sessions.isNotEmpty) 'From ${sessions.first.timeLabel.split(' – ').first}',
+      if (sessions.isNotEmpty)
+        'From ${sessions.first.timeLabel.split(' – ').first}',
       if (sessions.isNotEmpty) '$open of ${sessions.length} open',
     ].join('  ·  ');
 
@@ -188,41 +193,16 @@ class _DisciplineListingState extends State<_DisciplineListing> {
           duration: const Duration(milliseconds: 140),
           curve: Curves.easeOutCubic,
           child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x33000000),
-                  blurRadius: 14,
-                  offset: Offset(0, 5),
-                ),
-              ],
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
             foregroundDecoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: vibe.accent.withValues(alpha: .28)),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(10),
               child: Stack(
                 children: [
                   Positioned.fill(child: ColoredBox(color: vibe.background)),
-                  Positioned.fill(
-                    child: AmbientMotif(vibe: vibe, compact: true),
-                  ),
-                  // Keep the text side calm so it always reads.
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            vibe.background.withValues(alpha: .9),
-                            vibe.background.withValues(alpha: .62),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
                     child: Column(
@@ -259,8 +239,10 @@ class _DisciplineListingState extends State<_DisciplineListing> {
                           preview,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: vibe.text, height: 1.35),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: vibe.text,
+                            height: 1.35,
+                          ),
                         ),
                         if (d.tagline.isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -268,8 +250,9 @@ class _DisciplineListingState extends State<_DisciplineListing> {
                             d.tagline,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: vibe.textDim),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: vibe.textDim,
+                            ),
                           ),
                         ],
                         if (facts.isNotEmpty || mine > 0) ...[
@@ -281,8 +264,9 @@ class _DisciplineListingState extends State<_DisciplineListing> {
                                   facts,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.labelMedium
-                                      ?.copyWith(color: vibe.textDim),
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: vibe.textDim,
+                                  ),
                                 ),
                               ),
                               if (mine > 0) ...[
@@ -325,8 +309,12 @@ class _SearchResults extends StatelessWidget {
     final results = [
       for (final d in appState.disciplines)
         for (final s in d.sessions)
-          if ([s.title, s.track, s.room, d.name]
-              .any((f) => f.toLowerCase().contains(q)))
+          if ([
+            s.title,
+            s.track,
+            s.room,
+            d.name,
+          ].any((f) => f.toLowerCase().contains(q)))
             (d, s),
     ]..sort((a, b) => a.$2.startMinutes.compareTo(b.$2.startMinutes));
 
@@ -407,8 +395,11 @@ class _ResultTile extends StatelessWidget {
                 ),
               ),
               if (appState.isRegistered(s.id))
-                Icon(Icons.check_circle,
-                    size: 18, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.check_circle,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
             ],
           ),
         ),

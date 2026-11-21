@@ -59,9 +59,9 @@ Five-tab app (**Home · Schedule · Discover · News · Archie**) matching the
 spec's core participant features. **Profile is reached from the avatar in the
 Home header** (Uber-style), not a bottom-bar tab.
 
-The bottom bar is an Uber-style **floating capsule**
-([floating_tab_bar.dart](lib/widgets/floating_tab_bar.dart)): inset from the
-sides, just above the home indicator, with a pill behind the selected tab.
+The bottom bar is a compact floating rectangle
+([floating_tab_bar.dart](lib/widgets/floating_tab_bar.dart)), with 8 px corners
+and a subtle 6 px selected-tab indicator. It sits just above the home indicator.
 Pages scroll behind it, so any scrolling list inside a tab pads its end by
 `MediaQuery.paddingOf(context).bottom`. It slides away while you scroll down
 and comes back when you scroll up (a quick flick brings it back sooner), and it
@@ -83,10 +83,8 @@ stays put on Ask Archie and for screen-reader users.
   contact) and **About the app** at the very bottom. No Jump to grid and no
   Explore disciplines rail (both gone Nov 14, 2026, like the website's Quick
   access and Explore rows); Discover is the way into the disciplines and
-  Profile holds the rest. **Touches:** the greeting is a random mix of
-  standard ("Good morning") and playful ("What's cooking", "What's building")
-  lines with an animated shimmer sweep; the quote card wipes down on first
-  view.
+  Profile holds the rest. The greeting and daily quote use plain typography,
+  without shimmer, gradient cards or reveal effects.
   The three website sections are static text and links, no backend
   ([lib/widgets/home_about_sections.dart](lib/widgets/home_about_sections.dart),
   matching the website's `src/components/home/AboutSections.tsx`):
@@ -98,7 +96,7 @@ stays put on Ask Archie and for screen-reader users.
     opened in the phone's browser, not embedded) and **Volunteer with EAF**
     (https://www.ehsacademics.org/get-involved/parent-volunteering).
   - **Sponsors**: the five tiers from ehsacademics.org's Emerald Summit '27
-    → Sponsor page as a stepped peak, highest first (Capstone $5,000,
+    → Sponsor page as equal-width tiers, highest first (Capstone $5,000,
     Keystone $2,000, Pillar $1,500, Foundation $1,000, Cornerstone $500,
     each with its perks). Each sponsor's logo sits in its tier and opens
     their website (Brightfox at Keystone; Prepaze Academy, YoungWonks and
@@ -144,26 +142,13 @@ stays put on Ask Archie and for screen-reader users.
   - **Discover tab:** a **search box** across every session (title, track, room,
     discipline), then one full-width listing per discipline showing a few of
     its real session titles, its start time and how many sessions are open.
-  - **Each discipline has its own personality**
+  - **Each discipline has its own palette and mark**
     ([discipline_vibe.dart](lib/widgets/discipline_vibe.dart), looked up by
-    discipline id, no database column): a palette, a two-tone mark, an animated
-    background motif, a band of light that flows around the screen edge, and an
-    entrance haptic pattern. **Palettes come from the summit's discipline color
-    sheet** (four swatches each; keep them in sync with it): TechVerse
-    `#254F93 #119DA4 #6D9DC5 #80DED9`, ImagineX `#DCD6F7 #A6B1E1 #B4869F
-    #805D93`, VentureVerse `#FCDE9C #FFA552 #BA5624 #381D2A`, BioSphere
-    `#F6FEDB #E6D3A3 #D8D174 #B6C454`, CivicVerse `#DCCCA3 #824C71 #4A2545
-    #2B0539`, NovaSphere `#E5C2C0 #8FD5A6 #329F5B #0C8346`. Marks and motifs:
-    TechVerse circuit board and circuit pulses; VentureVerse rising chart and a
-    climbing chart line; BioSphere DNA and drifting cells with a heartbeat
-    border; NovaSphere planet, stars and orbits; CivicVerse scales and gavel
-    ripples; ImagineX paint brush and drifting paint. A discipline added later
-    gets an emerald default and its stored icon key. Painters and the portal route live in
-    [discipline_effects.dart](lib/widgets/discipline_effects.dart). Tapping a
-    discipline opens it as a circle of its color growing from the card. The
-    effects pause on hidden tabs and turn off under Reduce Motion (a plain
-    fade replaces the portal). The page has its own left-edge swipe back,
-    since the custom route has none.
+    discipline id, no database column). Palettes follow the summit's color
+    sheet; marks identify engineering, arts, business, biology, science and
+    civic tracks. A new discipline gets the emerald default and its stored
+    icon key. Pages use flat surfaces, with standard platform transitions
+    and back gestures.
   - **Discipline page:** name, topics (the tagline split on commas), a one-line
     count of sessions, open seats and how many are on your day; filter chips
     (All, Open seats, Morning, Afternoon); its sessions (its tracks) grouped
@@ -443,10 +428,10 @@ stays put on Ask Archie and for screen-reader users.
   ([lib/screens/archie_screen.dart](lib/screens/archie_screen.dart)), a dragon
   mascot in shades (`assets/branding/archie.png`), replacing the old Resources
   tab. Modeled on FTC Bonfire's **Sparky** (FTCScoutingConsole/Server, kept only
-  as reference): a Gemini-style screen with a *"Hi {name}, what's the
+  as reference): a simple conversation screen with a *"Hi {name}, what's the
   move?"* greeting and three tappable **conversation starters** (one tailored
   to the user's schedule, one evergreen, one about a random discipline — edit
-  them in `_starters()`), a pill composer with
+  them in `_starters()`), a compact rectangular composer with
   Send/Stop, live **progress steps** while it works ("Searching the web for …",
   "Reading ehs.dublinusd.org"), the answer streamed in with a ChatGPT-style
   **typing reveal** (a ticker paces the text and speeds up when behind) with
@@ -456,7 +441,7 @@ stays put on Ask Archie and for screen-reader users.
   since web pages Archie reads can shape its output), **source chips** for the web pages it cited, copy, retry, and New
   chat. The header has **Your chats** (history) flush right; **New chat**
   slides in beside it only once a conversation exists. It follows the app's
-  **appearance**: black with a faint emerald glow, green cards and navy chat
+  **appearance**: a flat black background, green cards and navy chat
   bubbles in dark mode (matching the app's dark theme), a soft mint-white in light
   mode (`_ArchieColors.dark` / `.light`), and the bottom bar takes Archie's
   backdrop while the tab is open.
@@ -761,18 +746,18 @@ RPC failed on every call — an unqualified `id` in its role check clashed
 with the `id` output column, which PL/pgSQL rejects as ambiguous. The
 current file drops and recreates it.)*
 
-**Launch splash.** An animated splash ("Arc Traverse") plays once at app start
-([lib/screens/splash_screen.dart](lib/screens/splash_screen.dart)): an emerald
-sun rises from behind the left peaks of a mountain range, arcs across a starry
-sky and sets behind the right peaks, while the "Emerald Summit '27" wordmark
-wipes on as the sun crests. It then fades into the first real screen (auth
-gate or, in sample mode, the app). Haptic taps build toward the crest and
-settle as it sets; tap to skip. The website's landing intro is modelled on
-it: the same sun rises and sets in its hero sky. The brand mark is rebuilt in Flutter as a `CustomPainter`
-([lib/widgets/summit_logo.dart](lib/widgets/summit_logo.dart)) — no image asset.
-The native iOS launch storyboard and Android launch background are set to the
-same deep emerald (`#02100B`) so cold start flows into the burst with no white
-flash.
+**Launch splash.** A brief branded introduction plays once at app start
+([lib/screens/splash_screen.dart](lib/screens/splash_screen.dart)). The Summit
+logo, wordmark and local school identity sit on a flat deep-emerald background;
+there are no mountains, glowing sun, stars or haptic sequence. Tap anywhere or
+use Continue to skip; otherwise it hands off after 1.2 seconds to the auth gate
+(or the app in sample mode). The short fade respects reduced motion. The native
+iOS and Android launch backgrounds use the same `#02100B`.
+
+**UI shapes.** Shared themes use 8 px cards and sheets, 6 px controls, and flat
+surfaces. Home, Discover, track pages, News and Archie follow the same restrained
+shapes; decorative glowing frames and portal transitions are removed. Brand
+roundels, avatars, status badges and page dots keep their natural shapes.
 
 **Design context.** [PRODUCT.md](PRODUCT.md) records the product truth that
 design work (the `/impeccable` skill) builds on: student attendees first, the

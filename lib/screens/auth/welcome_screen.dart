@@ -23,9 +23,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   bool _signUp = false;
 
   void _open(SummitRole role, {bool signUp = false}) => setState(() {
-        _role = role;
-        _signUp = signUp;
-      });
+    _role = role;
+    _signUp = signUp;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -62,10 +62,12 @@ class _RoleChooser extends StatelessWidget {
 
   Future<void> _contact(BuildContext context) async {
     final ok = await launchUrl(
-        Uri(scheme: 'mailto', path: WelcomeScreen.contactEmail));
+      Uri(scheme: 'mailto', path: WelcomeScreen.contactEmail),
+    );
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Email ${WelcomeScreen.contactEmail}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email ${WelcomeScreen.contactEmail}')),
+      );
     }
   }
 
@@ -73,8 +75,10 @@ class _RoleChooser extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final muted = theme.textTheme.bodyMedium
-        ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4);
+    final muted = theme.textTheme.bodyMedium?.copyWith(
+      color: scheme.onSurfaceVariant,
+      height: 1.4,
+    );
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -88,15 +92,18 @@ class _RoleChooser extends StatelessWidget {
                   Text(
                     "Emerald Summit ’27 · Dublin, CA",
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.labelLarge
-                        ?.copyWith(color: scheme.primary),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: scheme.primary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'How are you joining the Summit?',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.w700, height: 1.1),
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -106,31 +113,13 @@ class _RoleChooser extends StatelessWidget {
                     style: muted,
                   ),
                   const SizedBox(height: 20),
-                  // The Summit logo in a large white circle.
                   Center(
-                    child: Container(
-                      width: 136,
-                      height: 136,
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF0C7A55)
-                                .withValues(alpha: 0.35),
-                            blurRadius: 40,
-                            offset: const Offset(0, 18),
-                            spreadRadius: -18,
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/branding/logo.png',
-                          fit: BoxFit.cover,
-                          semanticLabel: 'Emerald Summit logo',
-                        ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/branding/logo.png',
+                        width: 100,
+                        height: 100,
+                        semanticLabel: 'Emerald Summit logo',
                       ),
                     ),
                   ),
@@ -166,8 +155,10 @@ class _RoleChooser extends StatelessWidget {
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
-                          Text('EHS Academic Foundation',
-                              style: theme.textTheme.titleSmall),
+                          Text(
+                            'EHS Academic Foundation',
+                            style: theme.textTheme.titleSmall,
+                          ),
                         ],
                       ),
                     ],
@@ -179,7 +170,7 @@ class _RoleChooser extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                     decoration: BoxDecoration(
                       color: scheme.primary.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: scheme.primary.withValues(alpha: 0.30),
                       ),
@@ -189,8 +180,11 @@ class _RoleChooser extends StatelessWidget {
                       children: [
                         Padding(
                           padding: const EdgeInsets.only(top: 1),
-                          child: Icon(Icons.language,
-                              size: 20, color: scheme.primary),
+                          child: Icon(
+                            Icons.language,
+                            size: 20,
+                            color: scheme.primary,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -198,7 +192,8 @@ class _RoleChooser extends StatelessWidget {
                             TextSpan(
                               children: [
                                 TextSpan(
-                                  text: 'Coming from the Emerald Summit '
+                                  text:
+                                      'Coming from the Emerald Summit '
                                       'website? ',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
@@ -206,7 +201,8 @@ class _RoleChooser extends StatelessWidget {
                                   ),
                                 ),
                                 const TextSpan(
-                                  text: 'Sign in with the same email you '
+                                  text:
+                                      'Sign in with the same email you '
                                       'used there, and all your data will '
                                       'be synced.',
                                 ),
@@ -271,8 +267,11 @@ class _RoleChooser extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section(
-      {required this.heading, required this.roles, required this.onOpen});
+  const _Section({
+    required this.heading,
+    required this.roles,
+    required this.onOpen,
+  });
 
   final String heading;
   final List<SummitRole> roles;
@@ -305,12 +304,12 @@ class _Section extends StatelessWidget {
 
 /// The role colors from the website's roles list.
 Color roleColor(SummitRole role) => switch (role) {
-      SummitRole.participant => const Color(0xFF0EA5E9),
-      SummitRole.parentSpectator => const Color(0xFF2563EB),
-      SummitRole.expert => const Color(0xFF7C3AED),
-      SummitRole.volunteer => const Color(0xFFE11D48),
-      SummitRole.admin => const Color(0xFF0C7A55),
-    };
+  SummitRole.participant => const Color(0xFF0EA5E9),
+  SummitRole.parentSpectator => const Color(0xFF2563EB),
+  SummitRole.expert => const Color(0xFF7C3AED),
+  SummitRole.volunteer => const Color(0xFFE11D48),
+  SummitRole.admin => const Color(0xFF0C7A55),
+};
 
 class _RoleCard extends StatelessWidget {
   const _RoleCard({required this.role, required this.onOpen});
@@ -335,7 +334,7 @@ class _RoleCard extends StatelessWidget {
                   height: 48,
                   decoration: BoxDecoration(
                     color: roleColor(role),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(role.icon, color: Colors.white),
                 ),
@@ -344,14 +343,18 @@ class _RoleCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(role.label,
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        role.label,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         role.blurb,
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),

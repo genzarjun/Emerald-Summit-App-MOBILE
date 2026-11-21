@@ -19,10 +19,12 @@ Future<void> showChangeRoleSheet(BuildContext context) async {
     builder: (_) => const _ChangeRoleSheet(),
   );
   if (picked == null || !context.mounted) return;
-  await Navigator.of(context).push(MaterialPageRoute<void>(
-    builder: (_) =>
-        OnboardingScreen(initialRole: picked, startOnDetails: true),
-  ));
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          OnboardingScreen(initialRole: picked, startOnDetails: true),
+    ),
+  );
 }
 
 class _ChangeRoleSheet extends StatefulWidget {
@@ -65,7 +67,8 @@ class _ChangeRoleSheetState extends State<_ChangeRoleSheet> {
       if (!eligible) {
         setState(() {
           _busy = false;
-          _error = "You are not eligible to sign up as a "
+          _error =
+              "You are not eligible to sign up as a "
               '${role.label.toLowerCase()}.';
         });
         return;
@@ -102,8 +105,9 @@ class _ChangeRoleSheetState extends State<_ChangeRoleSheet> {
             Text(
               "You're a ${appState.userRole}. Pick the role you want instead. "
               "You'll see what changes before anything is switched.",
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
             if (picked == null)
@@ -149,17 +153,19 @@ class _ChangeRoleSheetState extends State<_ChangeRoleSheet> {
         child: Row(
           children: [
             SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2)),
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
             SizedBox(width: 10),
             Text('Checking what changes…'),
           ],
         ),
       );
     }
-    final body =
-        theme.textTheme.bodyMedium?.copyWith(color: scheme.onTertiaryContainer);
+    final body = theme.textTheme.bodyMedium?.copyWith(
+      color: scheme.onTertiaryContainer,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -167,14 +173,17 @@ class _ChangeRoleSheetState extends State<_ChangeRoleSheet> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: scheme.tertiaryContainer,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Switching to ${role.label}',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(color: scheme.onTertiaryContainer)),
+              Text(
+                'Switching to ${role.label}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: scheme.onTertiaryContainer,
+                ),
+              ),
               if (role == SummitRole.expert) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -195,7 +204,8 @@ class _ChangeRoleSheetState extends State<_ChangeRoleSheet> {
                       children: [
                         Text('•  ', style: body),
                         Expanded(
-                            child: Text(describeRoleChange(c), style: body)),
+                          child: Text(describeRoleChange(c), style: body),
+                        ),
                       ],
                     ),
                   ),
@@ -255,7 +265,8 @@ class _RoleOption extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: isCurrent ? scheme.primary : scheme.outlineVariant),
+            color: isCurrent ? scheme.primary : scheme.outlineVariant,
+          ),
           color: isCurrent ? scheme.primary.withValues(alpha: 0.05) : null,
         ),
         child: Row(
@@ -275,9 +286,12 @@ class _RoleOption extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(role.label, style: theme.textTheme.titleSmall),
-                  Text(role.blurb,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  Text(
+                    role.blurb,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -285,9 +299,13 @@ class _RoleOption extends StatelessWidget {
               const SizedBox(width: 8),
               Icon(Icons.check, size: 16, color: scheme.primary),
               const SizedBox(width: 2),
-              Text('Current',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                      color: scheme.primary, fontWeight: FontWeight.w700)),
+              Text(
+                'Current',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ],
         ),

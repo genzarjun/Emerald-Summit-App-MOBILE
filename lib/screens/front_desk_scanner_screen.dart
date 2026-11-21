@@ -73,9 +73,13 @@ class _FrontDeskScannerScreenState extends State<FrontDeskScannerScreen> {
     final id = parseCheckinPass(raw);
     if (id == null) {
       HapticFeedback.vibrate();
-      setState(() => _card = const _Problem('Not a check-in pass',
+      setState(
+        () => _card = const _Problem(
+          'Not a check-in pass',
           "This QR code isn't an Emerald Summit pass. Ask the attendee to open "
-              'Profile in the app.'));
+              'Profile in the app.',
+        ),
+      );
       return;
     }
 
@@ -99,9 +103,13 @@ class _FrontDeskScannerScreenState extends State<FrontDeskScannerScreen> {
       HapticFeedback.vibrate();
       // Let the same pass be retried.
       _lastCode = null;
-      setState(() => _card = const _Problem("Couldn't check in",
+      setState(
+        () => _card = const _Problem(
+          "Couldn't check in",
           'Check your connection and scan again. If it keeps failing, you may '
-              'not have front-desk access.'));
+              'not have front-desk access.',
+        ),
+      );
     } finally {
       _busy = false;
     }
@@ -117,16 +125,17 @@ class _FrontDeskScannerScreenState extends State<FrontDeskScannerScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't undo. Try again.")));
+        const SnackBar(content: Text("Couldn't undo. Try again.")),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   void _dismiss() => setState(() {
-        _card = null;
-        _lastCode = null;
-      });
+    _card = null;
+    _lastCode = null;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -208,7 +217,7 @@ class _Viewfinder extends StatelessWidget {
         height: side,
         decoration: BoxDecoration(
           border: Border.all(color: Colors.white, width: 3),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
@@ -228,12 +237,12 @@ class _Pill extends StatelessWidget {
         color: Colors.black.withValues(alpha: .6),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(text,
-          textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(color: Colors.white)),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.labelLarge
+            ?.copyWith(color: Colors.white),
+      ),
     );
   }
 }
@@ -263,9 +272,10 @@ class _ResultCard extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 3)),
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
               SizedBox(width: 16),
               Text('Checking in…'),
             ],
@@ -274,46 +284,56 @@ class _ResultCard extends StatelessWidget {
       );
     }
 
-    final (IconData icon, Color color, String title, String body,
-        ScanCheckinResult? undoable) = switch (card) {
-      _Problem(:final title, :final message) =>
-        (Icons.error_outline, s.error, title, message, null),
+    final (
+      IconData icon,
+      Color color,
+      String title,
+      String body,
+      ScanCheckinResult? undoable,
+    ) = switch (card) {
+      _Problem(:final title, :final message) => (
+        Icons.error_outline,
+        s.error,
+        title,
+        message,
+        null,
+      ),
       _Scanned(:final result, undone: true) => (
-          Icons.undo,
-          s.onSurfaceVariant,
-          'Check-in undone',
+        Icons.undo,
+        s.onSurfaceVariant,
+        'Check-in undone',
+        _who(result),
+        null,
+      ),
+      _Scanned(:final result) => switch (result.outcome) {
+        ScanCheckinOutcome.checkedIn => (
+          Icons.check_circle,
+          s.primary,
+          'Checked in',
           _who(result),
+          result,
+        ),
+        ScanCheckinOutcome.alreadyCheckedIn => (
+          Icons.info_outline,
+          s.tertiary,
+          'Already checked in',
+          [
+            _who(result),
+            if (result.checkedInAt != null)
+              'Arrived at '
+                  '${TimeOfDay.fromDateTime(result.checkedInAt!).format(context)}',
+          ].join('\n'),
           null,
         ),
-      _Scanned(:final result) => switch (result.outcome) {
-          ScanCheckinOutcome.checkedIn => (
-              Icons.check_circle,
-              s.primary,
-              'Checked in',
-              _who(result),
-              result,
-            ),
-          ScanCheckinOutcome.alreadyCheckedIn => (
-              Icons.info_outline,
-              s.tertiary,
-              'Already checked in',
-              [
-                _who(result),
-                if (result.checkedInAt != null)
-                  'Arrived at '
-                      '${TimeOfDay.fromDateTime(result.checkedInAt!).format(context)}',
-              ].join('\n'),
-              null,
-            ),
-          ScanCheckinOutcome.notFound => (
-              Icons.person_off_outlined,
-              s.error,
-              'No account found',
-              "This pass doesn't match anyone registered for the Summit. "
-                  'Try searching the attendee list instead.',
-              null,
-            ),
-        },
+        ScanCheckinOutcome.notFound => (
+          Icons.person_off_outlined,
+          s.error,
+          'No account found',
+          "This pass doesn't match anyone registered for the Summit. "
+              'Try searching the attendee list instead.',
+          null,
+        ),
+      },
       _Working() => throw StateError('handled above'),
     };
 
@@ -333,9 +353,12 @@ class _ResultCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title,
-                          style: theme.textTheme.titleLarge
-                              ?.copyWith(color: color)),
+                      Text(
+                        title,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: color,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(body, style: theme.textTheme.bodyMedium),
                     ],
@@ -367,9 +390,7 @@ class _ResultCard extends StatelessWidget {
   /// "Name · Role", falling back to the email when there's no name.
   static String _who(ScanCheckinResult r) {
     final name = r.name.isNotEmpty ? r.name : r.email;
-    final role = r.role.isEmpty
-        ? ''
-        : ' · ${SummitRoleX.fromId(r.role).label}';
+    final role = r.role.isEmpty ? '' : ' · ${SummitRoleX.fromId(r.role).label}';
     return '$name$role';
   }
 }
@@ -395,15 +416,18 @@ class _CameraError extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(denied ? Icons.no_photography_outlined : Icons.videocam_off,
-                  color: white, size: 48),
+              Icon(
+                denied ? Icons.no_photography_outlined : Icons.videocam_off,
+                color: white,
+                size: 48,
+              ),
               const SizedBox(height: 16),
               Text(
                 denied
                     ? 'Camera access is off'
                     : unsupported
-                        ? 'No camera available'
-                        : "Couldn't start the camera",
+                    ? 'No camera available'
+                    : "Couldn't start the camera",
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleLarge?.copyWith(color: white),
               ),
@@ -411,15 +435,16 @@ class _CameraError extends StatelessWidget {
               Text(
                 denied
                     ? 'Scanning check-in passes needs the camera. '
-                        '${isIOS ? 'Turn on Camera for Emerald Summit in Settings.' : 'Allow camera access when asked, or turn it on in Settings › Apps › Emerald Summit › Permissions.'}'
+                          '${isIOS ? 'Turn on Camera for Emerald Summit in Settings.' : 'Allow camera access when asked, or turn it on in Settings › Apps › Emerald Summit › Permissions.'}'
                     : unsupported
-                        ? "This device can't scan. Use the attendee list to "
-                            'check people in by name.'
-                        : 'Try again, or use the attendee list to check people '
-                            'in by name.',
+                    ? "This device can't scan. Use the attendee list to "
+                          'check people in by name.'
+                    : 'Try again, or use the attendee list to check people '
+                          'in by name.',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: white.withValues(alpha: .8)),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: white.withValues(alpha: .8),
+                ),
               ),
               const SizedBox(height: 20),
               if (denied && isIOS)

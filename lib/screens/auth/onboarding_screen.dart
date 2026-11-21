@@ -23,7 +23,11 @@ import '../../widgets/school_picker.dart';
 /// On finish the profile is saved through the backend and the auth gate moves
 /// the user into the app.
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key, this.initialRole, this.startOnDetails = false});
+  const OnboardingScreen({
+    super.key,
+    this.initialRole,
+    this.startOnDetails = false,
+  });
 
   /// The role to start with (Change role passes the one picked in its sheet).
   final SummitRole? initialRole;
@@ -81,7 +85,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _nameController.text = appState.profile?.fullName ?? '';
     // A first sign-up starts as the role picked before signing in.
     final pending = _editing ? null : appState.pendingSignUpRole;
-    _role = widget.initialRole ??
+    _role =
+        widget.initialRole ??
         pending ??
         appState.profile?.role ??
         SummitRole.participant;
@@ -124,7 +129,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     for (final field in _role.onboardingFields) {
       _fieldControllers.putIfAbsent(
         field.key,
-        () => TextEditingController(text: (existing[field.key] ?? '') as String),
+        () =>
+            TextEditingController(text: (existing[field.key] ?? '') as String),
       );
     }
   }
@@ -230,8 +236,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-              content: Text('You’re now a ${appState.userRole}.')));
+          ..showSnackBar(
+            SnackBar(content: Text('You’re now a ${appState.userRole}.')),
+          );
       }
     } catch (e) {
       if (!mounted) return;
@@ -246,24 +253,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_editing
-            ? 'Change role'
-            : (_step == 0 ? 'Welcome' : 'A few details')),
+        title: Text(
+          _editing ? 'Change role' : (_step == 0 ? 'Welcome' : 'A few details'),
+        ),
         leading: _step == 1
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: _busy
                     ? null
                     : () => widget.startOnDetails
-                        ? Navigator.of(context).pop()
-                        : setState(() => _step = 0),
+                          ? Navigator.of(context).pop()
+                          : setState(() => _step = 0),
               )
             : (_editing
-                ? IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: _busy ? null : () => Navigator.of(context).pop(),
-                  )
-                : null),
+                  ? IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                    )
+                  : null),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
@@ -284,13 +293,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text("Let's set up your account",
-            style: theme.textTheme.headlineSmall),
+        Text("Let's set up your account", style: theme.textTheme.headlineSmall),
         const SizedBox(height: 6),
         Text(
           'Your name and role personalize the rest of setup.',
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 24),
         TextField(
@@ -315,21 +324,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Icon(_role.icon, color: theme.colorScheme.primary),
               const SizedBox(width: 10),
               Expanded(
-                child: Text('Signing up as ${_role.label}',
-                    style: theme.textTheme.titleMedium),
+                child: Text(
+                  'Signing up as ${_role.label}',
+                  style: theme.textTheme.titleMedium,
+                ),
               ),
               TextButton(
-                onPressed:
-                    _busy ? null : () => setState(() => _showRoleList = true),
+                onPressed: _busy
+                    ? null
+                    : () => setState(() => _showRoleList = true),
                 child: const Text('Change'),
               ),
             ],
           ),
         if (_error != null) ...[
           const SizedBox(height: 12),
-          Text(_error!,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.error)),
+          Text(
+            _error!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
         ],
         const SizedBox(height: 20),
         FilledButton(
@@ -346,12 +361,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         onTap: _busy ? null : () => setState(() => _role = role),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: selected
                   ? theme.colorScheme.primary
@@ -364,10 +379,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           child: Row(
             children: [
-              Icon(role.icon,
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant),
+              Icon(
+                role.icon,
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -375,9 +392,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   children: [
                     Text(role.label, style: theme.textTheme.titleSmall),
                     const SizedBox(height: 2),
-                    Text(role.blurb,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
+                    Text(
+                      role.blurb,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -401,20 +421,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       color: scheme.onTertiaryContainer,
     );
     Widget line(String text) => Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('•  ', style: body),
-              Expanded(child: Text(text, style: body)),
-            ],
-          ),
-        );
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('•  ', style: body),
+          Expanded(child: Text(text, style: body)),
+        ],
+      ),
+    );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: scheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: scheme.tertiary, width: 1.5),
       ),
       child: Column(
@@ -437,10 +457,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           if (toExpert) ...[
             const SizedBox(height: 10),
             Text(
-                'Expert accounts need an admin to approve them. Until then, '
-                "you'll only see a screen saying your account is awaiting "
-                'approval.',
-                style: body),
+              'Expert accounts need an admin to approve them. Until then, '
+              "you'll only see a screen saying your account is awaiting "
+              'approval.',
+              style: body,
+            ),
           ],
           if (changes.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -449,9 +470,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             if (changes.any((c) => c.from == 'managing')) ...[
               const SizedBox(height: 10),
               Text(
-                  "The admins will be told you're no longer managing these "
-                  'sessions, so they can find someone else.',
-                  style: body),
+                "The admins will be told you're no longer managing these "
+                'sessions, so they can find someone else.',
+                style: body,
+              ),
             ],
           ],
         ],
@@ -471,8 +493,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Icon(_role.icon, color: theme.colorScheme.primary),
             const SizedBox(width: 10),
             Expanded(
-              child: Text('Setting up as ${_role.label}',
-                  style: theme.textTheme.titleMedium),
+              child: Text(
+                'Setting up as ${_role.label}',
+                style: theme.textTheme.titleMedium,
+              ),
             ),
           ],
         ),
@@ -481,13 +505,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           fields.isEmpty
               ? "You're all set. No extra details needed for this role."
               : 'Just a couple of role-specific details.',
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         if (_role == SummitRole.parentSpectator) ...[
           const SizedBox(height: 12),
-          Text(SummitRoleX.spectatorAgesNote,
-              style: theme.textTheme.bodyMedium),
+          Text(
+            SummitRoleX.spectatorAgesNote,
+            style: theme.textTheme.bodyMedium,
+          ),
         ],
         const SizedBox(height: 20),
         if (_changingRole) ...[
@@ -511,46 +538,50 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               enabled: !_busy,
             )
           else
-          TextField(
-            controller: _fieldControllers[field.key],
-            enabled: !_busy,
-            keyboardType: field.keyboard,
-            inputFormatters: field.inputFormatters,
-            minLines: field.lines,
-            maxLines: field.lines,
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              labelText: field.label,
-              hintText: field.hints.isEmpty ? field.hint : null,
-              hint: field.hints.isEmpty
-                  ? null
-                  : AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 400),
-                      child: Text(
-                        field.hints[_hintTick % field.hints.length],
-                        key: ValueKey(_hintTick % field.hints.length),
-                        maxLines: field.lines,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+            TextField(
+              controller: _fieldControllers[field.key],
+              enabled: !_busy,
+              keyboardType: field.keyboard,
+              inputFormatters: field.inputFormatters,
+              minLines: field.lines,
+              maxLines: field.lines,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                labelText: field.label,
+                hintText: field.hints.isEmpty ? field.hint : null,
+                hint: field.hints.isEmpty
+                    ? null
+                    : AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        child: Text(
+                          field.hints[_hintTick % field.hints.length],
+                          key: ValueKey(_hintTick % field.hints.length),
+                          maxLines: field.lines,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ),
-                    ),
-              // Keep the label up so rotating examples show before focus.
-              floatingLabelBehavior: field.hints.isEmpty
-                  ? null
-                  : FloatingLabelBehavior.always,
-              helperText: field.helper,
-              helperMaxLines: 3,
-              border: const OutlineInputBorder(),
+                // Keep the label up so rotating examples show before focus.
+                floatingLabelBehavior: field.hints.isEmpty
+                    ? null
+                    : FloatingLabelBehavior.always,
+                helperText: field.helper,
+                helperMaxLines: 3,
+                border: const OutlineInputBorder(),
+              ),
             ),
-          ),
           const SizedBox(height: 14),
         ],
         if (_error != null) ...[
           const SizedBox(height: 4),
-          Text(_error!,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.error)),
+          Text(
+            _error!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
           const SizedBox(height: 8),
         ],
         FilledButton(
@@ -573,15 +604,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 String roleChangeLeadIn(SummitRole role) => role == SummitRole.parentSpectator
     ? 'As a ${role.label}, you can only spectate. These sessions change:'
     : 'Some of your sessions change, because ${_rolePlural(role)} can\'t '
-        'take part in them the way you do now:';
+          'take part in them the way you do now:';
 
 String _rolePlural(SummitRole role) => switch (role) {
-      SummitRole.participant => 'participants',
-      SummitRole.expert => 'experts',
-      SummitRole.parentSpectator => 'spectators',
-      SummitRole.volunteer => 'volunteers',
-      SummitRole.admin => 'admins',
-    };
+  SummitRole.participant => 'participants',
+  SummitRole.expert => 'experts',
+  SummitRole.parentSpectator => 'spectators',
+  SummitRole.volunteer => 'volunteers',
+  SummitRole.admin => 'admins',
+};
 
 /// One plain sentence for what a role change does to a session.
 String describeRoleChange(RoleChangeItem c) {
@@ -603,9 +634,10 @@ String describeRoleChange(RoleChangeItem c) {
   return switch (team.action) {
     'handed_off' =>
       '$base Your team $project goes to ${team.toName ?? 'a teammate'}.',
-    'deleted' => '$base Nobody else has joined your team $project, so it '
-        'will be deleted and its code '
-        '${team.code == null ? '' : '${team.code} '}will stop working.',
+    'deleted' =>
+      '$base Nobody else has joined your team $project, so it '
+          'will be deleted and its code '
+          '${team.code == null ? '' : '${team.code} '}will stop working.',
     _ => "$base You'll leave the team $project.",
   };
 }

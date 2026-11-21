@@ -57,8 +57,7 @@ class _SignInScreenState extends State<SignInScreen> {
   bool get _isOrganizer => widget.role == SummitRole.admin;
 
   /// Whether an email code may create a new account.
-  bool get _createAccount =>
-      widget.role == null || _signingUp || _isOrganizer;
+  bool get _createAccount => widget.role == null || _signingUp || _isOrganizer;
 
   @override
   void initState() {
@@ -311,13 +310,14 @@ class _SignInScreenState extends State<SignInScreen> {
                   Text(
                     _testAccountMode
                         ? '$_email is a test account. Enter the test '
-                            'account password.'
+                              'account password.'
                         : _codeSent
-                            ? 'Enter the code we emailed to $_email.'
-                            : _subtitle,
+                        ? 'Enter the code we emailed to $_email.'
+                        : _subtitle,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 28),
                   if (_testAccountMode)
@@ -343,11 +343,13 @@ class _SignInScreenState extends State<SignInScreen> {
                               ? 'Already have an account?'
                               : 'New to the Summit?',
                           style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         TextButton(
-                          onPressed:
-                              _busy ? null : () => _switchMode(!_signingUp),
+                          onPressed: _busy
+                              ? null
+                              : () => _switchMode(!_signingUp),
                           child: Text(_signingUp ? 'Sign in' : 'Sign up'),
                         ),
                       ],
@@ -358,8 +360,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     Text(
                       _error!,
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.error),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
                     ),
                   ],
                 ],
@@ -386,7 +389,7 @@ class _SignInScreenState extends State<SignInScreen> {
     if (_isOrganizer) return 'For Summit admins and test accounts.';
     return _signingUp
         ? 'Continue with Google or your email, then tell us a bit about '
-            'yourself.'
+              'yourself.'
         : 'Use the email on your account. No password needed.';
   }
 
@@ -394,22 +397,25 @@ class _SignInScreenState extends State<SignInScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: theme.colorScheme.outlineVariant),
         color: theme.colorScheme.surfaceContainerLow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text("Let's create you an account!",
-              style: theme.textTheme.titleMedium),
+          Text(
+            "Let's create you an account!",
+            style: theme.textTheme.titleMedium,
+          ),
           const SizedBox(height: 4),
           Text(
             "There's no account for $_email yet. Press Continue to enter "
             'some information and create your ${widget.role?.label ?? ''} '
             'account.',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           FilledButton(
@@ -442,9 +448,7 @@ class _SignInScreenState extends State<SignInScreen> {
         const SizedBox(height: 16),
         FilledButton(
           onPressed: _busy ? null : _sendCode,
-          child: _busy
-              ? const _ButtonSpinner()
-              : const Text('Email me a code'),
+          child: _busy ? const _ButtonSpinner() : const Text('Email me a code'),
         ),
         if (authService.supportsGoogleSignIn) ...[
           const SizedBox(height: 20),
@@ -455,8 +459,9 @@ class _SignInScreenState extends State<SignInScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
                   'or',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               const Expanded(child: Divider()),
@@ -533,8 +538,9 @@ class _SignInScreenState extends State<SignInScreen> {
         const SizedBox(height: 16),
         FilledButton(
           onPressed: _busy ? null : _verifyCode,
-          child:
-              _busy ? const _ButtonSpinner() : const Text('Verify & continue'),
+          child: _busy
+              ? const _ButtonSpinner()
+              : const Text('Verify & continue'),
         ),
         const SizedBox(height: 8),
         TextButton(

@@ -27,6 +27,7 @@ class SessionEditorScreen extends StatefulWidget {
 
 class _SessionEditorScreenState extends State<SessionEditorScreen> {
   late final TextEditingController _title;
+
   /// Start/end as typed in 12-hour form (`h:mm`), with their AM/PM choice.
   /// Saved as 24-hour `HH:mm`, which conflict checks and sorting rely on.
   late final TextEditingController _start;
@@ -100,8 +101,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     _projectPrompt = TextEditingController(
       text: s?.projectPrompt ?? DefaultQuestions.projectName,
     );
-    _maxTeamSize = (s?.maxTeamSize ?? kDefaultMaxTeamSize)
-        .clamp(kSoloOnlyTeamSize, kLargestTeamSizeLimit);
+    _maxTeamSize = (s?.maxTeamSize ?? kDefaultMaxTeamSize).clamp(
+      kSoloOnlyTeamSize,
+      kLargestTeamSizeLimit,
+    );
     _participantDeadline = s?.participantDeadline;
     _allowEighthGraders = _hadEighthGraders = s?.allowEighthGraders ?? false;
     _heroImageUrl = s?.heroImageUrl;
@@ -155,11 +158,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     final teams = n == 1 ? '1 team' : '$n teams';
     return _maxTeamSize < 2
         ? '$teams already registered for this session will keep their team. '
-            'Nobody is removed, and members can still leave to go solo. No new '
-            'teams can be created or joined.'
+              'Nobody is removed, and members can still leave to go solo. No new '
+              'teams can be created or joined.'
         : '$teams already ${n == 1 ? 'has' : 'have'} more than $_maxTeamSize '
-            "members. Nobody is removed, but ${n == 1 ? 'it' : 'they'} can't "
-            'take new members.';
+              "members. Nobody is removed, but ${n == 1 ? 'it' : 'they'} can't "
+              'take new members.';
   }
 
   Future<void> _loadRooms() async {
@@ -486,7 +489,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     final confirmed = await confirmByTypingName(
       context,
       title: 'Delete session?',
-      message: '“$title” will be removed for everyone, along with its '
+      message:
+          '“$title” will be removed for everyone, along with its '
           'registrations and teams. This can\'t be undone.',
       name: title,
     );
@@ -562,7 +566,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                   _capacity,
                   'Capacity',
                   keyboardType: TextInputType.number,
-                  helper: 'Participants, spectators and experts all count '
+                  helper:
+                      'Participants, spectators and experts all count '
                       'toward capacity. The people managing the session '
                       "don't.",
                 ),
@@ -648,7 +653,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
         decoration: BoxDecoration(
           border: Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -704,11 +709,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             Text(
               deadline == null
                   ? 'No deadline. People can register to participate any time '
-                      'while seats are left.'
+                        'while seats are left.'
                   : passed
-                      ? 'This deadline has passed: participant registration is '
-                          'closed. Only spectators can register now.'
-                      : 'Participant registration is open until then.',
+                  ? 'This deadline has passed: participant registration is '
+                        'closed. Only spectators can register now.'
+                  : 'Participant registration is open until then.',
               style: passed
                   ? theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.error,
@@ -731,7 +736,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: CheckboxListTile(
           value: _allowEighthGraders,
@@ -743,17 +748,16 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             [
               _allowEighthGraders
                   ? '8th graders can register to participate, the same as '
-                      'high schoolers.'
+                        'high schoolers.'
                   : 'Only high schoolers can participate. Anyone can '
-                      'spectate, 8th graders included.',
+                        'spectate, 8th graders included.',
               if (_hadEighthGraders && !_allowEighthGraders)
                 '8th graders who already registered stay registered.',
             ].join(' '),
             style: muted,
           ),
           controlAffinity: ListTileControlAffinity.leading,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );
@@ -767,7 +771,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
@@ -924,7 +928,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
@@ -1031,35 +1035,37 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
       color: theme.colorScheme.onSurfaceVariant,
     );
     Widget item(String prompt, String detail) => Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.lock_outline, size: 16, color: theme.colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(prompt, style: theme.textTheme.bodyMedium),
-                    Text(detail, style: muted),
-                  ],
-                ),
-              ),
-            ],
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lock_outline, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(prompt, style: theme.textTheme.bodyMedium),
+                Text(detail, style: muted),
+              ],
+            ),
           ),
-        );
+        ],
+      ),
+    );
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Default questions (set by the app)',
-              style: theme.textTheme.labelMedium),
+          Text(
+            'Default questions (set by the app)',
+            style: theme.textTheme.labelMedium,
+          ),
           if (soloOnly) ...[
             _projectPromptItem(theme, 'Always asked.'),
             const SizedBox(height: 12),
@@ -1078,14 +1084,20 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               ],
             ),
           ] else ...[
-            item(DefaultQuestions.soloOrTeam,
-                'Always asked. Answer: Solo or Team.'),
-            _projectPromptItem(theme,
-                'Asked of solo participants and of whoever creates a team.'),
-            item(DefaultQuestions.teamCode,
-                'Asked when joining a team. Codes for this discipline look '
-                'like ${prefix}1234; the joiner confirms the team\'s project '
-                'name.'),
+            item(
+              DefaultQuestions.soloOrTeam,
+              'Always asked. Answer: Solo or Team.',
+            ),
+            _projectPromptItem(
+              theme,
+              'Asked of solo participants and of whoever creates a team.',
+            ),
+            item(
+              DefaultQuestions.teamCode,
+              'Asked when joining a team. Codes for this discipline look '
+              'like ${prefix}1234; the joiner confirms the team\'s project '
+              'name.',
+            ),
           ],
           const SizedBox(height: 16),
           DropdownButtonFormField<int>(
@@ -1095,9 +1107,9 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               labelText: 'Teams',
               helperText: soloOnly
                   ? 'No new teams can be created or joined. Anyone already on '
-                      'a team keeps it.'
+                        'a team keeps it.'
                   : "Most people allowed on one team. Lowering it doesn't "
-                      'remove anyone; full teams just stop taking new members.',
+                        'remove anyone; full teams just stop taking new members.',
               helperMaxLines: 3,
               border: const OutlineInputBorder(),
             ),
@@ -1129,7 +1141,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1160,7 +1172,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
   /// The one default question editors may reword: the project question. It
   /// stays built in and required; only its wording is theirs.
   Widget _projectPromptItem(ThemeData theme, String detail) {
-    final isDefault = _projectPrompt.text.trim().isEmpty ||
+    final isDefault =
+        _projectPrompt.text.trim().isEmpty ||
         _projectPrompt.text.trim() == DefaultQuestions.projectName;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -1169,8 +1182,11 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 16),
-            child: Icon(Icons.edit_outlined,
-                size: 16, color: theme.colorScheme.primary),
+            child: Icon(
+              Icons.edit_outlined,
+              size: 16,
+              color: theme.colorScheme.primary,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1186,7 +1202,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     labelText: 'Project question (you can reword this)',
-                    helperText: '$detail This is still a default question: you can '
+                    helperText:
+                        '$detail This is still a default question: you can '
                         'change its wording but not remove it.',
                     helperMaxLines: 3,
                     border: const OutlineInputBorder(),
@@ -1196,8 +1213,10 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
                   TextButton.icon(
                     onPressed: _busy
                         ? null
-                        : () => setState(() => _projectPrompt.text =
-                            DefaultQuestions.projectName),
+                        : () => setState(
+                            () => _projectPrompt.text =
+                                DefaultQuestions.projectName,
+                          ),
                     icon: const Icon(Icons.restart_alt, size: 18),
                     label: const Text('Reset to default wording'),
                   ),
@@ -1217,7 +1236,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
         const SizedBox(height: 8),
         if (_heroImageUrl != null)
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(4),
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: CachedNetworkImage(
@@ -1262,7 +1281,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(4),
                     child: CachedNetworkImage(
                       imageUrl: p.imageUrl,
                       width: 96,
@@ -1285,12 +1304,12 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
               ),
             InkWell(
               onTap: _mediaBusy ? null : _addGalleryPhoto,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(4),
               child: Container(
                 width: 96,
                 height: 96,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: theme.colorScheme.outlineVariant),
                 ),
                 child: Icon(
@@ -1316,7 +1335,7 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: theme.colorScheme.outlineVariant),
             ),
             child: Column(

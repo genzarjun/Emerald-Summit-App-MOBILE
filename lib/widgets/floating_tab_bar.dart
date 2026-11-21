@@ -14,8 +14,7 @@ class FloatingTab {
   final String label;
 }
 
-/// A capsule-shaped tab bar that floats a little above the bottom of the
-/// screen, with a rounded pill behind the selected tab (Uber's style).
+/// A compact tab bar with a subtle rectangular selected-tab indicator.
 ///
 /// Colors come from the theme's `navigationBarTheme` (background, indicator,
 /// icon and label styles), so a tab that restyles the bar, like Ask Archie,
@@ -32,11 +31,11 @@ class FloatingTabBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
-  /// Space between the capsule and the screen's sides.
+  /// Space between the bar and the screen's sides.
   static const double sideMargin = 14;
 
-  /// Space between the capsule and the bottom edge on phones without a home
-  /// indicator. With one, the capsule sits just above it.
+  /// Space between the bar and the bottom edge on phones without a home
+  /// indicator. With one, the bar sits just above it.
   static const double bottomMargin = 12;
 
   @override
@@ -60,7 +59,7 @@ class FloatingTabBar extends StatelessWidget {
     }
 
     // Sit just above the home indicator rather than a full safe-area height
-    // up, so the capsule hugs the bottom like Uber's.
+    // up, so the bar hugs the bottom near the screen edge.
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     final bottom = safeBottom > 0 ? safeBottom - 10 : bottomMargin;
 
@@ -68,8 +67,9 @@ class FloatingTabBar extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(sideMargin, 0, sideMargin, bottom),
       child: Material(
         color: background,
-        elevation: 6,
-        shape: StadiumBorder(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
           side: BorderSide(
             color: scheme.outlineVariant.withValues(alpha: dark ? 0.55 : 0.8),
           ),
@@ -136,11 +136,11 @@ class _TabButton extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 54),
         decoration: ShapeDecoration(
           color: selected ? pill : pill.withValues(alpha: 0),
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         child: InkWell(
           onTap: onTap,
-          customBorder: const StadiumBorder(),
+          borderRadius: BorderRadius.circular(6),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
             child: Column(
