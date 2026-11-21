@@ -2140,6 +2140,22 @@ has it too since Nov 14, 2026; see below.
     `canEditAnnouncement`) reusing announcement_compose_screen with the
     audience and pin locked. Updates must send only `title`, `body` and
     `attachments`.
+- [ ] **Organizer metrics: experts, and only people in a track**
+  (website, Nov 20, 2026). Profile → Metrics now opens with an **Experts**
+  part: expert accounts, approved, waiting for approval (with a link to
+  Expert approvals), experts serving in at least one track, expert sign-ups,
+  tracks with no expert yet (a list linking to each, keynotes left out), and
+  experts by discipline. Below it, **Who is registered** counts only people
+  registered for at least one track (experts serving are left out): an
+  account that finished sign-up but never joined a track is not counted in
+  any chart. Headline tiles are now registered for a track, schools and
+  track sign-ups, and the school and grade captions say so.
+  - Backend: none. Waiting-for-approval is the length of
+    `fetch_expert_requests()`; everything else comes from the existing
+    `fetch_summit_metrics()` plus the sessions list.
+  - App: in metrics_screen.dart, filter people to those with a non-expert
+    registration before counting, and add the expert section (website:
+    `registeredPeople` and `expertSummary` in `src/models/metrics.ts`).
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
