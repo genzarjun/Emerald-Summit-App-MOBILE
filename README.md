@@ -1006,7 +1006,8 @@ feedback should open once the last session ends.
 
 ## Registration lock and hidden session times
 
-**Status (Nov 12, 2026): registration closed, times hidden.** Two switches on
+**Status (Nov 20, 2026): registration closed, times hidden. Registration is
+scheduled to open at 5:00 AM Pacific on Nov 21, 2026 (see below).** Two switches on
 the `summit_settings` row, both `false` by default
 ([website_switches.sql](supabase/website_switches.sql), already run):
 
@@ -1023,11 +1024,51 @@ the `summit_settings` row, both `false` by default
 - `website_show_session_times`: website only. While false, the website shows
   session times, lengths and deadlines as "TBD". The app ignores it.
 
-To open either one: `update public.summit_settings set
-website_registration_open = true;` (or `website_show_session_times`) in the
-SQL editor, or tick the box in Table Editor. No release or deploy needed.
-Admins hold the update grant too. If registration_closed_lock.sql is ever
-superseded by a newer copy of `register_for_session`, carry the check over.
+**Turning registration on and off.** No app release or website deploy is
+needed.
+
+1. Open the Supabase project (`dgrskmykbkvphnaasfzl`) and go to the **SQL
+   editor**.
+2. Run one of these:
+
+   ```sql
+   -- Open registration
+   update public.summit_settings set website_registration_open = true;
+
+   -- Close registration
+   update public.summit_settings set website_registration_open = false;
+
+   -- See where it stands
+   select website_registration_open from public.summit_settings;
+   ```
+
+   Or, without SQL: open **Table Editor → summit_settings** and tick or
+   untick `website_registration_open`.
+3. The server starts accepting or refusing sign-ups as soon as the update
+   runs, for the app and the website alike. The website buttons change on
+   each person's next page load.
+
+Closing registration doesn't remove anyone. People already on a session stay
+on it, and they can still edit or remove their registration. Only new
+sign-ups are refused. Session times (website only) work the same way with
+`website_show_session_times`. Admins hold the update grant too. If
+registration_closed_lock.sql is ever superseded by a newer copy of
+`register_for_session`, carry the check over.
+
+**Scheduled opening (set up Nov 20, 2026).** A one-time pg_cron job,
+`open-website-registration`, opens registration at 5:00 AM Pacific on Nov 21,
+2026. Its schedule is `0 13 21 11 *` because pg_cron on this project runs in
+UTC. It runs the same update as above (`website_registration_open = true`),
+then unschedules itself, so it runs once and won't fire again next November.
+It doesn't touch `website_show_session_times`.
+
+- The switch still works by hand, before and after the job. One catch: if you
+  set it back to false before 5 AM, the job sets it to true again at 5 AM. To
+  keep registration closed, cancel the job first:
+  `select cron.unschedule('open-website-registration');`
+- To check that it ran: `website_registration_open` reads true, and the
+  Supabase dashboard (Integrations → Cron → Job runs) shows a successful run.
+  After it runs, the job no longer appears in `cron.job`.
 
 ## App writing rule
 Nothing a user reads in the app should sound machine-written. That covers every
