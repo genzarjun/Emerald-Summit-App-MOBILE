@@ -448,12 +448,12 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     (`queue_my_session_reminders`, which the app and website call every 5
     minutes; reminders start once `summit_date` is set), and adds the table to
     Realtime. Until it's run both clients keep personal notices in News. Safe
-    to re-run. *(Not run yet.)*
+    to re-run. *(Run Nov 21, 2026.)*
 60. `supabase/dev_login_lockout.sql`: **lockout for test sign-in** (§3b).
     Adds `dev_login_failures`, which the `dev-login` function uses to refuse
     with `429` after 5 wrong passwords from one address in 15 minutes, or 50
     from anywhere in an hour. Run it, then redeploy `dev-login`. Safe to
-    re-run. *(Not run yet.)*
+    re-run. *(Run Nov 21, 2026.)*
 
 61. `supabase/eighth_grade_participation.sql`: **8th graders participate
     only where allowed.** Adds `sessions.allow_eighth_graders` (default
@@ -511,6 +511,18 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     Run after `announcements_insert_lockdown.sql` and
     `notifications_setup.sql`. Additive; safe to re-run. *(Run on the dev project
     2026-11-20.)*
+
+66. `supabase/expert_beamentor.sql`: **expert BeAMentor clearance.** Adds
+    `profiles.beamentor_submitted_at`, `beamentor_verified_at` and
+    `beamentor_verified_by` (a guard trigger lets only the RPCs set them),
+    `mark_beamentor_submitted()` (the expert ticks the box; also sets
+    `expert_status = 'approved'` for full access), a new `review_expert`
+    that verifies and posts "Your BeAMentor clearance is verified",
+    `fetch_expert_dashboard()` for the admins' Not verified / Verified
+    tabs (only experts who ticked BeAMentor), the admins' "Experts waiting for verification" notice,
+    and the public `expert_photos` bucket (each person writes their own
+    folder). Run after `role_change_downgrades.sql` and `code_of_conduct.sql`.
+    Safe to re-run. *(Run Nov 21, 2026.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

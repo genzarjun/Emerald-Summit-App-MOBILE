@@ -2197,10 +2197,60 @@ has it too since Nov 14, 2026; see below.
   - App: in metrics_screen.dart, filter people to those with a non-expert
     registration before counting, and add the expert section (website:
     `registeredPeople` and `expertSummary` in `src/models/metrics.ts`).
+- [ ] **Expert BeAMentor clearance** (website, Nov 21, 2026). Expert sign-up
+  now also asks for a job title, company or organization, and an optional
+  photo (the bio is now "Short bio"). After the Guest Expert Policy comes a
+  BeAMentor step: the steps from the organizers' slides, **Open BeAMentor**
+  (DUSD's page) and a link to the slides, and the box "I have submitted my
+  BeAMentor application". Ticking it gives full access, so the old "awaiting
+  approval" screen no longer shows; a banner ("BeAMentor submitted. It is
+  waiting to be verified by a Summit organizer…") stays at the top with an
+  X; once closed it never comes back on any device (the website saves
+  `beamentor_banner_dismissed: true` in the account's auth user_metadata;
+  the app should read the same flag). Admins' **Expert approvals** became
+  **Expert verification**, with two tabs, Not verified and Verified (only
+  experts who ticked BeAMentor, so every expert in the app is one or the
+  other), the photo, title and company,
+  and **Verify**, which sends the expert the notice "Your BeAMentor
+  clearance is verified".
+  - Backend: `supabase/expert_beamentor.sql`. New profile columns
+    `beamentor_submitted_at`, `beamentor_verified_at`, `beamentor_verified_by`
+    (only the RPCs can set them); `mark_beamentor_submitted()` (sets
+    `expert_status = 'approved'`, so `register_for_session` and
+    `session_experts` work unchanged); `review_expert` now verifies;
+    `fetch_expert_dashboard()`; the admins' queue notice counts experts
+    waiting for verification; the public `expert_photos` bucket. Title,
+    company and `photo_url` are keys in `details`.
+  - App: after the policy, route experts with no `beamentor_submitted_at` to
+    a BeAMentor screen; swap `expert_pending_screen.dart` for the banner; add
+    the new fields and photo upload to onboarding and Edit profile; rebuild
+    expert_approvals_screen.dart on `fetch_expert_dashboard()` (website:
+    `src/pages/BeAMentorPage.tsx`, `src/components/BeamentorBanner.tsx`,
+    `src/pages/ExpertApprovalsPage.tsx`, `src/models/beamentor.ts`). Until
+    then, `fetch_expert_requests()` misses experts who ticked BeAMentor,
+    because their status is already `approved`.
+- [ ] **Tracks in each discipline's description order** (website, Nov 20,
+  2026, from Akhil's branch). A discipline's tracks are no longer listed
+  purely by start time: they're grouped the way the discipline's description
+  reads, then by start time within a group. TechVerse: computer science,
+  then the other tech tracks (Product Design, AI Playground), then
+  engineering. VentureVerse: Entrepreneurship Shark Tank before Marketing.
+  Groups match on words in the track title, and a track that matches none
+  goes last. The website does this on the discipline page, the Discover
+  cards and the landing orbit; on wide screens the discipline page's grid
+  fills down the first column, then the second, so TechVerse's tech and
+  engineering tracks each read as a column. The discipline header counts
+  "tracks", not "sessions".
+  - Backend: none.
+  - App: port `orderTracks` and its `GROUPS` table (website
+    `src/models/trackOrder.ts`, tests in
+    `src/models/__tests__/trackOrder.test.ts`) and use it wherever the app
+    lists a discipline's sessions, instead of sorting by `start_time`.
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
-2026 role badges that link to each role's sign-up and the date line's
+2026 role rows that link to each role's sign-up, with badges that open
+the roles page since Nov 20, and the date line's
 "Dublin, CA"; the Nov 17 sponsor terraces and Support EAF corner seal were
 removed again on Nov 20, along with the stats reorder, the "Frequently
 Asked Questions" heading and the new favicon files), the
