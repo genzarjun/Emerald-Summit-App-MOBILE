@@ -1,7 +1,9 @@
 -- Emerald Summit: more of the activity log
 -- Run in the Supabase dashboard (or `supabase db query --linked -f ...`)
 -- AFTER activity_log_setup.sql and announcement_activity_log.sql (which adds
--- activity_change_via()). Safe to re-run.
+-- activity_change_via()). Safe to re-run. If you re-run it, run
+-- activity_log_question_switches.sql again after it: that file adds the
+-- participant question switches to the track functions below.
 --
 -- Adds triggers so these land in activity_log too, each with who did it,
 -- what changed (old and new values), and how it came in (details.via:

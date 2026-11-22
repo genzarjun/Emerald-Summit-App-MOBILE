@@ -2423,13 +2423,15 @@ has it too since Nov 14, 2026; see below.
   named after the person who creates it ("Alex's team", or "Team TV1234"
   when they have no name on file).
   - Backend: [participant_question_switches.sql](supabase/participant_question_switches.sql)
-    (not run yet). Adds `sessions.ask_participant_questions` and
+    (run Nov 22, 2026) adds `sessions.ask_participant_questions` and
     `sessions.ask_project_name` (both default true), rebuilds
     `sessions_with_counts`, and changes `register_for_session` (questions
     off: ignores the project choice and answers, saves `project_mode` null)
     and `update_my_registration` (no name needed when the track does not
     ask one). Old app builds keep working: they send a project, and the
     server drops it on a track with questions off.
+    [activity_log_question_switches.sql](supabase/activity_log_question_switches.sql)
+    makes the activity log record either switch flipping.
   - App: read both columns in the session model; two switches in
     `session_editor_screen.dart` (hide the team size, project wording and
     the track's questions while the first is off, and the wording while the

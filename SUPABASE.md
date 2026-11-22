@@ -554,10 +554,17 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     saves no name and a new team is named after its creator through
     `default_team_name` ("Alex's team", or "Team TV1234");
     `update_my_registration` follows the same rule. Until it's run, the
-    website's two switches stay greyed out. The activity log's
-    `track_edited` does not record these two columns yet. Run after
+    website's two switches stay greyed out. Run after
     `eighth_grade_participation.sql` and `team_size_limits.sql`. Safe to
-    re-run. *(Not run yet.)*
+    re-run. *(Run Nov 22, 2026.)*
+70. `supabase/activity_log_question_switches.sql`: **log the question
+    switches.** Redefines `activity_from_sessions` and
+    `activity_track_snapshot` so `track_edited` records
+    `ask_participant_questions` and `ask_project_name` when either flips,
+    and `track_created` / `track_deleted` keep both in their copy of the
+    track. Run after `activity_log_more.sql` and
+    `participant_question_switches.sql`, and again whenever
+    `activity_log_more.sql` is re-run. Safe to re-run. *(Not run yet.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
