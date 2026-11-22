@@ -2251,7 +2251,9 @@ has it too since Nov 14, 2026; see below.
   now also asks for a job title, company or organization, and an optional
   photo (the bio is now "Short bio"). After the Guest Expert Policy comes a
   BeAMentor step: the steps from the organizers' slides, **Open BeAMentor**
-  (DUSD's page) and a link to the slides, and the box "I have submitted my
+  (DUSD's page) and a link to the slides (since Nov 22, 2026 the published
+  slideshow: https://docs.google.com/presentation/d/e/2PACX-1vS0p-Dqo0bWk4kFiCM-GU1aWB1LRQ1KKdniPMGiZ9LeZHtT_LJxnYJa_w9tGwdAHrP5f8Mok0L0DVMe/pub?start=true&loop=true&delayms=3000&slide=id.p),
+  and the box "I have submitted my
   BeAMentor application". Ticking it gives full access, so the old "awaiting
   approval" screen no longer shows; a banner ("BeAMentor submitted. It is
   waiting to be verified by a Summit organizer…") stays at the top with an
@@ -2457,7 +2459,9 @@ that scrolling swings out one by one and that can't be clicked since Nov
 removed again on Nov 20, along with the stats reorder, the "Frequently
 Asked Questions" heading and the new favicon files), the profile setup page's wider layout, the Google button resetting after a
 sign-in that gets sent to Sign up, the
-`website_show_session_times` switch, the header search jumping to pages, the
+`website_show_session_times` switch, the header search jumping to pages,
+disciplines and the donate and sponsor links (Nov 22, 2026; the app's
+Discover search stays sessions-only, with the disciplines listed under it), the
 browser's 15-minute pause after five wrong test passwords, the "your QR
 pass is also in the mobile app" note, and the "Better in the app" banner
 phones see on the website (Nov 14, 2026). **At launch:** that banner stays
