@@ -101,18 +101,18 @@ stays put on Ask Archie and for screen-reader users.
     → Sponsor page as a stepped peak, highest first (Capstone $5,000,
     Keystone $2,000, Pillar $1,500, Foundation $1,000, Cornerstone $500,
     each with its perks). Each sponsor's logo sits in its tier and opens
-    their website (Brightfox at Keystone; Prepaze Academy, YoungWonks and
-    Praan Health at Cornerstone; logos in `assets/sponsors/`, list in
-    `sponsors` in home_about_sections.dart, the same as the website's
-    `SPONSORS`). Open spots fill out each tier's row: the first says **Your
+    their website (list in `sponsors` in home_about_sections.dart, logos in
+    `assets/sponsors/`). The list still holds last year's sponsors, which
+    are out of date and come out (see the to-do **No sponsors on Home**);
+    the website's `SPONSORS` is empty until this year's are confirmed. Open spots fill out each tier's row: the first says **Your
     company logo could go here**, the rest are faint dashed slots with a +,
     and all email contact@ehsacademics.org with the tier in the subject.
     Then a note that sponsorships go through EAF and are fully
     tax-deductible, **Become a sponsor** (emails contact@ehsacademics.org)
     and **Sponsorship details**
     (https://www.ehsacademics.org/initiatives/emerald-summit-27/sponsor).
-    To add a sponsor, add its logo to `assets/sponsors/` and a line to
-    `sponsors`, on both the app and the website.
+    To add a sponsor (paid ones only), add its logo to `assets/sponsors/`
+    and a line to `sponsors`, on both the app and the website.
   - **About the app**: "This app has been 100% built by Emerald High School
     students." with credits: lead developers Arjun Mahajan and Akhil
     Muthyala; developers and testers Nithali Anand, Arush Singh, Guhan Bala
@@ -2153,14 +2153,34 @@ has it too since Nov 14, 2026; see below.
     fail. The app only needs the Profile button and the two-step dialog.
   - The app needs it before launch anyway: the App Store and Google Play
     both require apps that create accounts to let people delete them.
-- [ ] **No sponsors shown anywhere for now** (website, Nov 17 and Nov 20,
-  2026; live on the website since Nov 20). Sponsors left the website's Home on Nov 17, and after the
-  Nov 20 meeting they are off the public site too: the organizers don't
-  want unpaid sponsors getting free advertising, so there's no "past
-  sponsors" list either. Sponsors will come back in a planned **Summit 27**
-  tab in the signed-in dashboard. Remove `SponsorsSection` from the app's
-  Home ([dashboard_screen.dart](lib/screens/dashboard_screen.dart)); Home
-  is then Support EAF, Links and About the app, like the website.
+- [ ] **No sponsors on Home** (website, Nov 17, Nov 20 and Nov 22, 2026;
+  live on the website). The organizers don't want unpaid sponsors getting
+  free advertising, so sponsors are off the public site, with no "past
+  sponsors" list either, and off Home: they're only on the signed-in
+  **Summit '27** tab's Sponsors subtab (see the next item). Remove
+  `SponsorsSection` from the app's Home
+  ([dashboard_screen.dart](lib/screens/dashboard_screen.dart)); Home is then
+  Support EAF, Links and About the app, like the website. Last year's
+  sponsors are not needed: empty `sponsors` in
+  [home_about_sections.dart](lib/widgets/home_about_sections.dart) and
+  delete their logos from `assets/sponsors/` (the website already did).
+- [ ] **Summit '27 tab** (website, Nov 22, 2026, from the Nov 20 meeting).
+  A signed-in **Summit '27** section with three subtabs, **Keynote**,
+  **Team** and **Sponsors**, and **Support EAF** (Donate and Volunteer
+  with EAF) under each. Keynote and Team say "Coming soon" ("This year's
+  keynote speaker will be announced soon." / "About Me pages for the
+  students and organizers working on Emerald Summit '27 are coming soon.")
+  until their details come in. Sponsors shows one card per tier, highest
+  first, with its price, perks and logos ("Open" while it has none), then
+  **Become a sponsor** and **Sponsorship details**. The header line is
+  "Saturday, January 23, 2027 · 9 AM to 5 PM · Emerald High School,
+  Dublin, CA". On the website it's a sidebar group between My Summit and
+  Account, with a Summit '27 card on Home for phones.
+  - Backend: none.
+  - App: a Summit '27 screen with a segmented control or tab bar for the
+    three subtabs, reached from Home (the bottom bar is already full),
+    reusing the Sponsors tier list and Support EAF from
+    home_about_sections.dart (website: `src/pages/Summit27Page.tsx`).
 - [ ] **Spelling: Nihtahli Anand** (website, Nov 17, 2026). About the app
   lists "Nihtahli Anand", not "Nithali Anand". Fix `_developersAndTesters`
   in [home_about_sections.dart](lib/widgets/home_about_sections.dart).
@@ -2329,12 +2349,12 @@ has it too since Nov 14, 2026; see below.
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
-2026 role rows that link to each role's sign-up, with badges that open
-the roles page since Nov 20, and the date line's
+2026 role rows that link to each role's sign-up, with badges beside them
+that scrolling swings out one by one and that can't be clicked since Nov
+22, the Summit figure's terraces stepping the same way, and the date line's
 "Dublin, CA"; the Nov 17 sponsor terraces and Support EAF corner seal were
 removed again on Nov 20, along with the stats reorder, the "Frequently
-Asked Questions" heading and the new favicon files), the
-profile setup page's wider layout, the Google button resetting after a
+Asked Questions" heading and the new favicon files), the profile setup page's wider layout, the Google button resetting after a
 sign-in that gets sent to Sign up, the
 `website_show_session_times` switch, the header search jumping to pages, the
 browser's 15-minute pause after five wrong test passwords, the "your QR
