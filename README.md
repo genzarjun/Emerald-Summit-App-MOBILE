@@ -2267,10 +2267,10 @@ has it too since Nov 14, 2026; see below.
     lists a discipline's sessions, instead of sorting by `start_time`.
 - [ ] **Registration, account and expert wording** (website PR #18 from
   badrandumbs, Nov 21, 2026). The website changed these labels and messages:
-  - "Discover" is now **Explore & Register** in the sidebar and phone tab
-    bar, and the "Browse tracks" / "Explore the disciplines" buttons say
-    **Explore & Register** too. On phones the tab label wraps to two lines
-    so it all shows. The catalog page title is just **Disciplines**.
+  - "Discover" is now **Explore** in the sidebar and phone tab bar (it was
+    "Explore & Register" for a few hours on Nov 21), and the "Browse
+    tracks" / "Explore the disciplines" buttons say **Explore & Register**.
+    The catalog page title is just **Disciplines**.
   - Bug report and feedback: **Your name** comes from the profile and can't
     be edited. With no profile name, sending says "Add your name in your
     profile before sending a report."
@@ -2291,6 +2291,16 @@ has it too since Nov 14, 2026; see below.
     `expert_pending_screen.dart` (`contactEmail`, wording, button) (website:
     `src/components/AppShell.tsx`, `src/components/ReportDialog.tsx`,
     `src/components/ExpertStatus.tsx`, `src/components/DeleteAccountDialog.tsx`).
+- [ ] **Explore: no New discipline, no icon above a discipline's name**
+  (website, Nov 21, 2026). The website removed the admins' **New
+  discipline** button and dialog from Explore, and the discipline icon
+  square above the name at the top of each discipline's page (the Explore
+  panels keep their icons).
+  - Backend: none.
+  - App: ask the user whether the app should match. If so, take the
+    **New discipline** button off `discover_screen.dart` (the
+    `discipline_editor_screen.dart` route can go too) and drop the badge
+    above the name on the discipline page.
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
