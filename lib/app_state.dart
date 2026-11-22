@@ -785,15 +785,35 @@ class AppState extends ChangeNotifier {
 
   int _announcementsRequest = 0;
 
+  /// Puts [item] in the feed (replacing any copy with the same id) in the
+  /// order the database returns: pinned first, then newest first.
+  void _addAnnouncement(Announcement item) {
+    final next = [
+      item,
+      for (final a in announcements)
+        if (a.id != item.id) a,
+    ]..sort((a, b) {
+        if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+        final at = a.createdAt, bt = b.createdAt;
+        if (at == null || bt == null) return 0;
+        return bt.compareTo(at);
+      });
+    announcements = next;
+    notifyListeners();
+  }
+
   /// Subscribes to the live announcements feed so every open app updates and
   /// shows an in-app banner. Idempotent. A backend without realtime yields a
   /// stream that never emits, so this is a harmless no-op there.
   void subscribeAnnouncements() {
     if (_annSub != null) return;
-    _annSub = announcementsRepository.events.listen(_onAnnouncementInserted);
+    _annSub = announcementsRepository.events.listen(handleAnnouncementEvent);
   }
 
-  void _onAnnouncementInserted(AnnouncementEvent event) {
+  /// Applies one live announcement event. Public only so tests can feed it
+  /// events without Realtime.
+  @visibleForTesting
+  void handleAnnouncementEvent(AnnouncementEvent event) {
     // A delete-for-everyone: drop it from the local feed immediately, no banner.
     if (event.deleted) {
       // The admins' "experts waiting" notice is removed when the queue empties.
@@ -805,8 +825,15 @@ class AppState extends ChangeNotifier {
       }
       return;
     }
-    // Refresh the feed for everyone (keeps ordering/pinned correct).
-    loadAnnouncements();
+    // Add the post straight from the live message. Reloading the whole feed on
+    // every post would make every open app hit the database at once. While a
+    // load is running, reload instead: the newest load wins and has the post.
+    final added = event.announcement;
+    if (added != null && !announcementsLoading) {
+      _addAnnouncement(added);
+    } else {
+      loadAnnouncements();
+    }
     // A personal notice aimed at me is usually an assign/unassign change — pull
     // my assignments so the Schedule + "managing" list update live too.
     if (event.targetUserId != null && event.targetUserId == _myUserId) {

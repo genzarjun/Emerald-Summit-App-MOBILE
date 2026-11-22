@@ -221,6 +221,9 @@ Deno.serve(async (req) => {
     const volunteersBefore = await countRole(supabase, "volunteer");
     const adminsBefore = await countRole(supabase, "admin");
 
+    // Every row is sent every time; the role_allowlist_skip_unchanged trigger
+    // (allowlist_skip_unchanged.sql) drops the ones where nothing changed, so
+    // unchanged rows keep their updated_at and don't re-touch profiles.
     if (all.length > 0) {
       const { error } = await supabase
         .from("role_allowlist")

@@ -567,6 +567,35 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     two switches for `track_edited` too, so re-running it keeps logging
     flips; run this file again after it so created and deleted tracks keep
     the switches in their copy. Safe to re-run. *(Run Nov 22, 2026.)*
+71. `supabase/allowlist_skip_unchanged.sql`: **the 5-minute sheet sync
+    stops rewriting unchanged rows.** A `BEFORE UPDATE` trigger on
+    `role_allowlist` drops an update when only `updated_at` differs, so the
+    sync no longer touches every volunteer's and admin's profile (and runs
+    all the profile triggers) every 5 minutes. Real changes from the sheet,
+    new rows and removals work as before. `updated_at` now means the last
+    real change, not the last sync. Run after `role_allowlist_v2.sql` and
+    `activity_log_more.sql`. Safe to re-run. *(Run Nov 22, 2026; tested
+    in a rolled-back transaction: a same-values upsert changed nothing and
+    logged nothing, and a permission change still updated the profile and
+    logged `allowlist_changed` and `permissions_changed`.)*
+72. `supabase/rls_once_per_query.sql`: **access rules check who you are
+    once per query.** Rewrites 39 policies so `auth.uid()`, `auth.email()`,
+    `is_admin()`, `is_volunteer_or_admin()` and `can_create_rooms()` are
+    wrapped in `(select ...)`, which Postgres runs once per query instead of
+    once per row. Who can see or change what is unchanged. Run it last: if an
+    older file that creates one of these policies is re-run, run this again
+    afterwards, and write new policies in the `(select ...)` form. Safe to
+    re-run. *(Run Nov 22, 2026, together with a re-run of
+    `qr_checkin_setup.sql`; tested first in a rolled-back transaction: an
+    admin, a front-desk volunteer, a participant and an expert each saw the
+    same rows in all 25 tables before and after, except that admins and
+    front-desk volunteers could now read `summit_checkins`, as intended.
+    Supabase's performance advisor went from 29 per-row warnings to 0.)*
+
+`qr_checkin_setup.sql` (step 42) was re-run on Nov 22, 2026. The live
+database had an older version: no `fetch_checkin_stats`, no Realtime on
+`summit_checkins`, and a front-desk list and QR scan that still included
+never-onboarded accounts. Its read policy now uses the `(select ...)` form.
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

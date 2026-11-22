@@ -131,7 +131,7 @@ grant execute on function public.fetch_checkin_stats() to authenticated;
 drop policy if exists "summit_checkins_front_desk_read" on public.summit_checkins;
 create policy "summit_checkins_front_desk_read"
   on public.summit_checkins for select to authenticated
-  using (public.can_check_in_front_desk());
+  using ((select public.can_check_in_front_desk()));
 
 do $$
 begin

@@ -1342,8 +1342,9 @@ test/widget_test.dart       Widget tests
     (front-desk read policy), and
     limits the directory + scans to **onboarded** accounts (a blank profile row
     exists for anyone who merely requested a sign-in code).
-    [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql) (run on the dev
-    project)
+    [qr_checkin_setup.sql](supabase/qr_checkin_setup.sql) (re-run on the
+    live project Nov 22, 2026; it had an older version without the stats,
+    the onboarded filter or Realtime)
     Anyone who passes the roster's gate can take someone off a session
     (website only for now): `remove_session_registration` deletes the
     registration, records it in `session_removals`, and sends a personal
@@ -2710,7 +2711,11 @@ production build" below), so the website only needs the form and the call.
   a date.
 - Realtime: subscribe to `announcements` (the app's channel is
   `public:announcements`) once signed in, and to `summit_checkins` only on the
-  front-desk screen. Unsubscribe on sign-out and unmount. The free plan allows
+  front-desk screen. Unsubscribe on sign-out and unmount. Apply an
+  announcement from the message's own row instead of re-fetching the feed
+  (since Nov 22, 2026, in the app and on the website), so a post doesn't send
+  every open device to the database at once; re-fetch only when the message
+  has `errors` (Realtime cut a too-big row short). The free plan allows
   200 concurrent connections across the app and every open website tab.
 
 **Storage egress (read this before showing any photo).** Storage downloads

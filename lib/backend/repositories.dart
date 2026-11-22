@@ -170,7 +170,13 @@ class AnnouncementEvent {
     this.disciplineId,
     this.targetUserId,
     this.deleted = false,
+    this.announcement,
   });
+
+  /// The whole row as a feed item, when the live message carried all of it,
+  /// so the app can add it without reloading the feed. Null on deletions and
+  /// when Realtime cut the row short (very long posts); the app reloads then.
+  final Announcement? announcement;
 
   final String id;
   final String title;

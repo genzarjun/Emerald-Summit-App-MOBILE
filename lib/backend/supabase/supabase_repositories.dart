@@ -661,6 +661,7 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
                 audience: (row['audience'] ?? '') as String,
                 disciplineId: row['discipline_id'] as String?,
                 targetUserId: row['target_user_id'] as String?,
+                announcement: _fullRow(payload),
               ));
             },
           )
@@ -691,6 +692,19 @@ class SupabaseAnnouncementsRepository implements AnnouncementsRepository {
       if (kDebugMode) debugPrint('Realtime subscribe skipped: $e');
     }
     return controller.stream;
+  }
+
+  /// The inserted row as a feed item, or null when Realtime flagged the
+  /// message (it drops long values from rows that are too big to send) or the
+  /// row doesn't parse. Null makes the app reload the feed instead.
+  static Announcement? _fullRow(PostgresChangePayload payload) {
+    final errors = payload.errors;
+    if (errors != null && !(errors is List && errors.isEmpty)) return null;
+    try {
+      return Announcement.fromMap(payload.newRecord);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
