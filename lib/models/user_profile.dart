@@ -165,6 +165,12 @@ extension SummitRoleX on SummitRole {
   /// Whether this role must be verified against the synced allowlist at sign-up.
   bool get isGated => this == SummitRole.volunteer || this == SummitRole.admin;
 
+  /// When the allowlist could not be read (offline, server error). Not a
+  /// refusal, so it does not tell a listed person they are not on it.
+  static const allowlistCheckFailedMessage =
+      "Couldn't check the list. Try again. If this keeps happening, please "
+      'email support@ehsacademics.org.';
+
   /// What a gated role's sign-up says when the email is not on the allowlist:
   /// what to do next, not just "no". Admins are "organizers" on screen.
   String get notAllowedMessage {

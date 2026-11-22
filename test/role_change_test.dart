@@ -103,4 +103,21 @@ void main() {
       expect(appState.hasUnseenExpertRequests, isFalse);
     });
   });
+
+  group('allowlist notices', () {
+    test('off the list: says which list and to email support', () {
+      expect(SummitRole.volunteer.notAllowedMessage,
+          'Your email is not on the list of people allowed to be a volunteer. '
+          'Please email support@ehsacademics.org.');
+      expect(SummitRole.admin.notAllowedMessage,
+          'Your email is not on the list of people allowed to be an organizer. '
+          'Please email support@ehsacademics.org.');
+    });
+
+    test('check failed: try again, then email support', () {
+      expect(SummitRoleX.allowlistCheckFailedMessage,
+          "Couldn't check the list. Try again. If this keeps happening, "
+          'please email support@ehsacademics.org.');
+    });
+  });
 }

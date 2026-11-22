@@ -143,17 +143,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _busy = true;
         _error = null;
       });
-      bool eligible;
+      bool? eligible;
       try {
         eligible = await allowlistRepository.isEligible(_role);
       } catch (_) {
-        eligible = false;
+        eligible = null; // Could not read the list: not a refusal.
       }
       if (!mounted) return;
-      if (!eligible) {
+      if (eligible != true) {
         setState(() {
           _busy = false;
-          _error = _role.notAllowedMessage;
+          _error = eligible == null
+              ? SummitRoleX.allowlistCheckFailedMessage
+              : _role.notAllowedMessage;
         });
         return;
       }

@@ -55,17 +55,19 @@ class _ChangeRoleSheetState extends State<_ChangeRoleSheet> {
     // Volunteer and admin need the email on the allowlist, checked before
     // anything is saved.
     if (role.isGated) {
-      bool eligible;
+      bool? eligible;
       try {
         eligible = await allowlistRepository.isEligible(role);
       } catch (_) {
-        eligible = false;
+        eligible = null; // Could not read the list: not a refusal.
       }
       if (!mounted) return;
-      if (!eligible) {
+      if (eligible != true) {
         setState(() {
           _busy = false;
-          _error = role.notAllowedMessage;
+          _error = eligible == null
+              ? SummitRoleX.allowlistCheckFailedMessage
+              : role.notAllowedMessage;
         });
         return;
       }

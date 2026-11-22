@@ -939,6 +939,10 @@ primary-colored.
   allowed to be a volunteer / an organizer. Please email
   support@ehsacademics.org."* (`SummitRole.notAllowedMessage`, used by
   sign-up and **Change role**; the website says the same since Nov 22, 2026).
+  If the list can't be read (offline, server error), it says *"Couldn't
+  check the list. Try again. If this keeps happening, please email
+  support@ehsacademics.org."* instead (`SummitRoleX.allowlistCheckFailedMessage`),
+  so nobody on the list is told they are not.
 - **The account is tied to the email**, not the device. The session persists
   across app restarts and auto-refreshes; signing in on another device (or
   after reinstalling) pulls the same profile, role, and data back down. Only
