@@ -2354,6 +2354,16 @@ has it too since Nov 14, 2026; see below.
   - Backend: none.
   - App: merge the two Profile rows into one that opens `report_screen.dart`
     as a bug report (website: `src/pages/SettingsPage.tsx`).
+- [ ] **No page for reading reports** (website, Nov 22, 2026). The website
+  removed the admins' **Bug reports and feedback** row on Profile and its
+  page (`/admin/reports`, the old `BugReportsPage.tsx`); unknown addresses
+  go to the start page, so that address does too. Reports are still saved
+  and emailed; they're read in the team email and in Supabase.
+  - Backend: `bug-report-email` still puts an "Open" link to
+    `/admin/reports` in the team email; drop it and redeploy the function.
+    `set_bug_report_status` has no caller on the website now.
+  - App: ask the user whether the app should match. If so, take the admin
+    row off Profile and remove `lib/screens/bug_reports_screen.dart`.
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
