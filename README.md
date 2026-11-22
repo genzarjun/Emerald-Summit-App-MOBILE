@@ -2265,6 +2265,32 @@ has it too since Nov 14, 2026; see below.
     `src/models/trackOrder.ts`, tests in
     `src/models/__tests__/trackOrder.test.ts`) and use it wherever the app
     lists a discipline's sessions, instead of sorting by `start_time`.
+- [ ] **Registration, account and expert wording** (website PR #18 from
+  badrandumbs, Nov 21, 2026). The website changed these labels and messages:
+  - "Discover" is now **Explore & Register** in the sidebar and phone tab
+    bar, and the "Browse tracks" / "Explore the disciplines" buttons say
+    **Explore & Register** too. On phones the tab label wraps to two lines
+    so it all shows. The catalog page title is just **Disciplines**.
+  - Bug report and feedback: **Your name** comes from the profile and can't
+    be edited. With no profile name, sending says "Add your name in your
+    profile before sending a report."
+  - Expert pending screen: "Your expert account is pending approval", then
+    "To help ensure a trusted and safe experience for our students, every
+    expert registration is reviewed by the Emerald Summit organizing team."
+    and "Once your account is approved, you'll be able to access the app and
+    participate as an Expert." The button is **Sign up with a different
+    role**. The contact email (pending screen and the declined-request
+    dialog) is now `support@ehsacademics.org` instead of
+    `nysha.singhal@ehsacademics.org`. The role-change note says "pending
+    approval" too.
+  - Delete account: "You are taken off every track on your day and any team
+    you are on."
+  - Backend: none.
+  - App: `app_navigation.dart`, `root_nav.dart` and `discover_screen.dart`
+    (tab and title), `report_screen.dart` (read-only name),
+    `expert_pending_screen.dart` (`contactEmail`, wording, button) (website:
+    `src/components/AppShell.tsx`, `src/components/ReportDialog.tsx`,
+    `src/components/ExpertStatus.tsx`, `src/components/DeleteAccountDialog.tsx`).
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
