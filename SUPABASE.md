@@ -545,6 +545,20 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     a permission change coming from the sheet and an expert verified
     through `review_expert`.)*
 
+69. `supabase/participant_question_switches.sql`: **switch a track's
+    questions off.** Adds `sessions.ask_participant_questions` and
+    `sessions.ask_project_name` (both default true, so existing tracks are
+    unchanged) and rebuilds `sessions_with_counts` with them. With questions
+    off, `register_for_session` ignores any project choice and answers and
+    saves a plain participant registration. With the project name off, solo
+    saves no name and a new team is named after its creator through
+    `default_team_name` ("Alex's team", or "Team TV1234");
+    `update_my_registration` follows the same rule. Until it's run, the
+    website's two switches stay greyed out. The activity log's
+    `track_edited` does not record these two columns yet. Run after
+    `eighth_grade_participation.sql` and `team_size_limits.sql`. Safe to
+    re-run. *(Not run yet.)*
+
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
 

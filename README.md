@@ -2383,6 +2383,37 @@ has it too since Nov 14, 2026; see below.
     check on the Other box in the school picker (website:
     `isRealSchoolName` and `missingGateField` in
     `src/models/profileFields.ts`, `src/pages/ProfileSetupPage.tsx`).
+- [ ] **Switch a track's questions off** (website, Nov 22, 2026). For
+  tracks like workshops, the track editor's **Participant questions** box
+  now has a switch (on by default). Off, participants register with no
+  questions at all: no solo/team, no project, none of the track's own
+  questions. The **Project question** has its own switch (on by default).
+  Off, solo or team is still asked but not a project name, and a new team is
+  named after the person who creates it ("Alex's team", or "Team TV1234"
+  when they have no name on file).
+  - Backend: [participant_question_switches.sql](supabase/participant_question_switches.sql)
+    (not run yet). Adds `sessions.ask_participant_questions` and
+    `sessions.ask_project_name` (both default true), rebuilds
+    `sessions_with_counts`, and changes `register_for_session` (questions
+    off: ignores the project choice and answers, saves `project_mode` null)
+    and `update_my_registration` (no name needed when the track does not
+    ask one). Old app builds keep working: they send a project, and the
+    server drops it on a track with questions off.
+  - App: read both columns in the session model; two switches in
+    `session_editor_screen.dart` (hide the team size, project wording and
+    the track's questions while the first is off, and the wording while the
+    second is off); in the registration screen, skip the sheet entirely when
+    questions are off (or when a solo-only track asks no name and has no
+    questions of its own), hide the name field when the name is off, and
+    show "Is this your team?" with the team's name when joining; hide **Edit
+    my registration** and the empty project card on a no-questions track,
+    and the name field in "Leave team?" where no name is asked. The roster
+    lists a no-questions track's participants as **Participants** and an
+    unnamed solo project under the person's name (website:
+    `registrationAsksAnything` in `src/models/registration.ts`,
+    `src/components/verse/SharedSessionForm.tsx`,
+    `src/components/session/RegistrationForm.tsx`, `SessionView.tsx`,
+    `SessionRoster.tsx`).
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
