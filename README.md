@@ -617,6 +617,16 @@ grade), `role_changed`, `profile_edited` (field names only, not values),
 `joined_team` / `left_team` / `switched_team`, `project_edited`,
 `answers_edited`, `checked_in` / `check_in_undone`, `summit_checked_in` /
 `summit_check_in_undone`, and `volunteer_assigned` / `volunteer_unassigned`.
+Since Nov 21, 2026 ([announcement_activity_log.sql](supabase/announcement_activity_log.sql))
+also `announcement_posted`, `announcement_edited` and `announcement_deleted`
+for posts to everyone or to a discipline (not personal notices, which the
+system writes and clears all the time). Each keeps a full copy of the post
+(title, text, audience, discipline, pin, attachments), so a deleted post can
+be read back and re-posted, and `details.via` says how the change came in:
+"website or app" (with the person in `user_id`), "dashboard / SQL" (the
+Supabase Table Editor or SQL Editor, no person) or "server key". This was
+added after a post was deleted on Nov 21, 2026 with no way to tell who did
+it. To check, run the query at the top of that file in the SQL Editor.
 Each row has who did it (`actor_id`), whose record it is (`user_id`), the
 session, and a snapshot of the session title so it still reads after the
 session is deleted. A logging error never blocks the real action. Deleting an

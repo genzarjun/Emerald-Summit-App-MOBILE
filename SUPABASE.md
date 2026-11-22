@@ -523,6 +523,16 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     and the public `expert_photos` bucket (each person writes their own
     folder). Run after `role_change_downgrades.sql` and `code_of_conduct.sql`.
     Safe to re-run. *(Run Nov 21, 2026.)*
+67. `supabase/announcement_activity_log.sql`: **log announcements.** A
+    trigger on `announcements` writes `announcement_posted`,
+    `announcement_edited` and `announcement_deleted` rows to `activity_log`
+    for posts to everyone or a discipline (personal notices are skipped),
+    with who did it, a full copy of the post, and how it came in
+    (`details.via`: website or app, dashboard / SQL, server key). The
+    "who deleted it" query is at the top of the file. Run after
+    `activity_log_setup.sql`. Safe to re-run. *(Run Nov 21, 2026; tested in
+    a rolled-back transaction: post, edit and delete as an admin, and
+    post and delete from SQL, each logged correctly.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.
