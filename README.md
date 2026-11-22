@@ -2449,6 +2449,15 @@ has it too since Nov 14, 2026; see below.
     `src/components/verse/SharedSessionForm.tsx`,
     `src/components/session/RegistrationForm.tsx`, `SessionView.tsx`,
     `SessionRoster.tsx`).
+- [ ] **Summit logo home link on discipline and track pages** (website,
+  Nov 22, 2026). Discipline pages and track pages are full screen with no
+  sidebar, so next to **Back** at the top there is now a pill with the
+  Summit logo and **Emerald Summit ’27** that goes to the home page.
+  - Backend: none.
+  - App: the discipline and session screens already sit inside the bottom
+    bar, so Home is one tap away; add the same logo pill to their top bar
+    only if the full-screen discipline view hides the bar (website:
+    `src/components/verse/SummitHomeLink.tsx`).
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
