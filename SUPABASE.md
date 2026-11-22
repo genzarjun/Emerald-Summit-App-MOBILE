@@ -533,6 +533,17 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     `activity_log_setup.sql`. Safe to re-run. *(Run Nov 21, 2026; tested in
     a rolled-back transaction: post, edit and delete as an admin, and
     post and delete from SQL, each logged correctly.)*
+68. `supabase/activity_log_more.sql`: **log tracks, switches, permissions,
+    disciplines, hours and the allowlist.** Triggers write
+    `track_created/edited/deleted`, `summit_setting_changed`,
+    `permissions_changed`, `expert_verified`,
+    `discipline_created/edited/deleted`, `hours_logged/edited/deleted` and
+    `allowlist_added/changed/removed` to `activity_log`, with old and new
+    values and `details.via`. Unchanged rewrites (the 5-minute sheet sync)
+    log nothing. Run after `announcement_activity_log.sql`. Safe to re-run.
+    *(Run Nov 21, 2026; each tested in a rolled-back transaction, including
+    a permission change coming from the sheet and an expert verified
+    through `review_expert`.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

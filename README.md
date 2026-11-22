@@ -627,6 +627,20 @@ be read back and re-posted, and `details.via` says how the change came in:
 Supabase Table Editor or SQL Editor, no person) or "server key". This was
 added after a post was deleted on Nov 21, 2026 with no way to tell who did
 it. To check, run the query at the top of that file in the SQL Editor.
+Also since Nov 21, 2026 ([activity_log_more.sql](supabase/activity_log_more.sql)),
+with old and new values and `details.via`:
+`track_created` / `track_edited` / `track_deleted` (a delete keeps a copy of
+the track and how many were registered), `summit_setting_changed`
+(registration open, session times shown, Summit date), `permissions_changed`
+(can edit sessions, can post announcements, front-desk check-in, managed
+disciplines, volunteer type, expert status; these follow the Google Sheet, so
+most come in with no person and via the sync) and `expert_verified`,
+`discipline_created` / `discipline_edited` / `discipline_deleted`,
+`hours_logged` / `hours_edited` / `hours_deleted`, and `allowlist_added` /
+`allowlist_changed` / `allowlist_removed`. Only real changes are logged: the
+sheet sync rewrites the allowlist every 5 minutes, and a rewrite with the same
+values logs nothing. The SQL Editor query at the top of that file lists
+everything, newest first.
 Each row has who did it (`actor_id`), whose record it is (`user_id`), the
 session, and a snapshot of the session title so it still reads after the
 session is deleted. A logging error never blocks the real action. Deleting an
