@@ -2213,6 +2213,19 @@ has it too since Nov 14, 2026; see below.
   points at `be-the-catalyst-for-learning-and-discovery`. Donating happens
   only from the dashboard's Support EAF section; the website's landing
   page no longer has a donate button.
+- [ ] **Become a sponsor opens the sponsor Zeffy form** (website, Nov 22,
+  2026; live on the website once pushed). The organizers sent a second
+  Zeffy form just for sponsors, "Become the Catalyst for Learning and
+  Discovery"
+  (https://www.zeffy.com/en-US/donation-form/be-the-catalyst-for-learning-and-discovery,
+  the one the app's Donate uses today). On the website, **Become a sponsor**
+  on the Summit '27 Sponsors subtab opens it in a popup like Donate (a new
+  tab on phones), instead of emailing contact@ehsacademics.org; the header
+  search's "Become a sponsor" opens it in a new tab. In the app, point
+  Become a sponsor at that URL (opened in the phone's browser) and Donate
+  at the new donation form from the item above. Website:
+  `SPONSOR_FORM_URL` in `src/models/sponsors.ts`, `ZeffyFormButton` in
+  `src/components/home/AboutSections.tsx`.
 - [ ] **Edit your own announcements** (website, Nov 20, 2026). Admins and
   track organizers (volunteers with `can_post_announcements`) get **Edit**
   in the ⋯ menu of a post they wrote. It changes the subject, message and
