@@ -1,9 +1,12 @@
 -- Emerald Summit: more of the activity log
 -- Run in the Supabase dashboard (or `supabase db query --linked -f ...`)
 -- AFTER activity_log_setup.sql and announcement_activity_log.sql (which adds
--- activity_change_via()). Safe to re-run. If you re-run it, run
--- activity_log_question_switches.sql again after it: that file adds the
--- participant question switches to the track functions below.
+-- activity_change_via()). Safe to re-run. track_edited already lists the
+-- participant question switches (ask_participant_questions,
+-- ask_project_name) when they flip; a column that doesn't exist yet never
+-- shows as changed. If you re-run this file, run
+-- activity_log_question_switches.sql again after it so created and deleted
+-- tracks keep the switches in their copy too.
 --
 -- Adds triggers so these land in activity_log too, each with who did it,
 -- what changed (old and new values), and how it came in (details.via:
@@ -117,7 +120,8 @@ begin
   changes := public.activity_changes(o, n, array[
     'title', 'discipline_id', 'track', 'room', 'room_id', 'expert_name', 'start_time',
     'end_time', 'capacity', 'max_team_size', 'participant_deadline',
-    'allow_eighth_graders', 'sponsor', 'hero_image_url']);
+    'allow_eighth_graders', 'ask_participant_questions', 'ask_project_name',
+    'sponsor', 'hero_image_url']);
   texts := public.activity_changed_names(o, n, array[
     'description', 'page_blocks', 'participant_questions', 'project_prompt']);
   if changes <> '{}'::jsonb or texts <> '[]'::jsonb then

@@ -563,8 +563,10 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     `ask_participant_questions` and `ask_project_name` when either flips,
     and `track_created` / `track_deleted` keep both in their copy of the
     track. Run after `activity_log_more.sql` and
-    `participant_question_switches.sql`, and again whenever
-    `activity_log_more.sql` is re-run. Safe to re-run. *(Run Nov 22, 2026.)*
+    `participant_question_switches.sql`. `activity_log_more.sql` lists the
+    two switches for `track_edited` too, so re-running it keeps logging
+    flips; run this file again after it so created and deleted tracks keep
+    the switches in their copy. Safe to re-run. *(Run Nov 22, 2026.)*
 
 After this, sign in and build a schedule — it should persist across restarts
 and devices. Everyone is a `participant` until the allowlist sync runs.

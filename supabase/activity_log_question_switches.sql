@@ -12,7 +12,9 @@
 -- Everything else is the same as activity_log_more.sql. The triggers there
 -- already call these functions, so nothing else needs re-creating.
 --
--- If activity_log_more.sql is ever re-run, run this file again after it.
+-- activity_log_more.sql lists the two switches for track_edited as well, so
+-- re-running it keeps logging flips. Run this file again after it anyway, so
+-- created and deleted tracks keep the switches in their copy.
 
 create or replace function public.activity_track_snapshot(s public.sessions)
 returns jsonb
