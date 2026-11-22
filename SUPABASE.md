@@ -780,8 +780,9 @@ Auth's own email only covers sign-in messages, so bug reports go through the
 `--no-verify-jwt` like the other functions; it checks the session itself),
 and `BUG_REPORT_TO` (the team inbox that gets every ticket:
 `support@ehsacademics.org` since 2026-11-14) and `SITE_URL`
-(`https://emerald-summit.vercel.app`, for the "Open in Reports" link) are
-set. **Done 2026-11-14:** `RESEND_API_KEY` and `BUG_REPORT_FROM`
+(`https://emerald-summit.vercel.app`) are set. `SITE_URL` was for the team
+email's "Open in Reports" link, which went on 2026-11-22 with the website's
+reports page; the function no longer reads it. **Done 2026-11-14:** `RESEND_API_KEY` and `BUG_REPORT_FROM`
 (`Emerald Summit '27 App <app@ehsacademics.org>`) are set, and test Bug #2 sent its
 team email. All Resend mail, sign-in codes included, comes from
 `app@ehsacademics.org`. To change either secret:

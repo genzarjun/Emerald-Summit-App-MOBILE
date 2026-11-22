@@ -2359,9 +2359,10 @@ has it too since Nov 14, 2026; see below.
   page (`/admin/reports`, the old `BugReportsPage.tsx`); unknown addresses
   go to the start page, so that address does too. Reports are still saved
   and emailed; they're read in the team email and in Supabase.
-  - Backend: `bug-report-email` still puts an "Open" link to
-    `/admin/reports` in the team email; drop it and redeploy the function.
-    `set_bug_report_status` has no caller on the website now.
+  - Backend: done Nov 22, 2026. `bug-report-email` no longer puts an
+    "Open in Reports" link in the team email (deployed as version 9;
+    `SITE_URL` is no longer read). `set_bug_report_status` has no caller
+    on the website now.
   - App: ask the user whether the app should match. If so, take the admin
     row off Profile and remove `lib/screens/bug_reports_screen.dart`.
 

@@ -18,8 +18,8 @@
 //   BUG_REPORT_FROM  the sender, on a domain verified in Resend, e.g.
 //                    "Emerald Summit '27 App <app@ehsacademics.org>"
 //   BUG_REPORT_TO    optional: where every ticket goes (comma-separated)
-//   SITE_URL         optional: the website's address, for an "Open in
-//                    Reports" link in the team email
+// (SITE_URL is no longer read: the team email's "Open in Reports" link went
+// when the website dropped its reports page on Nov 22, 2026.)
 // Without RESEND_API_KEY and BUG_REPORT_FROM it answers
 // { ok: false, error: "email_not_configured" } and sends nothing; the report
 // itself is already saved.
@@ -252,10 +252,9 @@ function summary(report: Report): { title: string; rows: [string, string][] }[] 
 
 function renderHtml(report: Report, links: { name: string; url: string }[], audience: Audience): string {
   const label = report.kind === "feedback" ? "Feedback" : "Bug";
-  const site = (Deno.env.get("SITE_URL") ?? "").replace(/\/$/, "");
   const intro = audience === "copy"
     ? `<p style="margin:0 0 16px">Thanks, ${esc(report.reporter_name)}. We got your ${report.kind === "feedback" ? "feedback" : "bug report"}. This is a copy of everything that was sent, including what the Summit app attached from your account to help us fix it. Only Summit app developers can read reports. Reply to this email if you have more to add.</p>`
-    : `<p style="margin:0 0 16px">From ${esc(report.reporter_name)} (${esc(asObject(asObject(report.snapshot).auth).email)}).${site ? ` <a href="${esc(site)}/admin/reports?ticket=${report.ticket_no}">Open in Reports</a>` : ""}</p>`;
+    : `<p style="margin:0 0 16px">From ${esc(report.reporter_name)} (${esc(asObject(asObject(report.snapshot).auth).email)}).</p>`;
   const shots = links.length
     ? `<p style="margin:12px 0 0"><b>Screenshots</b><br>${links.map((l) => `<a href="${esc(l.url)}">${esc(l.name)}</a>`).join("<br>")}</p>`
     : "";
