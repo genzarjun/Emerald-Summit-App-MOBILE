@@ -2383,6 +2383,37 @@ has it too since Nov 14, 2026; see below.
     check on the Other box in the school picker (website:
     `isRealSchoolName` and `missingGateField` in
     `src/models/profileFields.ts`, `src/pages/ProfileSetupPage.tsx`).
+- [ ] **Team card wording** (website, Nov 22, 2026). On a participant's
+  team card, "Members" is now **Team members**, the size note reads "Your
+  team can have up to 4 members." (with the track's limit), and the button
+  is **Leave team and continue solo**. The "can't remove yourself" error
+  names the new button.
+  - Backend: none.
+  - App: the same three strings in `_ProjectCard`
+    (`lib/screens/session_detail_screen.dart`), and the
+    `cannot_remove_self` message in
+    `lib/backend/supabase/supabase_repositories.dart` and
+    `lib/backend/sample/sample_repositories.dart` (website:
+    `src/components/session/ProjectCard.tsx`,
+    `src/services/sessionRegistration.ts`).
+- [ ] **Photo question after the Code of Conduct** (website, Nov 22, 2026).
+  At sign-up, and on the agreement-only "One last step" page, the **Media
+  Rights and Consent** question now comes after the agreement window and
+  its checkbox, not before, so people read the Code of Conduct first. If
+  both are missing, the error asks for the checkbox first. Experts are
+  still not asked.
+  - Backend: none.
+  - App: in
+    [code_of_conduct_screen.dart](lib/screens/auth/code_of_conduct_screen.dart),
+    move the photo `RadioListTile`s below the `CheckboxListTile` (website:
+    `src/pages/ProfileSetupPage.tsx`).
+- [ ] **Solo comes first in the project question** (website, Nov 22, 2026).
+  The registration form now asks *"Are you participating solo, or in a
+  team?"*, matching the Solo / Team button order.
+  - Backend: none.
+  - App: `soloOrTeam` in [models.dart](lib/models/models.dart), and the
+    quote in the registration form description above (website:
+    `src/models/registration.ts`).
 - [ ] **Switch a track's questions off** (website, Nov 22, 2026). For
   tracks like workshops, the track editor's **Participant questions** box
   now has a switch (on by default). Off, participants register with no
