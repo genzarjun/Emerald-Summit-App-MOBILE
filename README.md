@@ -2269,7 +2269,8 @@ has it too since Nov 14, 2026; see below.
   badrandumbs, Nov 21, 2026). The website changed these labels and messages:
   - "Discover" is now **Explore** in the sidebar and phone tab bar (it was
     "Explore & Register" for a few hours on Nov 21), and the "Browse
-    tracks" / "Explore the disciplines" buttons say **Explore & Register**.
+    tracks" / "Explore the disciplines" buttons (Home, and the empty
+    schedule) say **Explore** too.
     The catalog page title is just **Disciplines**.
   - Bug report and feedback: **Your name** comes from the profile and can't
     be edited. With no profile name, sending says "Add your name in your
