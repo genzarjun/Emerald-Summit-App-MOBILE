@@ -2181,8 +2181,29 @@ has it too since Nov 14, 2026; see below.
   first, with its price, perks and logos ("Open" while it has none), then
   **Become a sponsor** and **Sponsorship details**. The header line is
   "Saturday, January 23, 2027 · 9 AM to 5 PM · Emerald High School,
-  Dublin, CA". On the website it's a sidebar group between My Summit and
-  Account, with a Summit '27 card on Home for phones.
+  Dublin, CA". On the website it's one **Summit '27** sidebar tab (since
+  Nov 22, 2026; it was a group of three) with the three as tabs across the
+  top of the page. On phones it's a sixth tab at the end of the bottom bar
+  (Home's phone-only Summit '27 card is gone). The app's bottom bar is
+  already full, so in the app reach it from Home, or decide whether it
+  earns a tab.
+  - **Heading** (website, Nov 22, 2026): the screen's one heading is a big
+    **Summit '27** with the date line under it; no per-tab title
+    ("Keynote", "Who's running the Summit?" and "Who helps make the
+    Summit happen?" are gone).
+  - **Intro** (website, Nov 22, 2026): the first time Summit '27 is opened
+    in a session, an intro plays before the page shows. The screen you're
+    on blurs out (no colour fill) and a sun comes up at the bottom centre
+    (bright core, soft light pouring out, no rays) and expands a little.
+    The Summit logo rises into the middle and rests, Summit '27 opens
+    under the blur, then the logo glides into its place in the
+    Support EAF card as the blur clears and the **Summit '27** heading
+    rolls in letter by letter (about 1.8 s; a tap or Escape skips it;
+    skipped under reduced motion). After that it just opens, until the app
+    is restarted. In the app, play it when the Summit '27 screen opens
+    from Home, e.g. a route transition that blurs the old screen with a
+    BackdropFilter and flies the logo with a Hero (website:
+    `src/components/Summit27Intro.tsx`).
   - Backend: none.
   - App: a Summit '27 screen with a segmented control or tab bar for the
     three subtabs, reached from Home (the bottom bar is already full),
