@@ -165,6 +165,14 @@ extension SummitRoleX on SummitRole {
   /// Whether this role must be verified against the synced allowlist at sign-up.
   bool get isGated => this == SummitRole.volunteer || this == SummitRole.admin;
 
+  /// What a gated role's sign-up says when the email is not on the allowlist:
+  /// what to do next, not just "no". Admins are "organizers" on screen.
+  String get notAllowedMessage {
+    final name = this == SummitRole.admin ? 'an organizer' : 'a ${label.toLowerCase()}';
+    return 'Your email is not on the list of people allowed to be $name. '
+        'Please email support@ehsacademics.org.';
+  }
+
   /// Role-specific onboarding questions, asked after name + role.
   ///
   /// Kept deliberately minimal: we only collect what the summit actually uses.

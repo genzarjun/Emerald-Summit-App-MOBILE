@@ -935,8 +935,10 @@ primary-colored.
   an admin's approval, above), but
   **volunteer** and **admin** are verified against an allowlist synced from two
   Google Sheets (see "Roles & permissions" below). Picking a gated role you're
-  not listed for is blocked with *"You aren't eligible to sign up as a
-  volunteer/admin."*
+  not listed for is blocked with *"Your email is not on the list of people
+  allowed to be a volunteer / an organizer. Please email
+  support@ehsacademics.org."* (`SummitRole.notAllowedMessage`, used by
+  sign-up and **Change role**; the website says the same since Nov 22, 2026).
 - **The account is tied to the email**, not the device. The session persists
   across app restarts and auto-refreshes; signing in on another device (or
   after reinstalling) pulls the same profile, role, and data back down. Only
@@ -2065,8 +2067,8 @@ has it too since Nov 14, 2026; see below.
   `RecordingHttpClient`) and reads the build (`package_info_plus`, plus
   `--dart-define=GIT_COMMIT=…` when given) and device (`device_info_plus`).
 - [x] **"are not", never "aren't"** (website and app, Nov 15, 2026). App
-  text writes "are not" in full ("You are not eligible to sign up as a
-  volunteer.", "Teams are not allowed."), the same as the website. Other
+  text writes "are not" in full ("Your email is not on the list of people
+  allowed to be a volunteer.", "Teams are not allowed."), the same as the website. Other
   contractions ("You're", "can't", "Let's") stay. The Home greetings ("What's
   up", "What's poppin'", "Let's build something") are now on the website too.
   - Still open: redeploy `archie-chat` (its prompt now says to write "are
@@ -2365,6 +2367,18 @@ has it too since Nov 14, 2026; see below.
     on the website now.
   - App: ask the user whether the app should match. If so, take the admin
     row off Profile and remove `lib/screens/bug_reports_screen.dart`.
+- [ ] **Participants must give a real school** (website, Nov 22, 2026).
+  School was already required at sign-up, but "." got through the **Other**
+  box and accounts finished before Nov 11 had none. Now a school typed in
+  Other needs at least 3 characters, 2 of them letters, and is not "none",
+  "n/a" and the like ("Type your school's full name."). A finished
+  participant whose school is blank or junk gets an **Add your school** step
+  (just the school) on their next sign-in, like the phone and grade steps.
+  - Backend: none.
+  - App: add a school step to the auth gate for participants and the same
+    check on the Other box in the school picker (website:
+    `isRealSchoolName` and `missingGateField` in
+    `src/models/profileFields.ts`, `src/pages/ProfileSetupPage.tsx`).
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
