@@ -2346,6 +2346,14 @@ has it too since Nov 14, 2026; see below.
     **New discipline** button off `discover_screen.dart` (the
     `discipline_editor_screen.dart` route can go too) and drop the badge
     above the name on the discipline page.
+- [ ] **One row for bugs and feedback** (website, Nov 22, 2026). Profile's
+  **Report a bug** and **Send feedback** rows are now one row, **Report a
+  bug/send feedback** ("Something broken, an idea, or something confusing?
+  Tell us, with screenshots"). It opens the same form as a bug report; the
+  Bug report / Feedback switch at the top still moves it to feedback.
+  - Backend: none.
+  - App: merge the two Profile rows into one that opens `report_screen.dart`
+    as a bug report (website: `src/pages/SettingsPage.tsx`).
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
