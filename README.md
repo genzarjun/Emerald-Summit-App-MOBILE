@@ -2229,6 +2229,25 @@ has it too since Nov 14, 2026; see below.
     `src/pages/ExpertApprovalsPage.tsx`, `src/models/beamentor.ts`). Until
     then, `fetch_expert_requests()` misses experts who ticked BeAMentor,
     because their status is already `approved`.
+- [ ] **LinkedIn for experts** (website, Nov 21, 2026). The expert sign-in
+  has **Continue with LinkedIn** first, above Google and email (Supabase
+  provider `linkedin_oidc`, turned on Nov 21, 2026, with manual linking on).
+  Supabase joins a LinkedIn sign-in to an existing account with the same
+  verified email. The expert photo field has **Connect LinkedIn**
+  (`linkIdentity`) for someone who signed up another way, and **Use LinkedIn
+  photo** once it's connected; on sign-up the LinkedIn photo is brought in by
+  itself. The photo is downloaded from LinkedIn and uploaded to
+  `expert_photos`, because LinkedIn's links expire. The name is filled in
+  from LinkedIn too. LinkedIn does not share title, company or bio.
+  - Backend: none (provider settings only). For the app's own LinkedIn
+    sign-in, add its deep-link redirect to the Supabase redirect URLs if it
+    isn't there already.
+  - App: a LinkedIn button on the expert sign-in
+    (`signInWithOAuth(OAuthProvider.linkedinOidc)`), Connect LinkedIn and the
+    photo copy in onboarding and Edit profile (website:
+    `src/components/LinkedInSignInButton.tsx`,
+    `src/components/ExpertPhotoInput.tsx`, `linkedInDetails` and
+    `importLinkedInPhoto` in `src/services/auth.ts`).
 - [ ] **Tracks in each discipline's description order** (website, Nov 20,
   2026, from Akhil's branch). A discipline's tracks are no longer listed
   purely by start time: they're grouped the way the discipline's description
