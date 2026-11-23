@@ -72,7 +72,7 @@ HOW TO EDIT (this comment is stripped before Archie sees the file)
 | **Participant** | High school students, and 8th graders in sessions that allow them | Join sessions, present work, take part in solo or team workshops |
 | **Spectator** | Anyone: parents, family, teachers, friends, younger siblings | Attend tracks and stay in the loop. Middle schoolers and younger need a parent with them. |
 | **Expert** | Professionals, researchers, faculty, industry mentors | Choose the Expert role when signing up in the app. Review presentations and give feedback. |
-| **Volunteer** | High school students and adults | Help run the event on a morning or afternoon shift. Choose the Volunteer role when signing up in the app. |
+| **Volunteer** | Emerald students, EHS parents and community members | Help run the event on a morning or afternoon shift. Emerald students choose the Volunteer role when signing up in the app. Parents and community members volunteer through EAF: https://www.ehsacademics.org/get-involved/parent-volunteering |
 | **Sponsor / Academic Partner** | Businesses, universities, organizations | Support the Summit at one of five tiers. Email contact@ehsacademics.org. |
 
 The Student Ambassadors program is not currently open to new members.
@@ -165,8 +165,8 @@ These are from Summit '26. The '27 list is UNCONFIRMED. Always make clear this i
 
 ## 8. Volunteering, experts, and sponsorship
 
-* **Volunteers:** High school students and adults. The day is split into a morning shift and an afternoon shift. Choose the Volunteer role when you sign up in the app. Whether volunteers can also attend sessions is UNCONFIRMED.
-* **Experts:** Choose the Expert role when you sign up in the app. An admin then checks the sign-up and approves the account; until then the app only shows a screen saying the account is awaiting approval. If it isn't approved within 48 hours, email nysha.singhal@ehsacademics.org. Experts review presentations and give feedback.
+* **Volunteers:** Emerald students, EHS parents and community members. The day is split into a morning shift and an afternoon shift. Emerald students choose the Volunteer role when they sign up in the app. Parents and community members volunteer through EAF's Parent Volunteering page, https://www.ehsacademics.org/get-involved/parent-volunteering, which also walks them through the required Be A Mentor sign-up. Questions about getting involved: contact@ehsacademics.org. Whether volunteers can also attend sessions is UNCONFIRMED.
+* **Experts:** Professionals, subject-matter experts, and EHS parents and community members can lead a track as an expert. Choose the Expert role when you sign up in the app. An admin then checks the sign-up and approves the account; until then the app only shows a screen saying the account is awaiting approval. If it isn't approved within 48 hours, email nysha.singhal@ehsacademics.org. Experts review presentations and give feedback.
 * **Sponsors and academic partners:** Five tiers, highest first: Capstone ($5,000), Keystone ($2,000), Pillar ($1,500), Foundation ($1,000) and Cornerstone ($500). Details: https://www.ehsacademics.org/initiatives/emerald-summit-27/sponsor. Email contact@ehsacademics.org to sponsor. Funds go through EAF, a 501(c)(3), so sponsorships are tax-deductible. Current sponsors: Brightfox (Keystone); Prepaze Academy, YoungWonks and Praan Health (Cornerstone). They're on the app's Home tab.
 * **Donating:** The Donate button in the Support EAF section on Home opens EAF's donation form.
 

@@ -1945,8 +1945,11 @@ has it too since Nov 14, 2026; see below.
   Archie's knowledge if Archie should answer them.
   knowledge.md now has the three FAQ answers, 8th graders, the sponsor tiers
   and ehsacademics.org links, and the `archie-chat` persona and `web_fetch`
-  domains point at ehsacademics.org. **Not live yet:** upload the knowledge
-  file and redeploy `archie-chat`.
+  domains point at ehsacademics.org. Since Nov 22, 2026 it also matches the
+  website FAQ's "How can I get involved": parents and community members
+  volunteer through EAF's Parent Volunteering page, Emerald students and
+  experts sign up in the app, questions go to contact@ehsacademics.org.
+  **Not live yet:** upload the knowledge file and redeploy `archie-chat`.
 - [x] **Home: smaller slideshow, no Tracks or Explore rows, three new sections.** The
   website's dashboard slideshow is now 2:1 (was 16:9) and takes less of the
   row beside the quote card. The Tracks strip under Your day, with its
