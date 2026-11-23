@@ -1694,7 +1694,11 @@ the website-only list at the end. Tick an item off here when it lands.
   to an expert who still has BeAMentor to do, the title says "One more step",
   not "One last step". Check the app's Change role to Expert asks for the
   headshot, and change `code_of_conduct_screen.dart`'s "One last step" the
-  same way.
+  same way. The website also added **Back** to each step: Change role's
+  **Continue** no longer saves the role; the new role's details page saves it
+  on its own **Continue**, so that page's **Back** returns with nothing changed.
+  BeAMentor's **Back** returns to the expert details, and its Sign out moved
+  to a link under the button.
 
 - [x] **8th graders in sessions.** Participating is for high schoolers; an
   8th grader can participate only in sessions whose editors ticked **Let 8th
