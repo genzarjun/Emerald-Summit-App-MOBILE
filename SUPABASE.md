@@ -617,8 +617,12 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     expert signed up for the track with their photo, name, title, company,
     area of expertise and bio, plus their LinkedIn address only when they
     chose to show it to students (`details.linkedin_visible = 'yes'`).
-    Signed-in only. `session_experts` (names only) stays for the app. Safe to
-    re-run. *(Run Nov 23, 2026, after a rolled-back test.)*
+    `session_experts` (names only) stays for the app. Later the same day it
+    gained `public_experts()`, the **Experts** page: every approved expert
+    serving in at least one track, with the same fields and their tracks.
+    Both can be called signed out, since the Experts page is on the public
+    landing site. Safe to re-run. *(Run Nov 23, 2026, twice, each after a
+    rolled-back test.)*
 
 `qr_checkin_setup.sql` (step 42) was re-run on Nov 22, 2026. The live
 database had an older version: no `fetch_checkin_stats`, no Realtime on

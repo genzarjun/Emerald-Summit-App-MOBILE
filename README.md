@@ -1671,18 +1671,17 @@ the website-only list at the end. Tick an item off here when it lands.
 - [ ] **The LinkedIn question comes when an expert picks a track (Nov 23,
   2026).** Not at sign-up. On the website, choosing **Serve as an expert**
   on a track opens a **Serve as an expert** popup: "Your profile will be
-  visible to students on the <track> page and on a page where we recognize
-  all our experts." then "Do you want your LinkedIn attached to your profile
+  visible to students on the <track> page and on our Experts page, where we
+  recognize all our experts." then "Do you want your LinkedIn attached to your profile
   so students can connect with you?" with **Yes, attach my LinkedIn** /
   **No, leave it off**. Yes asks for the profile link (linkedin.com `/in/`,
   `/pub/` or `/company/` only, saved as `https://www.linkedin.com/in/…`),
-  with **Find my link** opening `https://www.linkedin.com/in/me/` (LinkedIn
-  sends a signed-in member to their own profile). **Serve in this track**
+  which they paste themselves. **Serve in this track**
   saves the answer if it changed, then registers; the last answer is filled
   in next time; Cancel adds nothing. Saved in `profiles.details` as
   `linkedin_visible` (`yes` / `no`) and `linkedin_url`. Edit profile has the
   same choice, optional. A manager's roster shows the link only when it's
-  Yes. The "page where we recognize all our experts" isn't built yet.
+  Yes.
   - Backend: none for the choice (it's in `details`).
   - App: show the same sheet before `register_for_session` with
     `participation_type` expert, and the choice in Edit profile (website:
@@ -1698,12 +1697,29 @@ the website-only list at the end. Tick an item off here when it lands.
   - Backend: done. `session_expert_profiles(p_session_id)`
     ([expert_public_profiles.sql](supabase/expert_public_profiles.sql), run
     Nov 23, 2026) returns id, name, photo_url, title, company, expertise, bio,
-    and linkedin_url only when the expert chose Yes. Signed-in only.
-    `session_experts` (names) is unchanged, so the app keeps working.
+    and linkedin_url only when the expert chose Yes.
+    `session_experts` (names) is unchanged, so the app keeps working. It can
+    be called signed out since the Experts page went public.
   - App: call `session_expert_profiles` on the session detail screen, show
     the cards and a bottom sheet for See more; only open a LinkedIn link that
     is on linkedin.com (website: `src/components/session/SessionExperts.tsx`,
     `fetchSessionExpertProfiles` in `src/services/sessionRegistration.ts`).
+- [ ] **Experts page (Nov 23, 2026).** Every approved expert serving in at
+  least one track, filled in by itself, with the same cards as a track page
+  (photo, name, title, company, expertise, See more with bio, tracks and
+  LinkedIn), in name order, a count line, and discipline filter chips once
+  experts span more than one discipline. Empty: "Our experts will show up
+  here as they sign up for tracks. Check back soon." On the website it's the
+  public `/experts` page (landing nav **Experts**) and an **Experts** tab on
+  Summit '27 (Keynote, Team, Experts, Sponsors).
+  - Backend: done. `public_experts()` in
+    [expert_public_profiles.sql](supabase/expert_public_profiles.sql) (run
+    Nov 23, 2026) returns each expert's public fields plus `tracks` (id,
+    title, discipline). It and `session_expert_profiles` can be called signed
+    out, for the public page.
+  - App: an Experts subtab on the Summit '27 screen (see **Summit '27 tab**)
+    calling `public_experts`, and track links that open the session (website:
+    `src/components/ExpertsDirectory.tsx`, `src/services/experts.ts`).
 - [ ] **Up next for every role, inside the greeting (Nov 23, 2026,
   Akhil).** The website's Home shows **Up next** as a box inside the
   greeting card for every role, admins and volunteers included, reading
