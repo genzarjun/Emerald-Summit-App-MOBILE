@@ -6,8 +6,8 @@
 -- profiles row by row (RLS), so this security-definer function hands back only
 -- those public fields, for one track.
 --
--- LinkedIn: at sign-up (and in Edit profile) an expert chooses whether students
--- may see their LinkedIn profile to connect with them. The choice is saved in
+-- LinkedIn: when an expert signs up to serve in a track (and in Edit profile)
+-- they choose whether to attach their LinkedIn so students can connect. The choice is saved in
 -- profiles.details as linkedin_visible ('yes' or 'no') with the address in
 -- details.linkedin_url. The address only comes back when the expert chose
 -- 'yes'; otherwise linkedin_url is null.

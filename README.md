@@ -1668,20 +1668,25 @@ app does it differently from the website. Checked against the website on
 Nov 14, 2026: everything else the website does, the app does too, apart from
 the website-only list at the end. Tick an item off here when it lands.
 
-- [ ] **Experts choose whether students see their LinkedIn (Nov 23,
-  2026).** On expert sign-up, Change role to expert and Edit profile, under
-  the questions: "Can students see your LinkedIn profile, so they can
-  connect with you?" with **Yes, show my LinkedIn on my expert profile** /
-  **No, keep my LinkedIn private**. Required at sign-up and Change role;
-  optional in Edit profile for older experts (unanswered counts as private).
-  Yes asks for the profile link (LinkedIn's sign-in doesn't share it), which
-  must be a linkedin.com `/in/`, `/pub/` or `/company/` address, saved
-  written out as `https://www.linkedin.com/in/…`. Saved in
-  `profiles.details` as `linkedin_visible` (`yes` / `no`) and
-  `linkedin_url`. A manager's roster shows the link only when it's Yes.
+- [ ] **The LinkedIn question comes when an expert picks a track (Nov 23,
+  2026).** Not at sign-up. On the website, choosing **Serve as an expert**
+  on a track opens a **Serve as an expert** popup: "Your profile will be
+  visible to students on the <track> page and on a page where we recognize
+  all our experts." then "Do you want your LinkedIn attached to your profile
+  so students can connect with you?" with **Yes, attach my LinkedIn** /
+  **No, leave it off**. Yes asks for the profile link (linkedin.com `/in/`,
+  `/pub/` or `/company/` only, saved as `https://www.linkedin.com/in/…`),
+  with **Find my link** opening `https://www.linkedin.com/in/me/` (LinkedIn
+  sends a signed-in member to their own profile). **Serve in this track**
+  saves the answer if it changed, then registers; the last answer is filled
+  in next time; Cancel adds nothing. Saved in `profiles.details` as
+  `linkedin_visible` (`yes` / `no`) and `linkedin_url`. Edit profile has the
+  same choice, optional. A manager's roster shows the link only when it's
+  Yes. The "page where we recognize all our experts" isn't built yet.
   - Backend: none for the choice (it's in `details`).
-  - App: the two radio buttons and the link field in expert onboarding and
-    Edit profile, with the same checks (website:
+  - App: show the same sheet before `register_for_session` with
+    `participation_type` expert, and the choice in Edit profile (website:
+    `src/components/session/ExpertTrackDialog.tsx`,
     `src/components/ExpertLinkedInChoice.tsx`, `src/models/expertLinkedIn.ts`).
 - [ ] **Expert cards on a track page (Nov 23, 2026).** When an approved
   expert signs up for a track, the track page shows an **Expert** /
