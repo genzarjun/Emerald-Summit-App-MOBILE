@@ -1661,13 +1661,67 @@ Both are on the to-do list below.
 
 ### Website changes to bring into the app (to-do)
 Still open: uploading Archie's edited knowledge file and
-redeploying `archie-chat` (see **Archie and the FAQ**), and the four Nov 22
-items at the top of the list. Everything else
+redeploying `archie-chat` (see **Archie and the FAQ**), and the Nov 22 and
+Nov 23 items at the top of the list. Everything else
 below landed in the app on Nov 14, 2026 and is ticked, with a note where the
 app does it differently from the website. Checked against the website on
 Nov 14, 2026: everything else the website does, the app does too, apart from
 the website-only list at the end. Tick an item off here when it lands.
 
+- [ ] **Experts choose whether students see their LinkedIn (Nov 23,
+  2026).** On expert sign-up, Change role to expert and Edit profile, under
+  the questions: "Can students see your LinkedIn profile, so they can
+  connect with you?" with **Yes, show my LinkedIn on my expert profile** /
+  **No, keep my LinkedIn private**. Required at sign-up and Change role;
+  optional in Edit profile for older experts (unanswered counts as private).
+  Yes asks for the profile link (LinkedIn's sign-in doesn't share it), which
+  must be a linkedin.com `/in/`, `/pub/` or `/company/` address, saved
+  written out as `https://www.linkedin.com/in/…`. Saved in
+  `profiles.details` as `linkedin_visible` (`yes` / `no`) and
+  `linkedin_url`. A manager's roster shows the link only when it's Yes.
+  - Backend: none for the choice (it's in `details`).
+  - App: the two radio buttons and the link field in expert onboarding and
+    Edit profile, with the same checks (website:
+    `src/components/ExpertLinkedInChoice.tsx`, `src/models/expertLinkedIn.ts`).
+- [ ] **Expert cards on a track page (Nov 23, 2026).** When an approved
+  expert signs up for a track, the track page shows an **Expert** /
+  **Experts** section under About this track: a card per expert with photo
+  (initials if none), name, title, company and area of expertise, and
+  **See more**, which opens the whole profile (larger photo, "<title> at
+  <company>", expertise, bio under About, and **Connect on LinkedIn** when
+  they chose to show it). It replaced the "Experts: <names>" line.
+  - Backend: done. `session_expert_profiles(p_session_id)`
+    ([expert_public_profiles.sql](supabase/expert_public_profiles.sql), run
+    Nov 23, 2026) returns id, name, photo_url, title, company, expertise, bio,
+    and linkedin_url only when the expert chose Yes. Signed-in only.
+    `session_experts` (names) is unchanged, so the app keeps working.
+  - App: call `session_expert_profiles` on the session detail screen, show
+    the cards and a bottom sheet for See more; only open a LinkedIn link that
+    is on linkedin.com (website: `src/components/session/SessionExperts.tsx`,
+    `fetchSessionExpertProfiles` in `src/services/sessionRegistration.ts`).
+- [ ] **Up next for every role, inside the greeting (Nov 23, 2026,
+  Akhil).** The website's Home shows **Up next** as a box inside the
+  greeting card for every role, admins and volunteers included, reading
+  every way a session can be on someone's day (participating, expert,
+  managing, spectating). It's the next session that hasn't started, by the
+  clock on Summit day and otherwise the first of the day, with time, place
+  and a time-slot bar; Your day marks the same session "Up next". The line
+  under the greeting just counts the tracks, and the separate Next up tile
+  is gone. Check the app's Up next card covers managed and expert sessions
+  too (website: `src/pages/HomePage.tsx`).
+- [ ] **My Day cards in their verse's colors (Nov 22 and 23, 2026,
+  Akhil).** Each My Day card on the website wears its verse's canvas colour
+  (the one its Explore card and page use), with a glow of its first border
+  colour, its accent edge and text, in both themes, and a red **Remove**
+  button with its label written out instead of a bare minus (it still asks
+  "Remove from your day?" first). Website: `src/pages/SchedulePage.tsx`,
+  `vibeFor` in `src/models/verseVibes.ts`.
+- [ ] **Verse motifs settle after 5 seconds (Nov 23, 2026, Akhil).** On the
+  website the discipline motifs and the liquid border play for 5 seconds,
+  ease to a stop over the last 1.5, and rest on their last frame, so nothing
+  keeps moving while people read (`PLAY_SECONDS` in
+  `src/components/verse/useCanvasLoop.ts`). Decide whether the app's
+  motifs should do the same.
 - [ ] **Expert photos are shrunk before upload (Nov 22, 2026).** An expert
   reported a photo that would not upload. The website used to refuse anything
   over 5 MB or not JPG/PNG/WebP, which turned away most phone photos (large,
@@ -1949,6 +2003,11 @@ has it too since Nov 14, 2026; see below.
   website FAQ's "How can I get involved": parents and community members
   volunteer through EAF's Parent Volunteering page, Emerald students and
   experts sign up in the app, questions go to contact@ehsacademics.org.
+  On Nov 22, 2026 (Akhil) the website FAQ also gained **What will I take
+  away from the Summit?** (personal feedback from industry professionals,
+  educators and mentors, new connections across schools and disciplines, a
+  clearer direction for the project; families see interdisciplinary
+  learning in action). It is not in knowledge.md yet.
   **Not live yet:** upload the knowledge file and redeploy `archie-chat`.
 - [x] **Home: smaller slideshow, no Tracks or Explore rows, three new sections.** The
   website's dashboard slideshow is now 2:1 (was 16:9) and takes less of the
@@ -2247,9 +2306,11 @@ has it too since Nov 14, 2026; see below.
     both require apps that create accounts to let people delete them.
 - [ ] **No sponsors on Home** (website, Nov 17, Nov 20 and Nov 22, 2026;
   live on the website). The organizers don't want unpaid sponsors getting
-  free advertising, so sponsors are off the public site, with no "past
-  sponsors" list either, and off Home: they're only on the signed-in
-  **Summit '27** tab's Sponsors subtab (see the next item). Remove
+  free advertising, so there's no "past sponsors" list, and sponsors are off
+  Home: they're on the signed-in **Summit '27** tab's Sponsors subtab (see
+  the next item) and, since the evening of Nov 22, 2026, back on the
+  website's public landing page as the same tier pyramid with only paid
+  sponsors' logos (the landing page has no app equivalent). Remove
   `SponsorsSection` from the app's Home
   ([dashboard_screen.dart](lib/screens/dashboard_screen.dart)); Home is then
   Support EAF, Links and About the app, like the website. Last year's
@@ -2276,8 +2337,8 @@ has it too since Nov 14, 2026; see below.
     the tiers as the stepped peak the app's Home already has (Capstone at
     the top, the top two solid emerald), with open spots filling out each
     row: the first says **Your company logo could go here**, the rest are
-    dashed + slots. On the website the open spots open the sponsor Zeffy
-    form (like Become a sponsor) instead of emailing.
+    dashed + slots. On the website the open spots open the sponsor Google
+    Form in a new tab (like Become a sponsor) instead of emailing.
   - **Heading** (website, Nov 22, 2026): the screen's one heading is a big
     **Summit '27** with the date line under it; no per-tab title
     ("Keynote", "Who's running the Summit?" and "Who helps make the
@@ -2326,8 +2387,14 @@ has it too since Nov 14, 2026; see below.
   points at `be-the-catalyst-for-learning-and-discovery`. Donating happens
   only from the dashboard's Support EAF section; the website's landing
   page no longer has a donate button.
-- [ ] **Become a sponsor opens the sponsor Zeffy form** (website, Nov 22,
-  2026; live on the website once pushed). The organizers sent a second
+- [ ] **Become a sponsor opens EAF's sponsor Google Form** (website, Nov 22,
+  2026). **Update, later on Nov 22 (Akhil):** at the organizers' request
+  Become a sponsor and the open logo spots now open EAF's sponsor Google Form
+  in a new tab, not Zeffy:
+  https://docs.google.com/forms/d/e/1FAIpQLScuIN1lUnhfvwWIXSBoNKEmxYuP7YjVaubCCoYR6G0QrE34fg/viewform
+  (`SPONSOR_FORM_URL` in `src/models/sponsors.ts`). Donate still uses
+  Zeffy. Point the app's Become a sponsor at the Google Form. The history
+  below is how it was before. The organizers sent a second
   Zeffy form just for sponsors, "Become the Catalyst for Learning and
   Discovery"
   (https://www.zeffy.com/en-US/donation-form/be-the-catalyst-for-learning-and-discovery,

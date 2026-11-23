@@ -612,6 +612,13 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     re-run. *(Defined Nov 22, 2026, not called yet; tested in a rolled-back
     transaction: the preview matched what it removed, one notice per removed
     track, and a second run found nothing.)*
+75. `supabase/expert_public_profiles.sql`: **expert cards on a track
+    page.** `session_expert_profiles(p_session_id)` returns each approved
+    expert signed up for the track with their photo, name, title, company,
+    area of expertise and bio, plus their LinkedIn address only when they
+    chose to show it to students (`details.linkedin_visible = 'yes'`).
+    Signed-in only. `session_experts` (names only) stays for the app. Safe to
+    re-run. *(Run Nov 23, 2026, after a rolled-back test.)*
 
 `qr_checkin_setup.sql` (step 42) was re-run on Nov 22, 2026. The live
 database had an older version: no `fetch_checkin_stats`, no Realtime on
