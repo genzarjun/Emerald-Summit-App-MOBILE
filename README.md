@@ -1055,7 +1055,10 @@ overlap.** Two more switches on the `summit_settings` row
 
 **When times are final** (the organizers say so first):
 
-1. `update public.summit_settings set schedule_conflicts_on = true;`
+1. `update public.summit_settings set schedule_conflicts_on = true, max_participating = null;`
+   The participate cap comes off at the same time (decided Nov 22, 2026):
+   once conflicts are checked, people can fit as many tracks as their
+   schedule allows.
 2. Preview: `select * from public.resolve_schedule_conflicts();` lists every
    registration it would remove and what it keeps.
 3. Apply: `select * from public.resolve_schedule_conflicts(true);` (refuses to
@@ -3110,6 +3113,22 @@ See [TESTFLIGHT.md](TESTFLIGHT.md). Bundle ID: `com.emeraldsummit.emeraldSummit`
   when the app is closed (see Roadmap for the planned pipeline).
 
 ## Roadmap (later, from the spec)
+- **Choose how long you stay in a track (later; asked for Nov 22, 2026, not
+  built).** Spectators and participants pick the part of a track they'll be
+  there for, instead of always the whole track. Example: in a 3-hour track a
+  participant stays only the 1 hour they're presenting and spends the rest in
+  another track. Things to settle when it's built:
+  - Store the chosen window on the registration (e.g. `stay_start` /
+    `stay_end` on `registrations`, null = the whole track), editable later
+    from the track page, on the website and in the app.
+  - The time-conflict checks (`register_for_session`,
+    `session_time_conflicts`, `resolve_schedule_conflicts`) compare the
+    windows people chose, not the full track times. If the window is added
+    before `resolve_schedule_conflicts` runs, it must use the windows too.
+  - My Day shows the chosen window, and the "booked" time sums the windows.
+  - Seats: whether someone there for 1 of 3 hours takes a seat for the whole
+    track (simplest) or only for their window.
+  - What organizers see on the roster and at check-in (who is there when).
 - **Activity log, next steps.** The log itself is built (see Metrics). Still to
   do: an admin screen to browse it, optional screen-view events from the app,
   and, **before release**, saying we log activity in the privacy policy, the

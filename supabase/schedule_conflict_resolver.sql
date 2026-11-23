@@ -5,8 +5,10 @@
 -- While track times were not final, summit_settings.schedule_conflicts_on was
 -- off and people could add overlapping tracks. Once the real times are in:
 --
---   1. update public.summit_settings set schedule_conflicts_on = true;
---      (from then on register_for_session refuses new overlaps itself)
+--   1. update public.summit_settings
+--         set schedule_conflicts_on = true, max_participating = null;
+--      (from then on register_for_session refuses new overlaps itself, and
+--      the 3-track participate cap comes off, decided Nov 22, 2026)
 --   2. select * from public.resolve_schedule_conflicts();
 --      Preview: lists every registration it would take off and what it
 --      keeps instead. Changes nothing.
