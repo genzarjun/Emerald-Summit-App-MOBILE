@@ -1661,13 +1661,21 @@ Both are on the to-do list below.
 
 ### Website changes to bring into the app (to-do)
 Still open: uploading Archie's edited knowledge file and
-redeploying `archie-chat` (see **Archie and the FAQ**), and the three Nov 22
+redeploying `archie-chat` (see **Archie and the FAQ**), and the four Nov 22
 items at the top of the list. Everything else
 below landed in the app on Nov 14, 2026 and is ticked, with a note where the
 app does it differently from the website. Checked against the website on
 Nov 14, 2026: everything else the website does, the app does too, apart from
 the website-only list at the end. Tick an item off here when it lands.
 
+- [ ] **Expert photos are shrunk before upload (Nov 22, 2026).** An expert
+  reported a photo that would not upload. The website used to refuse anything
+  over 5 MB or not JPG/PNG/WebP, which turned away most phone photos (large,
+  or HEIC from an iPhone). It now takes any image, redraws it as a JPEG of at
+  most 1200 px on the long edge (`shrinkToJpeg`, `src/lib/shrinkImage.ts`),
+  and only asks for a JPG or PNG when the browser can't open the file. When
+  the app gets an expert photo picker, shrink the same way before uploading to
+  `expert_photos` (the bucket still takes JPEG, PNG and WebP up to 5 MB).
 - [ ] **Participate in up to 3 tracks; time conflicts switched off (Nov 22,
   2026).** See **Participation cap and the time-conflict switch**. The
   backend already applies to the app; the app still needs:
