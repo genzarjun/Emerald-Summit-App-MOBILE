@@ -2725,6 +2725,14 @@ has it too since Nov 14, 2026; see below.
   - Also Nov 22, no app work: the website's QR pass no longer shows the
     user id with a Copy button under the code, which matches the app's
     Check-in pass card.
+- [ ] **Remove on My Day moved into a ⋯ menu (website, Nov 23, 2026).**
+  Each track on My Day has a ⋯ button in its top-right corner, like an
+  announcement's. It opens **Open track** and, unless the track is one a
+  volunteer manages, **Remove from my day** (red), which still asks
+  **Remove from your day?** first. The red Remove button on the card is gone.
+  - Backend: none.
+  - App: put the schedule card's remove action behind a ⋯ (`PopupMenuButton`)
+    with the same two items (website: `src/pages/SchedulePage.tsx`).
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
