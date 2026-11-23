@@ -592,6 +592,27 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     front-desk volunteers could now read `summit_checkins`, as intended.
     Supabase's performance advisor went from 29 per-row warnings to 0.)*
 
+73. `supabase/participation_cap.sql`: **participate in up to 3 tracks;
+    time conflicts on a switch.** Adds `summit_settings.max_participating`
+    (default 3, null = no cap) and `summit_settings.schedule_conflicts_on`
+    (default false). `register_for_session` raises
+    `participation_limit_reached` (hint: the message) past the cap for
+    participants only, and skips its overlap checks while the switch is off
+    (a manager still can't sign up for their own track). Run after
+    `participant_question_switches.sql`. Safe to re-run. *(Run Nov 22, 2026;
+    tested first in a rolled-back transaction: a 4th participate was refused,
+    overlapping spectating went through, and with the switch on an
+    overlapping add was refused.)*
+74. `supabase/schedule_conflict_resolver.sql`: **defines
+    `resolve_schedule_conflicts(p_apply)`** for when times are final (see
+    the README's **Participation cap and the time-conflict switch**). Only
+    defines it; preview with `select * from resolve_schedule_conflicts();`,
+    apply with `(true)` after turning `schedule_conflicts_on` on. Not
+    callable from the apps. Run after `participation_cap.sql`. Safe to
+    re-run. *(Defined Nov 22, 2026, not called yet; tested in a rolled-back
+    transaction: the preview matched what it removed, one notice per removed
+    track, and a second run found nothing.)*
+
 `qr_checkin_setup.sql` (step 42) was re-run on Nov 22, 2026. The live
 database had an older version: no `fetch_checkin_stats`, no Realtime on
 `summit_checkins`, and a front-desk list and QR scan that still included

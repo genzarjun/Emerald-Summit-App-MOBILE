@@ -1034,6 +1034,44 @@ check-in, which works on any day.
 the Home countdown shows, and Volunteer hours names the date. On summit day,
 feedback should open once the last session ends.
 
+## Participation cap and the time-conflict switch
+
+**Status (Nov 22, 2026): track times are not final, so people can participate
+in up to 3 tracks, spectate as many as they like, and add tracks that
+overlap.** Two more switches on the `summit_settings` row
+([participation_cap.sql](supabase/participation_cap.sql), run Nov 22, 2026):
+
+- `max_participating` (default 3; null = no cap). `register_for_session`
+  refuses a participant sign-up past it with the error
+  `participation_limit_reached`; the hint is the message to show ("You can
+  participate in up to 3 tracks for now. You can still spectate as many as you
+  like."). Spectating and serving as an expert are never capped. Tracks
+  someone manages do not count.
+- `schedule_conflicts_on` (default false). While off, `register_for_session`
+  skips both overlap checks (a registered track, a managed track); a manager
+  still can't sign up for the track they run (`managing_this`). Organizer
+  flows (`assign_volunteer_to_session`, `set_session_manage`) still check
+  overlaps either way.
+
+**When times are final** (the organizers say so first):
+
+1. `update public.summit_settings set schedule_conflicts_on = true;`
+2. Preview: `select * from public.resolve_schedule_conflicts();` lists every
+   registration it would remove and what it keeps.
+3. Apply: `select * from public.resolve_schedule_conflicts(true);` (refuses to
+   run while the switch is off).
+
+`resolve_schedule_conflicts`
+([schedule_conflict_resolver.sql](supabase/schedule_conflict_resolver.sql),
+defined Nov 22, 2026, not run yet) goes person by person and keeps, in order:
+a track they manage, then expert over participant over spectator, then a team
+registration with teammates over one without, then whichever they registered
+for first (the tie-break), then the session id. Each removed registration gets
+a personal **Schedule change** announcement naming both tracks and their
+times. It runs once; after that `register_for_session` and the track editor's
+time-change warning keep schedules clean. Only the SQL editor / service role
+can call it.
+
 ## Registration lock and hidden session times
 
 **Status (Nov 20, 2026): registration closed, times hidden. Registration is
@@ -1620,11 +1658,31 @@ Both are on the to-do list below.
 
 ### Website changes to bring into the app (to-do)
 Still open: uploading Archie's edited knowledge file and
-redeploying `archie-chat` (see **Archie and the FAQ**). Everything else
+redeploying `archie-chat` (see **Archie and the FAQ**), and the two Nov 22
+items at the top of the list. Everything else
 below landed in the app on Nov 14, 2026 and is ticked, with a note where the
 app does it differently from the website. Checked against the website on
 Nov 14, 2026: everything else the website does, the app does too, apart from
 the website-only list at the end. Tick an item off here when it lands.
+
+- [ ] **Participate in up to 3 tracks; time conflicts switched off (Nov 22,
+  2026).** See **Participation cap and the time-conflict switch**. The
+  backend already applies to the app; the app still needs:
+  - Map the `participation_limit_reached` error to a "Participation limit
+    reached" dialog showing the error's hint (today it shows the generic
+    "couldn't update" error).
+  - In Add to my day, refuse **Participate** before the questions when the
+    person already participates in `max_participating` tracks (read it from
+    `summit_settings`); Spectate stays open.
+  - Read `schedule_conflicts_on`: while false, `suggestedSessions` and the
+    `DaySummary` "still fit" count should not leave out overlapping tracks.
+    The website's My Day now says "Participating in 1 of 3 tracks. You can
+    spectate as many as you like." instead of the "still fit" line.
+- [ ] **My Day remove asks first (Nov 22, 2026).** The website's minus button
+  on My Day opens "Remove from your day?" ("\"<track>\" will come off your
+  schedule. You can add it again later if seats are left.") with **Keep it**
+  and **Remove**. The app removes from the track page only, so this matters if
+  the app adds a remove control to My Day.
 
 - [x] **8th graders in sessions.** Participating is for high schoolers; an
   8th grader can participate only in sessions whose editors ticked **Let 8th
