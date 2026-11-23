@@ -1,0 +1,1 @@
+{"rows":[{"pid":919552,"duration":"00:48:31.525199","query":"START_REPLICATION SLOT supabase_realtime_messages_replication_slot_2_163_0_a640b93 LOGICAL 0/0 (proto_version '2', publication_names 'supabase_realtime_messages_publication', binary 'true')"}],"message":"inspect db long-running-queries"}
