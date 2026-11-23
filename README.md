@@ -2493,6 +2493,25 @@ has it too since Nov 14, 2026; see below.
     bar, so Home is one tap away; add the same logo pill to their top bar
     only if the full-screen discipline view hides the bar (website:
     `src/components/verse/SummitHomeLink.tsx`).
+- [ ] **Faster close on the discipline portal** (website, Nov 22, 2026).
+  Closing a discipline (Back or Escape) shrinks the circle in 300ms with an
+  ease-out, `cubic-bezier(0.16, 1, 0.3, 1)`, instead of 420ms with an
+  ease-in, so the screen reacts the moment Back is tapped. Opening is
+  unchanged (620ms, `cubic-bezier(0.65, 0, 0.35, 1)`).
+  - Backend: none.
+  - App: the portal's reverse animation in the discipline screen (the
+    timings came from `discipline_effects.dart`): 300ms with
+    `Cubic(0.16, 1, 0.3, 1)` (website: `close()` in
+    `src/components/verse/useCircleReveal.ts`).
+  - Same pass on the website, no app work: buttons dip 1px when pressed (Flutter's ink
+    ripple already does this job), hover effects only on devices with a mouse,
+    the dashboard gradient moved onto a transform layer, and loaded pages
+    fade in over 200ms after their loading skeleton. Check whether the
+    app's loading shimmer cuts straight to content; if it does, a 200ms
+    `AnimatedSwitcher` fade would match.
+  - Also Nov 22, no app work: the website's QR pass no longer shows the
+    user id with a Copy button under the code, which matches the app's
+    Check-in pass card.
 
 Website-only on purpose, no app work: the public landing page (hero, the
 arrival, the Summit figure, the FAQ, the universes orbit, and since Nov 17,
