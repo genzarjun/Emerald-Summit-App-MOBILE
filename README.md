@@ -1668,6 +1668,24 @@ app does it differently from the website. Checked against the website on
 Nov 14, 2026: everything else the website does, the app does too, apart from
 the website-only list at the end. Tick an item off here when it lands.
 
+- [ ] **3D discipline worlds replace the flat motifs (Nov 23, 2026).** On
+  the website each discipline's panel and page now shows a 3D object built
+  from its palette instead of the 2D canvas motif: TechVerse a circuit-board
+  city with a floating chip, VentureVerse a 3D bar chart with a trend line,
+  BioSphere a DNA double helix, NovaSphere a ringed planet with a moon,
+  CivicVerse a round temple with a dome, ImagineX an iridescent shape-shifting
+  paint drop with ribbons, and a cut emerald for disciplines added later.
+  Opening a discipline: the circle still grows from the tap, the object
+  assembles while the camera swings in, and the title, counts and track cards
+  rise in one after another; the page opens on a hero (title bottom left,
+  object above right) and scrolling eases the object up and dimmer. Back
+  scatters it out as the circle closes.
+  - Backend: none.
+  - App: replace `_MotifPainter` (`lib/widgets/discipline_effects.dart`) with
+    the same objects (e.g. flutter_scene or a pre-rendered video/Lottie per
+    discipline), and add the staggered rise-in to the discipline screen
+    (website: `src/components/verse/worlds/worlds.ts`,
+    `src/components/verse/DisciplineWorld.tsx`).
 - [ ] **The LinkedIn question comes when an expert picks a track (Nov 23,
   2026).** Not at sign-up. On the website, choosing **Serve as an expert**
   on a track opens a **Serve as an expert** popup: "Your profile will be
@@ -1692,12 +1710,14 @@ the website-only list at the end. Tick an item off here when it lands.
   **Experts** section under About this track: a card per expert with photo
   (initials if none), name, title, company and area of expertise, and
   **See more**, which opens the whole profile (larger photo, "<title> at
-  <company>", expertise, bio under About, and **Connect on LinkedIn** when
-  they chose to show it). It replaced the "Experts: <names>" line.
+  <company>", expertise, bio under About, **Serving as an expert in N
+  tracks** listing every track they serve in as links, and **Connect on
+  LinkedIn** when they chose to show it). It replaced the "Experts: <names>" line.
   - Backend: done. `session_expert_profiles(p_session_id)`
     ([expert_public_profiles.sql](supabase/expert_public_profiles.sql), run
     Nov 23, 2026) returns id, name, photo_url, title, company, expertise, bio,
-    and linkedin_url only when the expert chose Yes.
+    `tracks` (every track they serve in: id, title, discipline), and
+    linkedin_url only when the expert chose Yes.
     `session_experts` (names) is unchanged, so the app keeps working. It can
     be called signed out since the Experts page went public.
   - App: call `session_expert_profiles` on the session detail screen, show

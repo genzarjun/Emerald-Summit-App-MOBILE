@@ -24,7 +24,10 @@
 --
 -- Run in the SQL editor or with `supabase db query --linked -f`. Safe to re-run.
 
-create or replace function public.session_expert_profiles(p_session_id uuid)
+-- The return columns gained `tracks` (every track the expert serves in, for
+-- See more), so the old shape is dropped first.
+drop function if exists public.session_expert_profiles(uuid);
+create function public.session_expert_profiles(p_session_id uuid)
 returns table (
   id uuid,
   name text,
@@ -33,7 +36,8 @@ returns table (
   company text,
   expertise text,
   bio text,
-  linkedin_url text
+  linkedin_url text,
+  tracks jsonb
 )
 language sql stable security definer set search_path = public as $$
   select p.id,
@@ -45,7 +49,12 @@ language sql stable security definer set search_path = public as $$
          nullif(btrim(coalesce(p.details->>'bio', '')), ''),
          case when p.details->>'linkedin_visible' = 'yes'
               then nullif(btrim(coalesce(p.details->>'linkedin_url', '')), '')
-         end
+         end,
+         (select jsonb_agg(jsonb_build_object('id', s.id, 'title', s.title, 'discipline', s.discipline_id)
+                           order by s.start_time, s.title)
+            from public.registrations r2
+            join public.sessions s on s.id = r2.session_id
+           where r2.user_id = p.id and r2.participation_type = 'expert')
     from public.registrations r
     join public.profiles p on p.id = r.user_id
    where r.session_id = p_session_id
