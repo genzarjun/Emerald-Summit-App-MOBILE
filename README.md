@@ -1672,7 +1672,7 @@ the website-only list at the end. Tick an item off here when it lands.
   2026).** On the website each discipline's panel and page shows a 3D scene
   built from its palette instead of the 2D canvas motif: TechVerse a server
   rack with blinking blades, VentureVerse a business district (lit office
-  towers, a rooftop billboard, traffic), BioSphere a DNA double helix with
+  towers, a rooftop billboard, traffic, an EHS flag on the tallest tower), BioSphere a DNA double helix with
   leaves falling around it, NovaSphere the Earth as the nucleus of an atom
   with shooting stars, CivicVerse a round temple with a dome, ImagineX a
   grand piano playing itself with notes floating up and soft light patches
@@ -1682,7 +1682,8 @@ the website-only list at the end. Tick an item off here when it lands.
   Summit '27 intro, once per discipline per session (click or Escape skips):
   a computer typing code, a money bag that swells and explodes into bills and
   coins, a brain forming from motes with ribbons around it, a gavel striking
-  once (front view, flat face down), a canvas painting itself, a campfire
+  once (front view, flat face down), a canvas sketching and painting
+  Emerald High School's entrance, a campfire
   with smoke. It plays for 2 seconds (the campfire 1.6), then fades into the
   page over 1.3 seconds while the title, counts and track cards rise in, and
   a second into that fade the discipline's own scene builds itself. The page
