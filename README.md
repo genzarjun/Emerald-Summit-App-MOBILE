@@ -1661,7 +1661,7 @@ Both are on the to-do list below.
 
 ### Website changes to bring into the app (to-do)
 Still open: uploading Archie's edited knowledge file and
-redeploying `archie-chat` (see **Archie and the FAQ**), and the two Nov 22
+redeploying `archie-chat` (see **Archie and the FAQ**), and the three Nov 22
 items at the top of the list. Everything else
 below landed in the app on Nov 14, 2026 and is ticked, with a note where the
 app does it differently from the website. Checked against the website on
@@ -1686,6 +1686,15 @@ the website-only list at the end. Tick an item off here when it lands.
   schedule. You can add it again later if seats are left.") with **Keep it**
   and **Remove**. The app removes from the track page only, so this matters if
   the app adds a remove control to My Day.
+- [ ] **Switching to expert asks for everything sign-up does (Nov 22,
+  2026).** On the website, Change role to Expert now opens one page with the
+  expert's questions, the headshot (with Connect LinkedIn) and the Guest Expert
+  Policy, then BeAMentor. Before, the page you were on could redirect to the
+  policy alone, skipping the headshot. And when the policy is shown on its own
+  to an expert who still has BeAMentor to do, the title says "One more step",
+  not "One last step". Check the app's Change role to Expert asks for the
+  headshot, and change `code_of_conduct_screen.dart`'s "One last step" the
+  same way.
 
 - [x] **8th graders in sessions.** Participating is for high schoolers; an
   8th grader can participate only in sessions whose editors ticked **Let 8th
