@@ -1668,24 +1668,37 @@ app does it differently from the website. Checked against the website on
 Nov 14, 2026: everything else the website does, the app does too, apart from
 the website-only list at the end. Tick an item off here when it lands.
 
-- [ ] **3D discipline worlds replace the flat motifs (Nov 23, 2026).** On
-  the website each discipline's panel and page now shows a 3D object built
-  from its palette instead of the 2D canvas motif: TechVerse a circuit-board
-  city with a floating chip, VentureVerse a 3D bar chart with a trend line,
-  BioSphere a DNA double helix, NovaSphere a ringed planet with a moon,
-  CivicVerse a round temple with a dome, ImagineX an iridescent shape-shifting
-  paint drop with ribbons, and a cut emerald for disciplines added later.
-  Opening a discipline: the circle still grows from the tap, the object
-  assembles while the camera swings in, and the title, counts and track cards
-  rise in one after another; the page opens on a hero (title bottom left,
-  object above right) and scrolling eases the object up and dimmer. Back
-  scatters it out as the circle closes.
+- [ ] **3D discipline worlds and openings replace the flat motifs (Nov 23,
+  2026).** On the website each discipline's panel and page shows a 3D scene
+  built from its palette instead of the 2D canvas motif: TechVerse a server
+  rack with blinking blades, VentureVerse a business district (lit office
+  towers, a rooftop billboard, traffic), BioSphere a DNA double helix with
+  leaves falling around it, NovaSphere the Earth as the nucleus of an atom
+  with shooting stars, CivicVerse a round temple with a dome, ImagineX a
+  grand piano playing itself with notes floating up and soft light patches
+  behind, and a cut emerald for disciplines added later. They keep moving
+  while on screen (no easing to a stop; the liquid border too).
+  Opening a discipline plays a short scene over the blurred page, like the
+  Summit '27 intro, once per discipline per session (click or Escape skips):
+  a computer typing code, a money bag that swells and explodes into bills and
+  coins, a brain forming from motes with ribbons around it, a gavel striking
+  once (front view, flat face down), a canvas painting itself, a campfire
+  with smoke. It plays for 2 seconds (the campfire 1.6), then fades into the
+  page over 1.3 seconds while the title, counts and track cards rise in, and
+  a second into that fade the discipline's own scene builds itself. The page
+  opens on a hero (title bottom left, scene above right); scrolling eases the
+  scene up and dimmer. A track page no longer shows the discipline's icon and
+  name above its title.
   - Backend: none.
   - App: replace `_MotifPainter` (`lib/widgets/discipline_effects.dart`) with
-    the same objects (e.g. flutter_scene or a pre-rendered video/Lottie per
-    discipline), and add the staggered rise-in to the discipline screen
-    (website: `src/components/verse/worlds/worlds.ts`,
-    `src/components/verse/DisciplineWorld.tsx`).
+    the same scenes (e.g. flutter_scene or a pre-rendered video per
+    discipline), stop the effects easing to rest, add the openings and the
+    staggered rise-in to the discipline screen, and drop the icon + label row
+    above a session's title (website: `src/components/verse/worlds/worlds.ts`,
+    `src/components/verse/worlds/intros.ts`,
+    `src/components/verse/DisciplineWorld.tsx`,
+    `src/components/verse/DisciplineIntro.tsx`,
+    `src/components/session/SessionView.tsx`).
 - [ ] **The LinkedIn question comes when an expert picks a track (Nov 23,
   2026).** Not at sign-up. On the website, choosing **Serve as an expert**
   on a track opens a **Serve as an expert** popup: "Your profile will be
