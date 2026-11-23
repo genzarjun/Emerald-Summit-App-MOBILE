@@ -2686,7 +2686,8 @@ has it too since Nov 14, 2026; see below.
 - [ ] **Summit logo home link on discipline and track pages** (website,
   Nov 22, 2026). Discipline pages and track pages are full screen with no
   sidebar, so next to **Back** at the top there is now a pill with the
-  Summit logo and **Emerald Summit ’27** that goes to the home page.
+  Summit logo and **Emerald Summit ’27** that goes to the Home dashboard
+  (`/home`, not the landing page, since Nov 23).
   - Backend: none.
   - App: the discipline and session screens already sit inside the bottom
     bar, so Home is one tap away; add the same logo pill to their top bar
