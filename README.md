@@ -2187,6 +2187,11 @@ has it too since Nov 14, 2026; see below.
   (Home's phone-only Summit '27 card is gone). The app's bottom bar is
   already full, so in the app reach it from Home, or decide whether it
   earns a tab.
+  - **Sponsor ranking** (website, Nov 22, 2026): the tiers are one column,
+    Capstone on top, so the order reads as a ranking. Each card has a
+    square emerald badge with its rank (1 to 5), a "Tier n of 5" line with
+    a five-bar meter filled to its level (Capstone five bars, Cornerstone
+    one), and Capstone also says "Top tier" and has an emerald border.
   - **Heading** (website, Nov 22, 2026): the screen's one heading is a big
     **Summit '27** with the date line under it; no per-tab title
     ("Keynote", "Who's running the Summit?" and "Who helps make the
