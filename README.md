@@ -2259,8 +2259,8 @@ has it too since Nov 14, 2026; see below.
   with EAF) under each. Keynote and Team say "Coming soon" ("This year's
   keynote speaker will be announced soon." / "About Me pages for the
   students and organizers working on Emerald Summit '27 are coming soon.")
-  until their details come in. Sponsors shows one card per tier, highest
-  first, with its price, perks and logos ("Open" while it has none), then
+  until their details come in. Sponsors shows the tiers highest first, each
+  with its price, perks, logos and open logo spots (see **Sponsor pyramid**), then
   **Become a sponsor** and **Sponsorship details**. The header line is
   "Saturday, January 23, 2027 · 9 AM to 5 PM · Emerald High School,
   Dublin, CA". On the website it's one **Summit '27** sidebar tab (since
@@ -2269,11 +2269,12 @@ has it too since Nov 14, 2026; see below.
   (Home's phone-only Summit '27 card is gone). The app's bottom bar is
   already full, so in the app reach it from Home, or decide whether it
   earns a tab.
-  - **Sponsor ranking** (website, Nov 22, 2026): the tiers are one column,
-    Capstone on top, so the order reads as a ranking. Each card has a
-    square emerald badge with its rank (1 to 5), a "Tier n of 5" line with
-    a five-bar meter filled to its level (Capstone five bars, Cornerstone
-    one), and Capstone also says "Top tier" and has an emerald border.
+  - **Sponsor pyramid** (website, Nov 22, 2026): the Sponsors subtab shows
+    the tiers as the stepped peak the app's Home already has (Capstone at
+    the top, the top two solid emerald), with open spots filling out each
+    row: the first says **Your company logo could go here**, the rest are
+    dashed + slots. On the website the open spots open the sponsor Zeffy
+    form (like Become a sponsor) instead of emailing.
   - **Heading** (website, Nov 22, 2026): the screen's one heading is a big
     **Summit '27** with the date line under it; no per-tab title
     ("Keynote", "Who's running the Summit?" and "Who helps make the
