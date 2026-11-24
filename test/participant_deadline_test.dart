@@ -19,7 +19,6 @@ Session setDeadline(SampleStore store, Session session, DateTime? deadline) {
     disciplineId: s.disciplineId,
     title: s.title,
     disciplineName: s.disciplineName,
-    track: s.track,
     room: s.room,
     roomId: s.roomId,
     expertName: s.expertName,

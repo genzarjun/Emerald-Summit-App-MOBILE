@@ -624,6 +624,14 @@ permissions, rooms, session assignments, and attendance). Run these in order,
     landing site. Both return `tracks`, every track the expert serves in
     (`session_expert_profiles` drops and recreates itself for that). Safe to
     re-run. *(Run Nov 23, 2026, three times, each after a rolled-back test.)*
+76. `supabase/drop_track_subtitle_sponsor.sql`: **drops the unused
+    `sessions.track` and `sessions.sponsor` columns.** `track` was the old
+    track a session belonged to, from before every session became a track;
+    `sponsor` was a per-track note that no track used. Neither app reads
+    them any more. Recreates `sessions_with_counts` without them and stops
+    the edit-history trigger watching them. Safe to re-run. *(Run Nov 23,
+    2026, after a rolled-back test: the view kept all 21 tracks and 12
+    sign-ups, and signed-out visitors could still read it.)*
 
 `qr_checkin_setup.sql` (step 42) was re-run on Nov 22, 2026. The live
 database had an older version: no `fetch_checkin_stats`, no Realtime on

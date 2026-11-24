@@ -20,7 +20,6 @@ Session withTeamSize(Session s, int maxTeamSize, {String? projectPrompt}) =>
       disciplineId: s.disciplineId,
       title: s.title,
       disciplineName: s.disciplineName,
-      track: s.track,
       room: s.room,
       roomId: s.roomId,
       expertName: s.expertName,

@@ -326,8 +326,8 @@ class _SessionEditorScreenState extends State<SessionEditorScreen> {
     final roomName = _roomId == null
         ? ''
         : _rooms.firstWhere((r) => r.id == _roomId).name;
-    // `track` and `sponsor` are no longer editable (a "track" IS a session), so
-    // they're omitted here — on an edit that leaves any existing values intact.
+    // The old `track` and `sponsor` columns were dropped Nov 23, 2026 (a "track"
+    // IS a session now).
     // A locked room is left out, so an edit keeps whatever the row has.
     final data = <String, dynamic>{
       'discipline_id': widget.discipline.id,

@@ -451,7 +451,6 @@ class Session {
     required this.disciplineId,
     required this.title,
     required this.disciplineName,
-    required this.track,
     required this.room,
     this.roomId,
     required this.expertName,
@@ -460,7 +459,6 @@ class Session {
     required this.capacity,
     required this.enrolled,
     required this.description,
-    this.sponsor,
     this.heroImageUrl,
     this.pageBlocks = const [],
     this.participantQuestions = const [],
@@ -478,7 +476,6 @@ class Session {
         disciplineId: (row['discipline_id'] ?? '').toString(),
         title: (row['title'] ?? '') as String,
         disciplineName: (row['discipline_name'] ?? '') as String,
-        track: (row['track'] ?? '') as String,
         room: (row['room'] ?? '') as String,
         roomId: row['room_id']?.toString(),
         expertName: (row['expert_name'] ?? '') as String,
@@ -487,7 +484,6 @@ class Session {
         capacity: (row['capacity'] ?? 0) as int,
         enrolled: (row['enrolled'] as num?)?.toInt() ?? 0,
         description: (row['description'] ?? '') as String,
-        sponsor: row['sponsor'] as String?,
         heroImageUrl: (row['hero_image_url'] as String?)?.isEmpty ?? true
             ? null
             : row['hero_image_url'] as String?,
@@ -514,7 +510,6 @@ class Session {
   final String disciplineId;
   final String title;
   final String disciplineName;
-  final String track;
   final String room;
 
   /// The rooms-catalog id this session is tied to (nullable: "Unassigned").
@@ -526,7 +521,6 @@ class Session {
   final int capacity;
   final int enrolled;
   final String description;
-  final String? sponsor;
 
   /// The session page's hero banner image (a public URL), or null when unset.
   final String? heroImageUrl;

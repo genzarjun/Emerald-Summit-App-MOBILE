@@ -236,7 +236,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
 /// The main "Session" tab — the rich page. Loads the session's gallery photos
 /// (Storage) once, and renders the hero, info, description, content blocks,
-/// gallery, sponsor, and the day-plan action.
+/// gallery and the day-plan action.
 class _SessionAboutTab extends StatefulWidget {
   const _SessionAboutTab({
     super.key,
@@ -969,16 +969,6 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (current.track.trim().isNotEmpty) ...[
-                Text(
-                  current.track.toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-              ],
               Text(current.title, style: theme.textTheme.headlineSmall),
               const SizedBox(height: 16),
               _InfoRow(icon: Icons.schedule, text: current.timeLabel),
@@ -1048,32 +1038,6 @@ class _SessionAboutTabState extends State<_SessionAboutTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (current.sponsor != null) ...[
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.handshake,
-                        size: 18,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          current.sponsor!,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               const SizedBox(height: 28),
               if (managing)
                 _ManagingCard(

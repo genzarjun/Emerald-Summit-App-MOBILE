@@ -44,7 +44,6 @@ void main() {
         title: 'T',
         disciplineId: 'd',
         disciplineName: 'D',
-        track: '',
         room: '',
         expertName: '',
         start: '10:00',

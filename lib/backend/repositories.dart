@@ -215,8 +215,8 @@ abstract interface class CatalogRepository {
 /// Session authoring for mentors/admins. Authorization is enforced by the
 /// backend, so an unauthorized write is rejected even if the UI is bypassed.
 abstract interface class ContentRepository {
-  /// Map keys: discipline_id, title, track, room, start_time,
-  /// end_time, capacity, description, sponsor.
+  /// Map keys: discipline_id, title, room, start_time,
+  /// end_time, capacity, description.
   /// Throws [SessionWriteDeniedException] when the backend refuses the caller.
   Future<void> createSession(Map<String, dynamic> data);
 
